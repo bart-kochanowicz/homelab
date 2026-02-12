@@ -93,7 +93,7 @@ resource "cloudflare_dns_record" "argocd" {
 # Create DNS record for Crafty Controller pointing to the tunnel
 resource "cloudflare_dns_record" "crafty" {
   zone_id = var.cloudflare_zone_id
-  name    = "crafty-controller"
+  name    = var.crafty_controller_subdomain
   content = "${cloudflare_zero_trust_tunnel_cloudflared.homelab.id}.cfargotunnel.com"
   type    = "CNAME"
   proxied = true
@@ -104,7 +104,7 @@ resource "cloudflare_dns_record" "crafty" {
 resource "cloudflare_dns_record" "mc_a" {
   zone_id = var.cloudflare_zone_id
   name    = "mc"
-  content = "${var.cluster_public_ip}"
+  content = var.cluster_public_ip
   type    = "A"
   proxied = false
   comment = "Managed by Terraform - Minecraft Server"
@@ -128,7 +128,7 @@ resource "cloudflare_zero_trust_access_application" "argocd" {
 resource "cloudflare_zero_trust_access_application" "crafty" {
   account_id                = var.cloudflare_account_id
   name                      = "Crafty Controller - Homelab"
-  domain                    = "crafty-controller.${var.domain}"
+  domain                    = "${var.crafty_controller_subdomain}.${var.domain}"
   type                      = "self_hosted"
   session_duration          = "72h"
   auto_redirect_to_identity = true
@@ -184,4 +184,3 @@ resource "cloudflare_zero_trust_access_application" "home_assistant" {
     id = cloudflare_zero_trust_access_policy.allow_emails_policy.id
   }]
 }
-

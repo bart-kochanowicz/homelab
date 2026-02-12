@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/bartlomiej-kochanowicz/homelab.git
-    targetRevision: HEAD
+    targetRevision: main
     path: system/local-path-provisioner
   destination:
     server: https://kubernetes.default.svc
