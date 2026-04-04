@@ -53,6 +53,19 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         }
       },
       {
+        hostname = "${var.n8n_subdomain}.${var.domain}"
+        service  = var.n8n_service_url
+      },
+      {
+        hostname = "${var.n8n_webhook_subdomain}.${var.domain}"
+        path     = "^/(webhook|webhook-test|webhook-waiting)(/.*)?$"
+        service  = var.n8n_service_url
+      },
+      {
+        hostname = "${var.n8n_webhook_subdomain}.${var.domain}"
+        service  = "http_status:404"
+      },
+      {
         service = "http_status:404"
       }
     ]
@@ -177,6 +190,41 @@ resource "cloudflare_zero_trust_access_application" "home_assistant" {
   account_id                = var.cloudflare_account_id
   name                      = "Home Assistant - Homelab"
   domain                    = "${var.home_assistant_subdomain}.${var.domain}"
+  type                      = "self_hosted"
+  session_duration          = "72h"
+  auto_redirect_to_identity = true
+  policies = [{
+    id = cloudflare_zero_trust_access_policy.allow_emails_policy.id
+  }]
+}
+
+# Create DNS record for n8n pointing to the tunnel
+resource "cloudflare_dns_record" "n8n" {
+  zone_id = var.cloudflare_zone_id
+  name    = var.n8n_subdomain
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.homelab.id}.cfargotunnel.com"
+  type    = "CNAME"
+  proxied = true
+  comment = "Managed by Terraform - n8n via Cloudflare Tunnel"
+  ttl     = 1 # Automatic
+}
+
+# Create DNS record for public n8n webhooks pointing to the tunnel
+resource "cloudflare_dns_record" "n8n_webhook" {
+  zone_id = var.cloudflare_zone_id
+  name    = var.n8n_webhook_subdomain
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.homelab.id}.cfargotunnel.com"
+  type    = "CNAME"
+  proxied = true
+  comment = "Managed by Terraform - n8n webhooks via Cloudflare Tunnel"
+  ttl     = 1 # Automatic
+}
+
+# Create Cloudflare Access Application for n8n editor
+resource "cloudflare_zero_trust_access_application" "n8n" {
+  account_id                = var.cloudflare_account_id
+  name                      = "n8n - Homelab"
+  domain                    = "${var.n8n_subdomain}.${var.domain}"
   type                      = "self_hosted"
   session_duration          = "72h"
   auto_redirect_to_identity = true

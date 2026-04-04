@@ -20,3 +20,9 @@ A Kubernetes homelab setup using ArgoCD for GitOps. It uses [Talos Linux](https:
 - Self-hosted runner for CI/CD pipelines
 - Self-hosted terraform state backend (MinIO + Terraform’s s3 backend)
 - configure devcontainer environment
+
+## Hosted Apps
+
+- Home Assistant is deployed in-cluster and exposed through Cloudflare Tunnel.
+- Crafty Controller is deployed in-cluster and exposed through Cloudflare Tunnel.
+- n8n is deployed in-cluster and exposed through Cloudflare Tunnel with a protected editor at `n8n.thecavespace.com` and public webhooks at `n8n-webhook.thecavespace.com`.

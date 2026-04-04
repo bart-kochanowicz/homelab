@@ -8,6 +8,8 @@ domain                      = "example.com"
 argocd_subdomain            = "argocd"
 tunnel_name                 = "homelab-tunnel"
 crafty_controller_subdomain = "crafty-controller"
+n8n_subdomain               = "n8n"
+n8n_webhook_subdomain       = "n8n-webhook"
 
 # Email addresses allowed to access ArgoCD
 allowed_emails = [
