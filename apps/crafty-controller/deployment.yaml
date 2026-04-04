@@ -19,49 +19,49 @@ spec:
         app.kubernetes.io/name: crafty-controller
     spec:
       containers:
-      - name: crafty-controller
-        image: arcadiatechnology/crafty-4:4.6.1
-        ports:
-        - name: web
-          containerPort: 8443
-          protocol: TCP
-        - name: dynmap
-          containerPort: 8123
-          protocol: TCP
-        # Minecraft server ports (25565-25575 range for multiple servers)
-        - name: mc-server
-          containerPort: 30000
-          protocol: TCP
-        env:
-        - name: TZ
-          value: "Europe/Warsaw"
-        volumeMounts:
-        - name: crafty-data
-          mountPath: /crafty/backups
-          subPath: backups
-        - name: crafty-data
-          mountPath: /crafty/logs
-          subPath: logs
-        - name: crafty-data
-          mountPath: /crafty/servers
-          subPath: servers
-        - name: crafty-data
-          mountPath: /crafty/config
-          subPath: config
-        - name: crafty-data
-          mountPath: /crafty/import
-          subPath: import
-        - name: crafty-data
-          mountPath: /crafty/app/config
-          subPath: app-config
-        resources:
-          requests:
-            memory: "4Gi"
-            cpu: "1000m"
-          limits:
-            memory: "16Gi"
-            cpu: "4000m"
+        - name: crafty-controller
+          image: arcadiatechnology/crafty-4:4.10.2
+          ports:
+            - name: web
+              containerPort: 8443
+              protocol: TCP
+            - name: dynmap
+              containerPort: 8123
+              protocol: TCP
+            # Minecraft server ports (25565-25575 range for multiple servers)
+            - name: mc-server
+              containerPort: 30000
+              protocol: TCP
+          env:
+            - name: TZ
+              value: "Europe/Warsaw"
+          volumeMounts:
+            - name: crafty-data
+              mountPath: /crafty/backups
+              subPath: backups
+            - name: crafty-data
+              mountPath: /crafty/logs
+              subPath: logs
+            - name: crafty-data
+              mountPath: /crafty/servers
+              subPath: servers
+            - name: crafty-data
+              mountPath: /crafty/config
+              subPath: config
+            - name: crafty-data
+              mountPath: /crafty/import
+              subPath: import
+            - name: crafty-data
+              mountPath: /crafty/app/config
+              subPath: app-config
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "1000m"
+            limits:
+              memory: "16Gi"
+              cpu: "4000m"
       volumes:
-      - name: crafty-data
-        persistentVolumeClaim:
-          claimName: crafty-data
+        - name: crafty-data
+          persistentVolumeClaim:
+            claimName: crafty-data
