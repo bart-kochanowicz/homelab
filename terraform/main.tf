@@ -15,4 +15,7 @@ module "cloudflare" {
   grafana_service_url           = var.grafana_service_url
   home_assistant_subdomain      = var.home_assistant_subdomain
   home_assistant_service_url    = var.home_assistant_service_url
+  n8n_subdomain                 = var.n8n_subdomain
+  n8n_webhook_subdomain         = var.n8n_webhook_subdomain
+  n8n_service_url               = var.n8n_service_url
 }

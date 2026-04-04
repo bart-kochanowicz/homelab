@@ -78,3 +78,21 @@ variable "home_assistant_service_url" {
   type        = string
   default     = "http://home-assistant.home-assistant.svc.cluster.local:8123"
 }
+
+variable "n8n_subdomain" {
+  description = "Subdomain for the n8n editor"
+  type        = string
+  default     = "n8n"
+}
+
+variable "n8n_webhook_subdomain" {
+  description = "Subdomain for public n8n webhook traffic"
+  type        = string
+  default     = "n8n-webhook"
+}
+
+variable "n8n_service_url" {
+  description = "Internal Kubernetes service URL for n8n"
+  type        = string
+  default     = "http://n8n.n8n.svc.cluster.local:5678"
+}
