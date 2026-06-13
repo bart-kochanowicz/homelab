@@ -63,26 +63,42 @@ To rotate the CA:
 Configure an encrypted workstation restic repository:
 
 ```bash
-export RESTIC_REPOSITORY=/secure/path/homelab-restic
-export RESTIC_PASSWORD_FILE=$HOME/.config/restic/homelab-password
+export RESTIC_REPOSITORY="/Volumes/SanDisk/Backups/homelab-restic"
+export RESTIC_PASSWORD_FILE="$HOME/.config/restic/homelab-password"
+export RESTORE_TEST_DIR="/Volumes/SanDisk/Backups/homelab-restore-tests"
 ./scripts/backup-pvcs.sh
 ```
 
+The local repository path must be absolute. In particular, keep the leading
+slash in `/Volumes`; `Volumes/...` creates a repository inside the Git checkout.
 The script scales down Crafty, Home Assistant, and n8n one at a time, mounts each
-PVC read-only in a temporary pod, streams a tar archive to restic, runs
-`restic check`, restores replicas, and writes `.backups/last-successful-backup`.
-Prometheus data is intentionally disposable.
+PVC read-only in a temporary pod, retries transient stream failures, confirms
+that each snapshot was finalized, runs `restic check`, restores replicas, and
+writes `.backups/last-successful-backup`. Prometheus data is intentionally
+disposable.
 
-Restore one PVC:
+Test restoring every PVC to the workstation or external disk without changing
+Kubernetes:
 
 ```bash
+./scripts/restore-pvc.sh crafty-controller crafty-controller crafty-data
+./scripts/restore-pvc.sh home-assistant home-assistant home-assistant-config
 ./scripts/restore-pvc.sh n8n n8n n8n-data
 ```
 
-Before CNI migration, create a test file in every protected PVC, run a backup,
-remove the file, restore it, and verify its content. Record the rehearsal date.
-Each successful restore writes `.backups/last-successful-restore-test`; the
-migration refuses to run without both backup and restore-test markers.
+Inspect a known test file under each printed restore directory. The global
+`.backups/last-successful-restore-test` marker is written only after all three
+restore tests succeed. The migration refuses to run without both backup and
+restore-test markers.
+
+An actual disaster recovery overwrite is deliberately separate:
+
+```bash
+CONFIRM_IN_PLACE_RESTORE=yes ./scripts/restore-pvc.sh --in-place \
+  n8n n8n n8n-data
+```
+
+The script verifies the snapshot and archive path before scaling the deployment.
 
 ## Cilium Migration
 
