@@ -3,6 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: home-assistant-config
   namespace: home-assistant
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   labels:
     app.kubernetes.io/name: home-assistant
     app.kubernetes.io/part-of: homelab

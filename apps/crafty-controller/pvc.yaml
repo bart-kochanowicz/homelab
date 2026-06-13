@@ -3,6 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: crafty-data
   namespace: crafty-controller
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   labels:
     app.kubernetes.io/name: crafty-controller
     app.kubernetes.io/part-of: homelab
