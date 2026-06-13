@@ -5,6 +5,7 @@ namespace: monitoring
 
 resources:
   - namespace.yaml
+  - grafana-admin-sealed-secret.yaml
   - cloudflared-pod-monitor.yaml
   - cilium-service-monitors.yaml
   - security-alerts.yaml

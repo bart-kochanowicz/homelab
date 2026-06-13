@@ -16,4 +16,4 @@ resources:
   - cloudflared.yaml
   - monitoring-crds.yaml
   - monitoring.yaml
-  - network-policies.yaml
+  # Add network-policies.yaml after the post-Cilium Hubble observation period.

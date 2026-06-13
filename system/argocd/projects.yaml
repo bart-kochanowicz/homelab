@@ -97,6 +97,12 @@ spec:
       kind: Deployment
     - group: apps
       kind: StatefulSet
+    - group: argoproj.io
+      kind: Application
+    - group: argoproj.io
+      kind: ApplicationSet
+    - group: argoproj.io
+      kind: AppProject
     - group: batch
       kind: CronJob
     - group: batch
@@ -106,7 +112,11 @@ spec:
     - group: cert-manager.io
       kind: Certificate
     - group: monitoring.coreos.com
+      kind: Alertmanager
+    - group: monitoring.coreos.com
       kind: PrometheusRule
+    - group: monitoring.coreos.com
+      kind: Prometheus
     - group: monitoring.coreos.com
       kind: PodMonitor
     - group: monitoring.coreos.com

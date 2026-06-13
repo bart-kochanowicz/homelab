@@ -117,6 +117,8 @@ During an approved maintenance window:
 5. Verify `cilium status`, `cilium connectivity test`, DNS, ClusterIP, NodePort,
    Hubble Relay, ArgoCD, cloudflared, and all applications.
 6. Leave `policyEnforcementMode: never` for 24-48 hours while reviewing flows.
+7. Add `network-policies.yaml` back to `system/argocd/kustomization.yaml`, merge
+   it, and verify the explicit allow rules before enabling policy enforcement.
 
 The migration deliberately keeps kube-proxy and the existing pod/service CIDRs.
 It is a maintenance cutover, not a dual-overlay live migration.
