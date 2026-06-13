@@ -3,6 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: n8n-data
   namespace: n8n
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   labels:
     app.kubernetes.io/name: n8n
     app.kubernetes.io/part-of: homelab

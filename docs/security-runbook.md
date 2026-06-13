@@ -60,6 +60,12 @@ To rotate the CA:
 
 ## PVC Backup And Restore
 
+Application namespaces and protected PVCs use ArgoCD
+`Prune=false,Delete=false`. Generated Applications also preserve resources when
+their source directory is removed. Do not remove these safeguards during
+ApplicationSet or namespace ownership changes; deleting a Namespace cascades to
+its PVCs and workloads.
+
 Configure an encrypted workstation restic repository:
 
 ```bash
