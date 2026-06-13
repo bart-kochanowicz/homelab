@@ -1,0 +1,9 @@
+apiVersion: v2
+name: homelab-cilium
+description: Bootstrap-only Cilium dependency for Talos
+type: application
+version: 0.1.0
+dependencies:
+  - name: cilium
+    version: 1.19.3
+    repository: https://helm.cilium.io/
