@@ -1,0 +1,17 @@
+registries:
+  - type: standard
+    ref: v4.433.0
+
+packages:
+  - name: hashicorp/terraform@v1.14.3
+  - name: kubernetes/kubectl@v1.34.0
+  - name: helm/helm@v3.19.0
+  - name: koalaman/shellcheck@v0.11.0
+  - name: yannh/kubeconform@v0.7.0
+  - name: stackrox/kube-linter@v0.7.6
+  - name: aquasecurity/trivy@v0.71.0
+  - name: gitleaks/gitleaks@v8.29.1
+  - name: cilium/cilium-cli@v0.19.4
+  - name: restic/restic@v0.19.0
+  - name: jqlang/jq@jq-1.8.1
+  - name: bitnami-labs/sealed-secrets@v0.37.0

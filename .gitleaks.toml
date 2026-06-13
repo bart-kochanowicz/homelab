@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SealedSecret ciphertext is safe to publish"
+paths = [
+  '''^apps/n8n/sealed-secret\.yaml$''',
+  '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
+  '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
+  '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
+]
