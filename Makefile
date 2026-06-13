@@ -31,6 +31,7 @@ validate-tools:
 
 validate-format:
 	terraform fmt -check -recursive terraform
+	terraform -chdir=terraform init -backend=false -input=false
 	terraform -chdir=terraform validate -no-color
 
 validate-yaml:
