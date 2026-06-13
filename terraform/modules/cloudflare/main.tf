@@ -27,7 +27,8 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname = "${var.argocd_subdomain}.${var.domain}"
         service  = var.argocd_service_url
         origin_request = {
-          no_tls_verify = true
+          ca_pool            = "/etc/cloudflared/ca/homelab-root-ca.crt"
+          origin_server_name = "argocd-server.argocd.svc.cluster.local"
         }
       },
       {
@@ -40,16 +41,10 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       {
         hostname = "grafana.${var.domain}"
         service  = "${var.grafana_service_url}"
-        origin_request = {
-          no_tls_verify = true
-        }
       },
       {
         hostname = "${var.home_assistant_subdomain}.${var.domain}"
         service  = "${var.home_assistant_service_url}"
-        origin_request = {
-          no_tls_verify = true
-        }
       },
       {
         hostname = "${var.n8n_subdomain}.${var.domain}"

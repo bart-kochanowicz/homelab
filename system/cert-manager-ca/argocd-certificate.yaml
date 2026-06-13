@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  secretName: argocd-server-tls
+  duration: 2160h
+  renewBefore: 360h
+  issuerRef:
+    name: homelab-internal-ca
+    kind: ClusterIssuer
+  commonName: argocd-server.argocd.svc.cluster.local
+  dnsNames:
+    - argocd.thecavespace.com
+    - argocd-server
+    - argocd-server.argocd
+    - argocd-server.argocd.svc
+    - argocd-server.argocd.svc.cluster.local

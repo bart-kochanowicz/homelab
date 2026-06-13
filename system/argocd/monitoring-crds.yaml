@@ -7,9 +7,9 @@ metadata:
     app.kubernetes.io/name: prometheus-operator-crds
     app.kubernetes.io/part-of: homelab
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "-4"
 spec:
-  project: default
+  project: monitoring-crds
   source:
     repoURL: https://github.com/prometheus-community/helm-charts.git
     targetRevision: kube-prometheus-stack-79.4.1
@@ -18,7 +18,7 @@ spec:
     server: https://kubernetes.default.svc
   syncPolicy:
     automated:
-      prune: false  # Never prune CRDs automatically
+      prune: false
       selfHeal: true
     syncOptions:
       - Replace=true

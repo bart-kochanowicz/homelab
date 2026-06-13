@@ -4,14 +4,11 @@ metadata:
   name: apps-generator
 spec:
   generators:
-  # Generator for apps/ directories
-  - git:
-      repoURL: &repoURL https://github.com/bartlomiej-kochanowicz/homelab.git
-      revision: main
-      directories:
-      - path: apps/*
-      - path: apps/nginx-test-*
-        exclude: true
+    - git:
+        repoURL: &repoURL https://github.com/bart-kochanowicz/homelab.git
+        revision: main
+        directories:
+          - path: apps/*
   template:
     metadata:
       name: '{{path.basename}}'
@@ -22,7 +19,7 @@ spec:
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
-      project: default
+      project: applications
       source:
         repoURL: *repoURL
         targetRevision: main
@@ -35,6 +32,6 @@ spec:
           prune: true
           selfHeal: true
         syncOptions:
-        - CreateNamespace=true
-        - RespectIgnoreDifferences=true
+          - CreateNamespace=false
+          - RespectIgnoreDifferences=true
       revisionHistoryLimit: 3

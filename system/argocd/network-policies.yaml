@@ -1,22 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-bootstrap
+  name: network-policies
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    homelab.security/staged: "Enable only after 24-48 hours of Hubble review"
 spec:
   project: platform
   source:
     repoURL: https://github.com/bart-kochanowicz/homelab.git
     targetRevision: main
-    path: system/argocd/
+    path: system/network-policies
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: n8n
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false

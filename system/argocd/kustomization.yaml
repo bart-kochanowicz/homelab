@@ -3,11 +3,17 @@ kind: Kustomization
 namespace: argocd
 resources:
   - namespace.yaml
+  - projects.yaml
   - argocd-cm.yaml
+  - argocd-rbac-cm.yaml
   - argocd-bootstrap.yaml
   - applicationset.yaml
+  - app-namespaces.yaml
   - sealed-secrets.yaml
+  - cert-manager.yaml
+  - cert-manager-ca.yaml
   - local-path-provisioner.yaml
   - cloudflared.yaml
   - monitoring-crds.yaml
   - monitoring.yaml
+  - network-policies.yaml
