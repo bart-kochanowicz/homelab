@@ -17,13 +17,29 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: n8n
+      annotations:
+        homelab.security/automount-reviewed: "true"
     spec:
+      serviceAccountName: n8n
+      automountServiceAccountToken: false
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: n8n
-        image: docker.n8n.io/n8nio/n8n:2.14.2
+        image: docker.n8n.io/n8nio/n8n:2.14.2@sha256:4f448824ec99e1160e49eeb1c5bf2130a5d244fe9029e871a9f4d9f126dbfc98
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
         ports:
         - name: http
           containerPort: 5678
@@ -59,6 +75,8 @@ spec:
         volumeMounts:
         - name: n8n-data
           mountPath: /home/node/.n8n
+        - name: tmp
+          mountPath: /tmp
         startupProbe:
           httpGet:
             path: /healthz
@@ -93,3 +111,6 @@ spec:
       - name: n8n-data
         persistentVolumeClaim:
           claimName: n8n-data
+      - name: tmp
+        emptyDir:
+          sizeLimit: 256Mi

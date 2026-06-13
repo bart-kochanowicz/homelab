@@ -1,57 +1,55 @@
-kube-prometheus-stack:
-  grafana:
+grafana:
+  enabled: true
+  ingress:
+    enabled: false
+  persistence:
     enabled: true
-    ingress:
-      enabled: false
-    persistence:
-      enabled: true
-      storageClassName: local-path
-      size: 10Gi
+    storageClassName: local-path
+    size: 10Gi
 
-  prometheus:
-    prometheusSpec:
-      retention: 30d
-      storageSpec:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: local-path
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 50Gi
-      resources:
-        requests:
-          memory: 2Gi
-          cpu: 500m
-        limits:
-          memory: 4Gi
-          cpu: 2000m
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 500m
+      limits:
+        memory: 4Gi
+        cpu: 2000m
 
-  alertmanager:
-    alertmanagerSpec:
-      storage:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: local-path
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 5Gi
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
 
-  # Node Exporter - metrics from all nodes
-  nodeExporter:
-    enabled: true
+# Node Exporter - metrics from all nodes
+nodeExporter:
+  enabled: true
 
-  # Kube State Metrics - cluster state metrics
-  kubeStateMetrics:
-    enabled: true
+# Kube State Metrics - cluster state metrics
+kubeStateMetrics:
+  enabled: true
 
-  # Prometheus Operator
-  prometheusOperator:
-    enabled: true
-    # Disable admission webhooks to avoid TLS issues
-    admissionWebhooks:
-      enabled: false
-  # Install CRDs
-  crds:
-    enabled: true
+# Prometheus Operator
+prometheusOperator:
+  enabled: true
+  admissionWebhooks:
+    enabled: false
+
+crds:
+  enabled: false

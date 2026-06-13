@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: crafty-controller
-  labels:
-    app.kubernetes.io/name: crafty-controller
-    app.kubernetes.io/part-of: homelab

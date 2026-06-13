@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab-security-and-operations
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: homelab.platform
+      rules:
+        - alert: CiliumAgentUnavailable
+          expr: kube_daemonset_status_number_unavailable{namespace="kube-system",daemonset="cilium"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: One or more Cilium agents are unavailable
+        - alert: CiliumEndpointNotReady
+          expr: sum(cilium_endpoint_state{endpoint_state!="ready"}) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cilium has endpoints that are not ready
+        - alert: CiliumUnmanagedEndpoints
+          expr: sum(cilium_unmanaged_pods_total) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cilium has detected unmanaged pods
+        - alert: CiliumPolicyDrops
+          expr: sum(rate(hubble_drop_total[5m])) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cilium is dropping traffic
+        - alert: CloudflaredReplicaLoss
+          expr: kube_deployment_status_replicas_available{namespace="kube-system",deployment="cloudflared"} < 2
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Cloudflared has lost a replica
+        - alert: ArgoCDApplicationOutOfSync
+          expr: count(argocd_app_info{sync_status!="Synced"}) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: An ArgoCD application is out of sync
+        - alert: CertificateExpiringSoon
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 1209600
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: A cert-manager certificate expires in less than 14 days
+        - alert: PvcBackupHelperFailed
+          expr: kube_pod_container_status_terminated_reason{pod="pvc-backup-failed",reason!="Completed"} > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: A PVC backup helper pod failed
