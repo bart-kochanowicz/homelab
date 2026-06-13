@@ -8,9 +8,9 @@ metadata:
 data:
   kustomize.buildOptions: "--enable-helm"
   timeout.reconciliation: "60s"
-  webhooks.github.secret: ""           # TODO
   repo.server.timeout.seconds: "60"
   application.instanceLabelKey: argocd.argoproj.io/instance
+  admin.enabled: "true"
   application.sync.policy.default: |
     automated:
       prune: true

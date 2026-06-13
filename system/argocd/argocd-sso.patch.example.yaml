@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  url: https://argocd.thecavespace.com
+  dex.config: |
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: $dex.github.clientID
+          clientSecret: $dex.github.clientSecret
+          redirectURI: https://argocd.thecavespace.com/api/dex/callback
+          loadAllGroups: false

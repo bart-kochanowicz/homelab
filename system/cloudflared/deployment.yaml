@@ -15,10 +15,26 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: cloudflared
+      annotations:
+        homelab.security/automount-reviewed: "true"
     spec:
+      serviceAccountName: cloudflared
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: cloudflared
-        image: cloudflare/cloudflared:2025.10.1-4-g2ab5f57b
+        image: cloudflare/cloudflared:2026.6.0@sha256:ba461b8aa9c042156dbd39c38657fe7431bafa063220eab8d5330a523863da9f
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
         args:
         - tunnel
         - --no-autoupdate
@@ -33,12 +49,26 @@ spec:
             secretKeyRef:
               name: tunnel-credentials
               key: token
+        ports:
+        - name: metrics
+          containerPort: 2000
+          protocol: TCP
+        volumeMounts:
+        - name: homelab-root-ca
+          mountPath: /etc/cloudflared/ca
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /ready
             port: 2000
           failureThreshold: 1
           initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: metrics
+          initialDelaySeconds: 5
           periodSeconds: 10
         resources:
           requests:
@@ -47,6 +77,10 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "200m"
+      volumes:
+      - name: homelab-root-ca
+        configMap:
+          name: homelab-root-ca
       # Spread replicas across nodes for high availability
       affinity:
         podAntiAffinity:

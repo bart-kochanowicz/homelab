@@ -5,8 +5,11 @@ namespace: kube-system
 
 resources:
   - sealed-cloudflared-token.yaml
+  - service-account.yaml
+  - root-ca-configmap.yaml
   - deployment.yaml
 
-commonLabels:
-  app.kubernetes.io/managed-by: argocd
-  app.kubernetes.io/part-of: homelab
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: argocd
+      app.kubernetes.io/part-of: homelab

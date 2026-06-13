@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homelab-root-ca
+  namespace: kube-system
+data:
+  homelab-root-ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIFSzCCAzOgAwIBAgIUCok99Z51baZMY/sUuqrGyLV6AcMwDQYJKoZIhvcNAQEL
+    BQAwNTEhMB8GA1UEAwwYaG9tZWxhYiBpbnRlcm5hbCByb290IENBMRAwDgYDVQQK
+    DAdob21lbGFiMB4XDTI2MDYxMzE2NTU1NVoXDTM2MDYxMDE2NTU1NVowNTEhMB8G
+    A1UEAwwYaG9tZWxhYiBpbnRlcm5hbCByb290IENBMRAwDgYDVQQKDAdob21lbGFi
+    MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAwboIWW8eyRO1pSFkpKyw
+    3wlbSQ2a/NA7TRD4hRm1EDyASExagL91qjb8aKe8/MMxoIKrDHTj+yCXvyZ2FTg+
+    CQmzUt7j8CkbkXNw8auzYoNFHhOPAkeK1TyetcP0OsCctUNbrV3SZxdew1mXu6+I
+    j9um6eFF2qP0g7hjfWt1SiwlvbQCwnUihcwO4UfjCrQ8WmpONaYdRfoTcAnPE3Ha
+    LeMHoW+aoZVeVroWVGmkIX7dchGVW/Kmpb7MAnOmZNUDxv5ERFwwAtPvMOm90yLE
+    EhVdQKieiO8YMv5Gov3Xi/CHhiZuWnlxsVzSbr6sGq9VPjzZdqdMrKNVYR/Pjm8D
+    lfjDumIjpvTtTm63B7K/XeQv2dFAR4rUhGZldu+IMWfWcrNGSZhoRXUBd97B/7Xv
+    rncd6VL0vnlqBTTdfi7kxPUAq/o2lZkj7lG/gEI3XB+NbIZpMub9uFVbGwv5mnHH
+    F6irlp4jP+hOYWkEsXuur2LdXYCnSTer249TfFsObkLrVA7Ugnv0HbPquggD3P0z
+    lkgoMghNqzhImnK2+LICvHWE9Diy8eOw2/b45xsMDAK66MhsXZIvTAZ7MoVXpw2C
+    /dwpGkTkRO5QGjjqcez94/jWt6ne41XgsPCCSfLDOBGaChffEAGA9DkGr/JcgzDr
+    OIKf9vtncqw8iq+dQ6hrs0cCAwEAAaNTMFEwHQYDVR0OBBYEFHBgdyZlqDsAwd/B
+    W/fokNrPiOmNMB8GA1UdIwQYMBaAFHBgdyZlqDsAwd/BW/fokNrPiOmNMA8GA1Ud
+    EwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggIBAEdxbXM81qlk2HdOn0gECVr3
+    txGKG1TrIvnfoNSSabTJ/yph52B6lj8/1imFPeYq0jE1H9b/1GV+LsJS9vRvNg/Y
+    igj4rwm2rfPKS6+t1pERUMcuZv9tjo6xTNjVNmCppUDTVZGTa9hpZvcdxL+LgV4J
+    mxuh/iHO5qBEPggD5Ek6fVjHESXIMAqk0Sproo6+LKpYdpw9Xz9ghAz9/hU0Gn//
+    0sCxMPRTxMNYlsfL9GxONtwmLAvXr4pwSthXxb62c8yag/xfTiCqqe180lucu8CI
+    RfQNl5t+uhpGwIo0bR/wYDEU8ONLkYtwwS3Z6UXftd9yhdh4qpC25Je+Q2dtrDIE
+    6BVnX7+8HuQdCuVz78pB6YXDRwIZfz8bNaLhhxosg+Z53Cnl4y6omqMaw6x52bq1
+    7H8llwjN9ud81O5qy2X0newjf6+c4M8YaDDylmNaWNXVUhKV0JyYNFmiWCjxZg3A
+    p8KXly7fkGBvI3a/ieOnf/E1vk5D/N0eKvoRWgNlBWoV7VpsaJlKjDPtqkvkmzY+
+    hK6U6iV0rYGWAwNMj2lop2f/NDb28aIl+X+9REGwIeQk12gs/Psd+SITfwnUE88/
+    m+D7DsPvk8yBwlDMeIr91iOig5yjeDnGJkwthq8PCPIPKPE+OaAW16xKDFH8Y5nB
+    PjYKKavlRW50QHOG4HFB
+    -----END CERTIFICATE-----
