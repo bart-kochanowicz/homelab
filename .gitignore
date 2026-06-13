@@ -1,4 +1,5 @@
 .DS_Store
+.cache/
 
 # Explicitly ignore Talos config files
 talos/controlplane.yaml
@@ -12,4 +13,13 @@ terraform/**/*.tfstate.backup
 terraform/**/*.tfplan
 terraform/**/*.tfvars
 terraform/backend.tf
-terraform/.terraform.lock.hcl
+
+# Local security and backup material
+.secrets/
+.backups/
+*.restic-password
+*.pem
+*.key
+
+# Helm dependency archives are regenerated from tracked lock files
+**/charts/

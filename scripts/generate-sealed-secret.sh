@@ -20,7 +20,7 @@ echo "🔒 Creating sealed secret..."
 kubectl create secret generic $SECRET_NAME \
   --namespace $NAMESPACE \
   --dry-run=client \
-  --from-literal=token=$TOKEN \
+  --from-literal=token="$TOKEN" \
   -o json | kubeseal \
     --controller-name=sealed-secrets-controller \
     --controller-namespace=sealed-secrets \

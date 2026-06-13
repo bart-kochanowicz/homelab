@@ -1,0 +1,30 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
+        with:
+          fetch-depth: 0
+
+      - name: Install validation tools
+        uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
+        with:
+          aqua_version: v2.55.0
+
+      - name: Install yamllint
+        run: pipx install yamllint==1.37.1
+
+      - name: Validate repository
+        run: make validate

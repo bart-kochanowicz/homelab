@@ -1,0 +1,18 @@
+checks:
+  doNotAutoAddDefaults: true
+  include:
+    - cluster-admin-role-binding
+    - deprecated-service-account-field
+    - docker-sock
+    - drop-net-raw-capability
+    - duplicate-env-var
+    - env-var-secret
+    - invalid-target-ports
+    - latest-tag
+    - mismatching-selector
+    - no-extensions-v1beta
+    - non-existent-service-account
+    - privilege-escalation-container
+    - privileged-container
+    - unsafe-proc-mount
+    - unsafe-sysctls

@@ -1,0 +1,98 @@
+misconfigurations:
+  - id: KSV-0009
+    paths:
+      - "apps/home-assistant/deployment.yaml"
+      - "apps-home-assistant.yaml"
+    expired_at: 2026-09-30
+    statement: Home Assistant requires host networking for LAN discovery.
+  - id: KSV-0014
+    paths:
+      - "apps/crafty-controller/deployment.yaml"
+      - "apps/home-assistant/deployment.yaml"
+      - "apps-crafty-controller.yaml"
+      - "apps-home-assistant.yaml"
+    expired_at: 2026-09-30
+    statement: Upstream images currently require writable root filesystems.
+  - id: KSV-0109
+    paths:
+      - "system/argocd/argocd-sso.patch.example.yaml"
+      - "system-argocd.yaml"
+    expired_at: 2026-09-30
+    statement: Values are ArgoCD secret references, not plaintext credentials.
+  - id: KSV-0041
+    paths:
+      - "helm-cert-manager.yaml"
+      - "helm-cilium.yaml"
+      - "helm-sealed-secrets.yaml"
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: These controllers require scoped secret access for their core function.
+  - id: KSV-0056
+    paths:
+      - "helm-cert-manager.yaml"
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: Upstream controllers require discovery of networking resources.
+  - id: KSV-0114
+    paths:
+      - "helm-cert-manager.yaml"
+    expired_at: 2026-09-30
+    statement: cert-manager installs and manages its admission webhook.
+  - id: KSV-0005
+    paths:
+      - "helm-cilium.yaml"
+    expired_at: 2026-09-30
+    statement: Cilium requires SYS_ADMIN for eBPF and network management on Talos.
+  - id: KSV-0009
+    paths:
+      - "helm-cilium.yaml"
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: CNI and node monitoring agents require host networking.
+  - id: KSV-0010
+    paths:
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: Node exporter requires host process visibility.
+  - id: KSV-0014
+    paths:
+      - "helm-cilium.yaml"
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: Pinned upstream chart components require writable root filesystems.
+  - id: KSV-0017
+    paths:
+      - "helm-cilium.yaml"
+    expired_at: 2026-09-30
+    statement: Cilium init components require privileged node networking access.
+  - id: KSV-0024
+    paths:
+      - "helm-cilium.yaml"
+    expired_at: 2026-09-30
+    statement: Cilium uses required host ports for node-level networking.
+  - id: KSV-0045
+    paths:
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: Prometheus Operator upstream RBAC requires wildcard access to its CRDs.
+  - id: KSV-0109
+    paths:
+      - "helm-cilium.yaml"
+    expired_at: 2026-09-30
+    statement: Cilium chart configuration contains references, not plaintext secrets.
+  - id: KSV-0118
+    paths:
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: Pinned upstream monitoring components define their runtime contexts.
+  - id: KSV-0119
+    paths:
+      - "helm-cilium.yaml"
+    expired_at: 2026-09-30
+    statement: NET_RAW is required by the Cilium datapath.
+  - id: KSV-0121
+    paths:
+      - "helm-cilium.yaml"
+      - "system-monitoring.yaml"
+    expired_at: 2026-09-30
+    statement: CNI and node exporters require specific host mounts.

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "dependencyDashboard": true,
+  "labels": [
+    "dependencies"
+  ],
+  "minimumReleaseAge": "3 days",
+  "packageRules": [
+    {
+      "description": "Group non-major Kubernetes platform updates",
+      "matchManagers": [
+        "helmv3",
+        "terraform",
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "platform dependencies"
+    },
+    {
+      "description": "Require manual review for major and CNI updates",
+      "matchPackageNames": [
+        "cilium",
+        "cilium/cilium"
+      ],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)apps/.+/deployment\\.yaml$/",
+        "/(^|/)system/.+/(deployment|configmap)\\.yaml$/"
+      ],
+      "matchStrings": [
+        "image:\\s*(?<depName>[^\\s:@]+(?:/[^\\s:@]+)+):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
