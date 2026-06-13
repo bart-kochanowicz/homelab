@@ -8,4 +8,5 @@ paths = [
   '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
   '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
+  '''^system/monitoring/grafana-admin-sealed-secret\.yaml$''',
 ]
