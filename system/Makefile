@@ -5,11 +5,13 @@ CHART := argo-cd
 REPO := https://argoproj.github.io/argo-helm
 VERSION := 8.6.3
 
-.PHONY: all install-ansible install-deps bootstrap clean force-clean setup-from-scratch
+.PHONY: all install-ansible install-deps bootstrap bootstrap-cilium \
+	cilium-preflight cilium-migrate cilium-rollback clean force-clean \
+	setup-from-scratch
 
 all: bootstrap
 
-setup-from-scratch: install-ansible install-deps bootstrap
+setup-from-scratch: install-ansible install-deps bootstrap-cilium bootstrap
 	@echo "✅ Complete setup finished!"
 
 install-ansible:
@@ -23,6 +25,20 @@ install-deps:
 bootstrap: install-deps
 	@echo "🚀 Bootstrapping ArgoCD with Ansible..."
 	ansible-playbook bootstrap.yaml -v
+
+bootstrap-cilium:
+	helm dependency build cilium
+	helm upgrade --install cilium cilium \
+		--namespace kube-system --create-namespace --wait --timeout 15m
+
+cilium-preflight:
+	../scripts/cilium-migrate.sh
+
+cilium-migrate:
+	CONFIRM_CILIUM_MIGRATION=yes ../scripts/cilium-migrate.sh --execute
+
+cilium-rollback:
+	CONFIRM_CILIUM_ROLLBACK=yes ../scripts/cilium-rollback.sh
 
 clean:
 	@echo "🧹 Cleaning up ArgoCD installation..."
