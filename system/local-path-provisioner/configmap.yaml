@@ -22,10 +22,19 @@ data:
     set -eu
     mkdir -m 0770 -p "$VOL_DIR"
     case "$VOL_DIR" in
-      */n8n/n8n-data/*)
+      */n8n/n8n-data/*|*_n8n_n8n-data)
         chown 1000:1000 "$VOL_DIR"
         ;;
-      */crafty-controller/crafty-data/*|*/home-assistant/home-assistant-config/*)
+      */monitoring/kube-prometheus-stack-grafana/*|*_monitoring_kube-prometheus-stack-grafana)
+        chown 472:472 "$VOL_DIR"
+        ;;
+      */monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0/*|*_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0)
+        chown 1000:2000 "$VOL_DIR"
+        ;;
+      */monitoring/alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0/*|*_monitoring_alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0)
+        chown 1000:2000 "$VOL_DIR"
+        ;;
+      */crafty-controller/crafty-data/*|*_crafty-controller_crafty-data|*/home-assistant/home-assistant-config/*|*_home-assistant_home-assistant-config)
         chown 0:0 "$VOL_DIR"
         ;;
       *)

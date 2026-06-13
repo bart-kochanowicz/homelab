@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: crafty-controller
   namespace: crafty-controller
+  annotations:
+    ignore-check.kube-linter.io/privilege-escalation-container: "Upstream wrapper requires sudo; see docs/exception-register.md"
   labels:
     app.kubernetes.io/name: crafty-controller
     app.kubernetes.io/part-of: homelab
@@ -29,10 +31,8 @@ spec:
         - name: crafty-controller
           image: arcadiatechnology/crafty-4:4.10.4@sha256:d2f61fcabb4756a63bc8538fb4f5e35ffddca3f1916a733c95a31c705c697742
           securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+            # The upstream wrapper uses sudo to switch to its runtime user.
+            allowPrivilegeEscalation: true
           ports:
             - name: web
               containerPort: 8443
