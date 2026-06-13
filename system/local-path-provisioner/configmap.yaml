@@ -20,7 +20,18 @@ data:
   setup: |-
     #!/bin/sh
     set -eu
-    mkdir -m 0777 -p "$VOL_DIR"
+    mkdir -m 0770 -p "$VOL_DIR"
+    case "$VOL_DIR" in
+      */n8n/n8n-data/*)
+        chown 1000:1000 "$VOL_DIR"
+        ;;
+      */crafty-controller/crafty-data/*|*/home-assistant/home-assistant-config/*)
+        chown 0:0 "$VOL_DIR"
+        ;;
+      *)
+        chown 0:0 "$VOL_DIR"
+        ;;
+    esac
   teardown: |-
     #!/bin/sh
     set -eu
@@ -31,7 +42,12 @@ data:
     metadata:
       name: helper-pod
     spec:
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: node.kubernetes.io/disk-pressure
+          operator: Exists
+          effect: NoSchedule
       containers:
       - name: helper-pod
-        image: busybox
+        image: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
         imagePullPolicy: IfNotPresent

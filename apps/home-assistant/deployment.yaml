@@ -17,13 +17,25 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: home-assistant
+      annotations:
+        homelab.security/automount-reviewed: "true"
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: home-assistant
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: home-assistant
-        image: ghcr.io/home-assistant/home-assistant:2025.12.0
+        image: ghcr.io/home-assistant/home-assistant:2026.6.3@sha256:aed891b8f801072302815b4b0fab5adb714182967e9d2e2d4a2be558241c73ad
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
         ports:
         - name: http
           containerPort: 8123

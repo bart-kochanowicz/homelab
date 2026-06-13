@@ -5,6 +5,9 @@ namespace: monitoring
 
 resources:
   - namespace.yaml
+  - cloudflared-pod-monitor.yaml
+  - cilium-service-monitors.yaml
+  - security-alerts.yaml
 
 helmCharts:
   - name: kube-prometheus-stack

@@ -12,12 +12,23 @@ spec:
     metadata:
       labels:
         app: local-path-provisioner
+      annotations:
+        homelab.security/automount-reviewed: "requires Kubernetes API access"
     spec:
       serviceAccountName: local-path-provisioner-service-account
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: local-path-provisioner
-          image: rancher/local-path-provisioner:v0.0.30
+          image: rancher/local-path-provisioner:v0.0.36@sha256:1eba82e9c386038b4af6d69cca7519fac738c28c42735ed48ce70c882ad0d80f
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command:
             - local-path-provisioner
             - --debug
@@ -27,12 +38,20 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config/
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: CONFIG_MOUNT_PATH
+              value: /etc/config/
       volumes:
         - name: config-volume
           configMap:
             name: local-path-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

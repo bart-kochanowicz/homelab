@@ -4,11 +4,12 @@ kind: Kustomization
 namespace: n8n
 
 resources:
-  - namespace.yaml
+  - service-account.yaml
   - pvc.yaml
   - sealed-secret.yaml
   - deployment.yaml
   - service.yaml
 
-commonLabels:
-  app.kubernetes.io/managed-by: argocd
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: argocd
