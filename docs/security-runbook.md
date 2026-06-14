@@ -14,12 +14,17 @@ ApplicationSet because loss of the CNI also removes ArgoCD's ability to repair i
 
 ## GitHub SSO
 
-Create a GitHub OAuth application with:
+The GitHub OAuth application uses:
 
 - Homepage: `https://argocd.thecavespace.com`
 - Callback: `https://argocd.thecavespace.com/api/dex/callback`
 
-Export the client values and generate the patching SealedSecret:
+ArgoCD Dex configuration is tracked in `system/argocd/argocd-cm.yaml`. The
+OAuth credentials are stored only as ciphertext in the patching SealedSecret at
+`system/argocd/argocd-sso-sealed-secret.yaml`.
+
+To rotate the OAuth credentials, export the replacement values and regenerate
+the SealedSecret:
 
 ```bash
 export GITHUB_OAUTH_CLIENT_ID=...
@@ -27,21 +32,21 @@ export GITHUB_OAUTH_CLIENT_SECRET=...
 ./scripts/generate-argocd-sso-secret.sh
 ```
 
-Add `system/argocd/argocd-sso-sealed-secret.yaml` and merge the contents of
-`system/argocd/argocd-sso.patch.example.yaml` into `argocd-cm.yaml`. Verify:
+After ArgoCD syncs the SSO configuration, verify:
 
 1. `bart-kochanowicz` can log in through GitHub and use the UI and CLI.
 2. A second GitHub identity receives no ArgoCD permissions.
 3. Cloudflare Access still protects the public endpoint.
 4. The local admin login still works as an emergency fallback.
 
-Only after those checks, apply
+Local admin remains enabled during the SSO rollout. Only after those checks,
+apply
 `system/argocd/argocd-disable-admin.patch.example.yaml` in a separate commit.
 Recovery requires temporary cluster-admin access to set `admin.enabled: "true"`
 and restart `argocd-server`.
 
-Rotate the OAuth secret by rerunning the generator and committing only the
-SealedSecret ciphertext. Never commit OAuth plaintext.
+Commit only the regenerated SealedSecret ciphertext. Never commit OAuth
+plaintext.
 
 ## Internal CA
 

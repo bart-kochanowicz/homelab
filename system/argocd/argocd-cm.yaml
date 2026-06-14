@@ -6,6 +6,17 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
+  url: https://argocd.thecavespace.com
+  dex.config: |
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: $dex.github.clientID
+          clientSecret: $dex.github.clientSecret
+          redirectURI: https://argocd.thecavespace.com/api/dex/callback
+          loadAllGroups: false
   kustomize.buildOptions: "--enable-helm"
   timeout.reconciliation: "60s"
   repo.server.timeout.seconds: "60"
