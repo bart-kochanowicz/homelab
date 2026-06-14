@@ -46,6 +46,9 @@ See [docs/security-runbook.md](docs/security-runbook.md) for:
 - Cilium migration and Flannel rollback
 - network-policy and host-firewall enforcement
 - retained local-path PV cleanup
+- maintenance cadence and recovery rehearsals
 
 Documented compatibility exceptions are tracked in
 [docs/exception-register.md](docs/exception-register.md).
+Completed checks and pending tabletop exercises are tracked in
+[docs/security-verification.md](docs/security-verification.md).

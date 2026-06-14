@@ -1,5 +1,25 @@
 # Security Operations Runbook
 
+## Current Security State
+
+As verified on June 14, 2026:
+
+- Cilium `1.19.3` manages all cluster pods with policy enforcement set to
+  `default`; the host firewall is enforced on both nodes.
+- Application NetworkPolicies and the cluster-wide host policy are managed by
+  the manually synced `network-policies` ArgoCD Application.
+- ArgoCD local admin is disabled; GitHub SSO grants admin only to
+  `bart-kochanowicz`.
+- Cloudflared validates ArgoCD's internal CA. Crafty's self-signed TLS remains
+  the documented temporary exception.
+- Crafty, Home Assistant, and n8n backups are encrypted with restic and report
+  their latest result through Kubernetes Leases.
+- The local-path StorageClass uses `Retain`, and new volume directories use
+  mode `0770` with workload-specific ownership.
+
+See [security-verification.md](security-verification.md) for the dated
+verification and rehearsal record.
+
 ## Bootstrap Order
 
 1. Generate Talos machine configuration with `talos/patches/cilium.yaml`.
@@ -133,6 +153,11 @@ The script verifies the snapshot and archive path before scaling the deployment.
 
 ## Cilium Migration
 
+The migration completed on June 14, 2026. The tracked configuration now uses
+`policyEnforcementMode: default`, and `network-policies.yaml` is registered in
+the ArgoCD bootstrap. The steps below are retained for rebuilding or repeating
+the migration, not as current-state instructions.
+
 First run the non-destructive preflight:
 
 ```bash
@@ -147,11 +172,15 @@ During an approved maintenance window:
 4. Run `make -C system cilium-migrate`.
 5. Verify `cilium status`, `cilium connectivity test`, DNS, ClusterIP, NodePort,
    Hubble Relay, ArgoCD, cloudflared, and all applications.
-6. Leave `policyEnforcementMode: never` for 24-48 hours while reviewing flows.
-7. Add `network-policies.yaml` back to `system/argocd/kustomization.yaml`, merge
-   it, and manually sync the `network-policies` Application.
+6. The migration script uses temporary Helm overrides to disable policy
+   enforcement and the host firewall. Keep them for 24-48 hours while reviewing
+   flows; they are not the steady-state configuration.
+7. Confirm `network-policies.yaml` is registered in
+   `system/argocd/kustomization.yaml`, then manually sync the
+   `network-policies` Application.
 8. Confirm all policies are present before applying the tracked Cilium values
-   with `make -C system bootstrap-cilium`.
+   with `make -C system bootstrap-cilium`; this enables default policy
+   enforcement and the host firewall.
 
 The migration deliberately keeps kube-proxy and the existing pod/service CIDRs.
 It is a maintenance cutover, not a dual-overlay live migration.
@@ -161,6 +190,21 @@ Rollback:
 ```bash
 make -C system cilium-rollback
 ```
+
+This command is destructive and requires `CONFIRM_CILIUM_ROLLBACK=yes`. Before
+an actual rollback, run the non-destructive checks below:
+
+```bash
+make -C system cilium-preflight
+helm template cilium system/cilium --namespace kube-system >/dev/null
+talosctl -n 192.168.100.56 version
+talosctl -n 192.168.100.86 version
+kubectl get nodes -o wide
+```
+
+Also confirm that `talos/patches/flannel.yaml`, the latest backup success Lease,
+and the workstation restic repository are available. A tabletop review is not a
+substitute for an approved maintenance window with out-of-band node access.
 
 Then reboot nodes one at a time, wait for Flannel, recycle workloads, verify
 services, and use the restic restore command only if data verification fails.
@@ -233,3 +277,12 @@ CONFIRM_BRANCH_PROTECTION=yes ./scripts/configure-branch-protection.sh
 This requires pull requests with zero approvals, resolved conversations, an
 up-to-date successful `validate` check, linear history, and blocks force pushes
 and branch deletion.
+
+## Maintenance Cadence
+
+| Frequency | Task |
+| --- | --- |
+| Weekly | Run the PVC backup, inspect the success Lease, and review firing alerts. |
+| Monthly | Review the Crafty TLS exception, certificate expiry, image scan, and Renovate PRs. |
+| Quarterly | Review every security exception, test all three PVC restores, and rehearse SSO recovery and CNI rollback as tabletop exercises. |
+| After security changes | Run `make validate`, inspect ArgoCD health, and perform relevant positive and negative connectivity tests. |
