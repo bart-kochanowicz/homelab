@@ -41,6 +41,11 @@ After ArgoCD syncs the SSO configuration, verify:
 3. Cloudflare Access still protects the public endpoint.
 4. The local admin login still works as an emergency fallback.
 
+Cloudflare Access protects the ArgoCD UI and API. Two path-specific Access
+applications bypass authentication only for Dex's public OIDC discovery
+document and signing keys, which `argocd-server` must fetch to verify login
+tokens. Do not broaden this bypass to other ArgoCD or Dex paths.
+
 Local admin remains enabled during the SSO rollout. Only after those checks,
 apply
 `system/argocd/argocd-disable-admin.patch.example.yaml` in a separate commit.

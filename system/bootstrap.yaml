@@ -75,6 +75,10 @@
                 enabled: true
                 additionalLabels:
                   release: kube-prometheus-stack
+          server:
+            env:
+              - name: SSL_CERT_FILE
+                value: /etc/ssl/certs/ca-certificates.crt
 
     - name: Wait for ArgoCD pods to be ready
       kubernetes.core.k8s_info:
