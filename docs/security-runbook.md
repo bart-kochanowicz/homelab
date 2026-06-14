@@ -21,7 +21,9 @@ The GitHub OAuth application uses:
 
 ArgoCD Dex configuration is tracked in `system/argocd/argocd-cm.yaml`. The
 OAuth credentials are stored only as ciphertext in the patching SealedSecret at
-`system/argocd/argocd-sso-sealed-secret.yaml`.
+`system/argocd/argocd-sso-sealed-secret.yaml`. The Helm bootstrap annotates the
+existing `argocd-secret` for patching so the controller adds only the OAuth keys
+without replacing Helm-managed credentials.
 
 To rotate the OAuth credentials, export the replacement values and regenerate
 the SealedSecret:

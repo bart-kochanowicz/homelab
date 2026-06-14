@@ -16,8 +16,18 @@ kubectl create secret generic argocd-secret \
     --controller-name=sealed-secrets-controller \
     --controller-namespace=sealed-secrets \
     --format=yaml |
-  kubectl annotate --local -f - \
-    sealedsecrets.bitnami.com/patch=true \
+  kubectl patch --local -f - \
+    --type=merge \
+    --patch='
+      metadata:
+        annotations:
+          sealedsecrets.bitnami.com/patch: "true"
+      spec:
+        template:
+          metadata:
+            annotations:
+              sealedsecrets.bitnami.com/patch: "true"
+    ' \
     -o yaml >"${output}"
 
 printf 'Generated %s\n' "${output}"
