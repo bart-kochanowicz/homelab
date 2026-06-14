@@ -71,8 +71,15 @@ for node in "${nodes[@]}"; do
 done
 
 helm upgrade --install cilium system/cilium \
-  --namespace kube-system --create-namespace --wait --timeout 15m
-kubectl -n kube-system delete pods -l app=flannel --ignore-not-found
+  --namespace kube-system --create-namespace
+kubectl -n kube-system rollout status daemonset/cilium --timeout=15m
+kubectl -n kube-system rollout status daemonset/cilium-envoy --timeout=15m
+kubectl -n kube-system rollout status deployment/cilium-operator --timeout=15m
+
+# Hubble Relay needs cluster DNS, which is unavailable until pods created by
+# Flannel have been recycled onto Cilium.
+kubectl -n kube-system delete daemonset kube-flannel \
+  --ignore-not-found --wait=true
 kubectl get pods --all-namespaces -o json |
   jq -r '
     .items[]
@@ -85,8 +92,22 @@ kubectl get pods --all-namespaces -o json |
     kubectl -n "$namespace" delete pod "$pod" --wait=false
   done
 
+kubectl -n kube-system rollout status deployment/coredns --timeout=5m
+kubectl -n kube-system delete pod -l k8s-app=hubble-relay --wait=true
+kubectl -n kube-system rollout status deployment/hubble-relay --timeout=5m
 cilium status --wait
-cilium connectivity test
+# Policy enforcement stays disabled during observation, so verify the
+# unrestricted dataplane without running expected-denial policy tests.
+if ! cilium connectivity test \
+  --test no-policies \
+  --test no-policies-extra \
+  --namespace-labels \
+  pod-security.kubernetes.io/enforce=privileged,pod-security.kubernetes.io/audit=privileged,pod-security.kubernetes.io/warn=privileged \
+  --timeout 10m; then
+  cilium connectivity test --cleanup || true
+  exit 1
+fi
+cilium connectivity test --cleanup
 
 kubectl -n crafty-controller scale deployment crafty-controller --replicas=1
 kubectl -n home-assistant scale deployment home-assistant --replicas=1
