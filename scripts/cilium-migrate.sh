@@ -71,7 +71,9 @@ for node in "${nodes[@]}"; do
 done
 
 helm upgrade --install cilium system/cilium \
-  --namespace kube-system --create-namespace
+  --namespace kube-system --create-namespace \
+  --set cilium.policyEnforcementMode=never \
+  --set cilium.hostFirewall.enabled=false
 kubectl -n kube-system rollout status daemonset/cilium --timeout=15m
 kubectl -n kube-system rollout status daemonset/cilium-envoy --timeout=15m
 kubectl -n kube-system rollout status deployment/cilium-operator --timeout=15m
@@ -96,8 +98,9 @@ kubectl -n kube-system rollout status deployment/coredns --timeout=5m
 kubectl -n kube-system delete pod -l k8s-app=hubble-relay --wait=true
 kubectl -n kube-system rollout status deployment/hubble-relay --timeout=5m
 cilium status --wait
-# Policy enforcement stays disabled during observation, so verify the
-# unrestricted dataplane without running expected-denial policy tests.
+# Temporary Helm overrides keep policy enforcement and the host firewall
+# disabled during observation, so verify the unrestricted dataplane without
+# running expected-denial policy tests.
 if ! cilium connectivity test \
   --test no-policies \
   --test no-policies-extra \
@@ -113,4 +116,5 @@ kubectl -n crafty-controller scale deployment crafty-controller --replicas=1
 kubectl -n home-assistant scale deployment home-assistant --replicas=1
 kubectl -n n8n scale deployment n8n --replicas=1
 
-echo "Keep policyEnforcementMode=never for the 24-48 hour observation period."
+echo "Keep the temporary enforcement overrides for the 24-48 hour observation period."
+echo "Then sync network-policies and run make -C system bootstrap-cilium."
