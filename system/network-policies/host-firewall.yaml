@@ -3,7 +3,7 @@ kind: CiliumClusterwideNetworkPolicy
 metadata:
   name: homelab-host-firewall
   annotations:
-    homelab.security/staged: "Apply only after Hubble audit review"
+    homelab.security/audit-reviewed: "2026-06-14"
 spec:
   nodeSelector:
     matchLabels: {}
@@ -12,6 +12,16 @@ spec:
         - host
         - remote-node
         - kube-apiserver
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s:k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system

@@ -162,9 +162,17 @@ Home Assistant uses host networking, so cloudflared reaches identity `host` or
 allows only those identities on TCP `8123`; do not replace it with unrestricted
 LAN egress.
 
-The Cilium host policy at `system/cilium/policies/host-firewall.yaml` is staged.
-Review at least 48 hours of Hubble host flows before applying it and changing
-policy enforcement from audit/disabled mode.
+The Cilium host policy at `system/network-policies/host-firewall.yaml` is
+managed by the manually synced `network-policies` Application. Before changing
+it, enable `PolicyAuditMode` on each Cilium host endpoint, review Hubble host
+flows, and verify required traffic. Audit mode is not persistent across Cilium
+agent restarts, so either finish the review and enforce the policy or remove the
+live policy before restarting an agent.
+
+The current allowlist was reviewed on June 14, 2026. It preserves node-internal
+traffic, CoreDNS access to the node-local resolver, monitoring scrapes,
+Cloudflare access to Home Assistant, management LAN access, Home Assistant
+discovery, and public Minecraft TCP `30000`.
 
 Required preserved paths:
 
