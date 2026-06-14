@@ -65,6 +65,8 @@
         state: present
         values:
           configs:
+            cm:
+              admin.enabled: false
             secret:
               annotations:
                 sealedsecrets.bitnami.com/patch: "true"

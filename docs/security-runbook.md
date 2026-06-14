@@ -39,18 +39,16 @@ After ArgoCD syncs the SSO configuration, verify:
 1. `bart-kochanowicz` can log in through GitHub and use the UI and CLI.
 2. A second GitHub identity receives no ArgoCD permissions.
 3. Cloudflare Access still protects the public endpoint.
-4. The local admin login still works as an emergency fallback.
+4. Cluster-admin access can temporarily restore the local account for recovery.
 
 Cloudflare Access protects the ArgoCD UI and API. Two path-specific Access
 applications bypass authentication only for Dex's public OIDC discovery
 document and signing keys, which `argocd-server` must fetch to verify login
 tokens. Do not broaden this bypass to other ArgoCD or Dex paths.
 
-Local admin remains enabled during the SSO rollout. Only after those checks,
-apply
-`system/argocd/argocd-disable-admin.patch.example.yaml` in a separate commit.
-Recovery requires temporary cluster-admin access to set `admin.enabled: "true"`
-and restart `argocd-server`.
+Local admin is disabled after the SSO and RBAC tests. Recovery requires
+temporary cluster-admin access to set `admin.enabled: "true"` in `argocd-cm`
+and restart `argocd-server`. Restore `admin.enabled: "false"` after recovery.
 
 Commit only the regenerated SealedSecret ciphertext. Never commit OAuth
 plaintext.

@@ -21,7 +21,7 @@ data:
   timeout.reconciliation: "60s"
   repo.server.timeout.seconds: "60"
   application.instanceLabelKey: argocd.argoproj.io/instance
-  admin.enabled: "true"
+  admin.enabled: "false"
   application.sync.policy.default: |
     automated:
       prune: true
