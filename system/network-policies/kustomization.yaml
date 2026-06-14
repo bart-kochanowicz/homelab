@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - application-policies.yaml
   - cloudflared-policy.yaml
+  - cloudflared-host-network-policy.yaml
