@@ -64,9 +64,3 @@ spec:
       ports:
         - protocol: TCP
           port: 3000
-    - to:
-        - ipBlock:
-            cidr: 192.168.100.0/24
-      ports:
-        - protocol: TCP
-          port: 8123

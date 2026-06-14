@@ -157,6 +157,11 @@ After changing its rules, manually sync it before applying Cilium configuration
 with `policyEnforcementMode: default`. Run negative tests for cross-namespace
 traffic and unauthorized ingress immediately after enforcement.
 
+Home Assistant uses host networking, so cloudflared reaches identity `host` or
+`remote-node` rather than a namespaced pod identity. The dedicated Cilium policy
+allows only those identities on TCP `8123`; do not replace it with unrestricted
+LAN egress.
+
 The Cilium host policy at `system/cilium/policies/host-firewall.yaml` is staged.
 Review at least 48 hours of Hubble host flows before applying it and changing
 policy enforcement from audit/disabled mode.

@@ -2,6 +2,12 @@ cilium:
   ipam:
     mode: kubernetes
 
+  rollOutCiliumPods: true
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+
   kubeProxyReplacement: false
   k8sServiceHost: localhost
   k8sServicePort: 7445
