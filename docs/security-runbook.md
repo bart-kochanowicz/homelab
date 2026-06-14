@@ -90,8 +90,23 @@ slash in `/Volumes`; `Volumes/...` creates a repository inside the Git checkout.
 The script scales down Crafty, Home Assistant, and n8n one at a time, mounts each
 PVC read-only in a temporary pod, retries transient stream failures, confirms
 that each snapshot was finalized, runs `restic check`, restores replicas, and
-writes `.backups/last-successful-backup`. Prometheus data is intentionally
-disposable.
+writes `.backups/last-successful-backup`. It also updates the
+`workstation-pvc-backup-success` or `workstation-pvc-backup-failure` Lease in
+the `monitoring` namespace. Prometheus alerts when the latest attempt failed,
+no success has been recorded, or the latest success is over seven days old.
+The previous successful local marker is retained when a later backup fails.
+Prometheus data is intentionally disposable.
+
+Run this backup at least weekly. After the first run, verify the timestamp:
+
+```bash
+kubectl -n monitoring get leases \
+  workstation-pvc-backup-success workstation-pvc-backup-failure
+```
+
+The failure Lease may be absent until the first failed attempt. If Kubernetes
+is unreachable, the script cannot update the failure Lease and prints a
+warning; the stale-backup alert remains the fallback signal.
 
 Test restoring every PVC to the workstation or external disk without changing
 Kubernetes:

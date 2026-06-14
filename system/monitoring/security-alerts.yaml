@@ -58,10 +58,57 @@ spec:
             severity: warning
           annotations:
             summary: A cert-manager certificate expires in less than 14 days
-        - alert: PvcBackupHelperFailed
-          expr: kube_pod_container_status_terminated_reason{pod="pvc-backup-failed",reason!="Completed"} > 0
-          for: 1m
+        - alert: WorkstationPvcBackupFailed
+          expr: |
+            (
+              kube_lease_renew_time{
+                namespace="monitoring",
+                lease="workstation-pvc-backup-failure"
+              }
+              > ignoring(lease)
+              kube_lease_renew_time{
+                namespace="monitoring",
+                lease="workstation-pvc-backup-success"
+              }
+            )
+            or
+            (
+              kube_lease_renew_time{
+                namespace="monitoring",
+                lease="workstation-pvc-backup-failure"
+              }
+              unless on(namespace)
+              kube_lease_renew_time{
+                namespace="monitoring",
+                lease="workstation-pvc-backup-success"
+              }
+            )
+          for: 5m
           labels:
             severity: critical
           annotations:
-            summary: A PVC backup helper pod failed
+            summary: The latest workstation PVC backup failed
+        - alert: WorkstationPvcBackupMissing
+          expr: |
+            absent(
+              kube_lease_renew_time{
+                namespace="monitoring",
+                lease="workstation-pvc-backup-success"
+              }
+            )
+          for: 24h
+          labels:
+            severity: warning
+          annotations:
+            summary: No successful workstation PVC backup has been recorded
+        - alert: WorkstationPvcBackupStale
+          expr: |
+            time() - kube_lease_renew_time{
+              namespace="monitoring",
+              lease="workstation-pvc-backup-success"
+            } > 604800
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: The latest successful workstation PVC backup is over seven days old
