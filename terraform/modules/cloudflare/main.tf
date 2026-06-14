@@ -86,6 +86,16 @@ resource "cloudflare_zero_trust_access_policy" "allow_emails_policy" {
   }]
 }
 
+resource "cloudflare_zero_trust_access_policy" "bypass_argocd_oidc_metadata" {
+  account_id = var.cloudflare_account_id
+  name       = "Bypass ArgoCD public OIDC metadata"
+  decision   = "bypass"
+
+  include = [{
+    everyone = {}
+  }]
+}
+
 # Create DNS record for ArgoCD pointing to the tunnel
 resource "cloudflare_dns_record" "argocd" {
   zone_id = var.cloudflare_zone_id
@@ -128,6 +138,28 @@ resource "cloudflare_zero_trust_access_application" "argocd" {
   auto_redirect_to_identity = true
   policies = [{
     id = cloudflare_zero_trust_access_policy.allow_emails_policy.id
+  }]
+}
+
+resource "cloudflare_zero_trust_access_application" "argocd_oidc_discovery" {
+  account_id       = var.cloudflare_account_id
+  name             = "ArgoCD OIDC Discovery"
+  domain           = "${var.argocd_subdomain}.${var.domain}/api/dex/.well-known/openid-configuration"
+  type             = "self_hosted"
+  session_duration = "72h"
+  policies = [{
+    id = cloudflare_zero_trust_access_policy.bypass_argocd_oidc_metadata.id
+  }]
+}
+
+resource "cloudflare_zero_trust_access_application" "argocd_oidc_keys" {
+  account_id       = var.cloudflare_account_id
+  name             = "ArgoCD OIDC Signing Keys"
+  domain           = "${var.argocd_subdomain}.${var.domain}/api/dex/keys"
+  type             = "self_hosted"
+  session_duration = "72h"
+  policies = [{
+    id = cloudflare_zero_trust_access_policy.bypass_argocd_oidc_metadata.id
   }]
 }
 
