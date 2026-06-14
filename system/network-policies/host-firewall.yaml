@@ -25,6 +25,14 @@ spec:
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system
+            k8s:app.kubernetes.io/name: hubble-relay
+      toPorts:
+        - ports:
+            - port: "4244"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
             k8s:app.kubernetes.io/name: cloudflared
       toPorts:
         - ports:
