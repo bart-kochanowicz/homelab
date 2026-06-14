@@ -26,7 +26,23 @@ readonly entries=(
   "home-assistant:home-assistant:home-assistant-config"
   "n8n:n8n:n8n-data"
 )
-current_namespace=""
+readonly backup_status_namespace="monitoring"
+
+record_backup_status() {
+  local status="$1"
+  local timestamp
+  timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S.000000Z")"
+  kubectl apply -f - >/dev/null <<EOF
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: workstation-pvc-backup-${status}
+  namespace: ${backup_status_namespace}
+spec:
+  holderIdentity: backup-pvcs.sh
+  renewTime: "${timestamp}"
+EOF
+}
 
 cleanup() {
   local exit_status=$?
@@ -42,44 +58,22 @@ cleanup() {
       fi
     fi
   done
-  if [[ "$exit_status" -ne 0 && -n "$current_namespace" ]]; then
-    kubectl -n "$current_namespace" apply -f - >/dev/null <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: pvc-backup-failed
-spec:
-  automountServiceAccountToken: false
-  restartPolicy: Never
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 65534
-    runAsGroup: 65534
-    seccompProfile:
-      type: RuntimeDefault
-  containers:
-    - name: marker
-      image: ${helper_image}
-      command: ["sh", "-c", "exit 1"]
-      securityContext:
-        allowPrivilegeEscalation: false
-        readOnlyRootFilesystem: true
-        capabilities:
-          drop: ["ALL"]
-EOF
+  if [[ "$exit_status" -ne 0 ]]; then
+    if ! record_backup_status failure; then
+      echo "Warning: unable to record the backup failure Lease." >&2
+    fi
   fi
   exit "$exit_status"
 }
 trap cleanup EXIT
 
 mkdir -p .backups
-rm -f .backups/last-successful-backup .backups/last-successful-restore-test
+rm -f .backups/last-successful-restore-test
 rm -rf .backups/restore-tests
 restic snapshots >/dev/null 2>&1 || restic init
 
 for entry in "${entries[@]}"; do
   IFS=: read -r namespace deployment pvc <<<"$entry"
-  current_namespace="$namespace"
   archive_path="/${namespace}/${pvc}.tar"
   case "$namespace" in
     crafty-controller)
@@ -167,5 +161,8 @@ EOF
 done
 
 restic check
+if ! record_backup_status success; then
+  echo "Warning: unable to record the successful backup Lease." >&2
+fi
 date -u +"%Y-%m-%dT%H:%M:%SZ" > .backups/last-successful-backup
 trap - EXIT
