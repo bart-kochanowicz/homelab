@@ -134,7 +134,9 @@ During an approved maintenance window:
    Hubble Relay, ArgoCD, cloudflared, and all applications.
 6. Leave `policyEnforcementMode: never` for 24-48 hours while reviewing flows.
 7. Add `network-policies.yaml` back to `system/argocd/kustomization.yaml`, merge
-   it, and verify the explicit allow rules before enabling policy enforcement.
+   it, and manually sync the `network-policies` Application.
+8. Confirm all policies are present before applying the tracked Cilium values
+   with `make -C system bootstrap-cilium`.
 
 The migration deliberately keeps kube-proxy and the existing pod/service CIDRs.
 It is a maintenance cutover, not a dual-overlay live migration.
@@ -150,9 +152,10 @@ services, and use the restic restore command only if data verification fails.
 
 ## Network Enforcement
 
-`system/argocd/network-policies.yaml` has no automated sync. After the Cilium
-observation period, manually sync it and run negative tests for cross-namespace
-traffic and unauthorized ingress.
+`system/argocd/network-policies.yaml` intentionally has no automated sync.
+After changing its rules, manually sync it before applying Cilium configuration
+with `policyEnforcementMode: default`. Run negative tests for cross-namespace
+traffic and unauthorized ingress immediately after enforcement.
 
 The Cilium host policy at `system/cilium/policies/host-firewall.yaml` is staged.
 Review at least 48 hours of Hubble host flows before applying it and changing

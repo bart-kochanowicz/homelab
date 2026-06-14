@@ -30,7 +30,7 @@ cilium:
         - SYS_ADMIN
         - SYS_RESOURCE
 
-  policyEnforcementMode: never
+  policyEnforcementMode: default
   hostFirewall:
     enabled: true
 
