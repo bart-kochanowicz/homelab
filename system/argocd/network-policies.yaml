@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: network-policies
   namespace: argocd
-  annotations:
-    homelab.security/staged: "Enable only after 24-48 hours of Hubble review"
 spec:
   project: platform
   source:
