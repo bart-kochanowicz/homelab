@@ -64,6 +64,10 @@
         timeout: 300s
         state: present
         values:
+          configs:
+            secret:
+              annotations:
+                sealedsecrets.bitnami.com/patch: "true"
           controller:
             metrics:
               enabled: true
