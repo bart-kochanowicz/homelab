@@ -170,9 +170,10 @@ agent restarts, so either finish the review and enforce the policy or remove the
 live policy before restarting an agent.
 
 The current allowlist was reviewed on June 14, 2026. It preserves node-internal
-traffic, CoreDNS access to the node-local resolver, Hubble Relay access to agent
-peers, monitoring scrapes, Cloudflare access to Home Assistant, management LAN
-access, Home Assistant discovery, and public Minecraft TCP `30000`.
+traffic, cluster workload access to the Kubernetes API on TCP `6443`, CoreDNS
+access to the node-local resolver, Hubble Relay access to agent peers,
+monitoring scrapes, Cloudflare access to Home Assistant, management LAN access,
+Home Assistant discovery, and public Minecraft TCP `30000`.
 
 Required preserved paths:
 
