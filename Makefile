@@ -61,15 +61,25 @@ validate-kustomize:
 	kubectl kustomize --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
 
 validate-helm:
-	@helm repo add --force-update jetstack https://charts.jetstack.io >/dev/null
-	@helm repo add --force-update cilium https://helm.cilium.io/ >/dev/null
-	@helm repo add --force-update sealed-secrets https://bitnami-labs.github.io/sealed-secrets >/dev/null
-	@set -e; for spec in \
+	@set -e; retry() { \
+		for attempt in 1 2 3; do \
+			"$$@" && return 0; \
+			if [ "$$attempt" -lt 3 ]; then \
+				echo "retrying: $$*" >&2; \
+				sleep "$$((attempt * 2))"; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
+	retry helm repo add --force-update jetstack https://charts.jetstack.io >/dev/null; \
+	retry helm repo add --force-update cilium https://helm.cilium.io/ >/dev/null; \
+	retry helm repo add --force-update sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null; \
+	for spec in \
 		system/cert-manager:cert-manager \
 		system/cilium:kube-system \
 		system/sealed-secrets:sealed-secrets; do \
 		dir="$${spec%%:*}"; namespace="$${spec##*:}"; \
-		helm dependency build "$$dir" >/dev/null; \
+		retry helm dependency build "$$dir" >/dev/null; \
 		helm lint "$$dir"; \
 		helm template validation "$$dir" --namespace "$$namespace" \
 			> ".cache/rendered/helm-$$(basename "$$dir").yaml"; \
