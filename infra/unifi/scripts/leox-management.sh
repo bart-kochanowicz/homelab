@@ -10,7 +10,7 @@ LEOX_IP="192.168.100.1"
 UCG_IP="192.168.100.2"
 
 # Wait for the physical WAN interface to become available.
-for i in $(seq 1 30); do
+for ((attempt = 1; attempt <= 30; attempt++)); do
     if ip link show "$IFACE" >/dev/null 2>&1; then
         break
     fi
