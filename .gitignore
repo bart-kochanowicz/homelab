@@ -21,5 +21,14 @@ terraform/backend.tf
 *.pem
 *.key
 
+# UniFi / GPON recovery material contains device identities or credentials.
+# Keep private LEOX parameter exports and UniFi backups outside Git.
+infra/unifi/backups/
+infra/unifi/private/
+infra/unifi/**/*leox*backup*
+infra/unifi/**/*gpon*backup*
+infra/unifi/**/*ucg*backup*
+infra/unifi/**/*.unf
+
 # Helm dependency archives are regenerated from tracked lock files
 **/charts/

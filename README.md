@@ -52,3 +52,10 @@ Documented compatibility exceptions are tracked in
 [docs/exception-register.md](docs/exception-register.md).
 Completed checks and pending tabletop exercises are tracked in
 [docs/security-verification.md](docs/security-verification.md).
+
+## Network Infrastructure
+
+The UniFi gateway WAN configuration, LEOX ONT management-access restoration
+script, smoke tests, and recovery checklist are documented in
+[infra/unifi/README.md](infra/unifi/README.md). Device backups, GPON identities,
+and WAN credentials are intentionally excluded from this public repository.
