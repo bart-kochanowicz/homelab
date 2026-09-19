@@ -73,7 +73,7 @@ validate-helm:
 	}; \
 	retry helm repo add --force-update jetstack https://charts.jetstack.io >/dev/null; \
 	retry helm repo add --force-update cilium https://helm.cilium.io/ >/dev/null; \
-	retry helm repo add --force-update sealed-secrets https://bitnami-labs.github.io/sealed-secrets >/dev/null; \
+	retry helm repo add --force-update sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null; \
 	for spec in \
 		system/cert-manager:cert-manager \
 		system/cilium:kube-system \
