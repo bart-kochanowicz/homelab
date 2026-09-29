@@ -52,6 +52,45 @@
   no_log: true
   notify: Restart Garage
 
+- name: Check whether Garage S3 bootstrap credentials already exist
+  ansible.builtin.stat:
+    path: /srv/terraform/garage/s3-bootstrap.env
+  register: garage_s3_bootstrap_file
+
+- name: Generate a Garage S3 access key ID once
+  ansible.builtin.command: openssl rand -hex 16
+  register: garage_generated_s3_access_key
+  when:
+    - not garage_s3_bootstrap_file.stat.exists
+    - not ansible_check_mode
+  changed_when: true
+  no_log: true
+
+- name: Generate a Garage S3 secret key once
+  ansible.builtin.command: openssl rand -hex 32
+  register: garage_generated_s3_secret_key
+  when:
+    - not garage_s3_bootstrap_file.stat.exists
+    - not ansible_check_mode
+  changed_when: true
+  no_log: true
+
+- name: Save Garage S3 bootstrap credentials on the SSD
+  ansible.builtin.copy:
+    dest: /srv/terraform/garage/s3-bootstrap.env
+    content: |
+      GARAGE_DEFAULT_ACCESS_KEY=GK{{ garage_generated_s3_access_key.stdout }}
+      GARAGE_DEFAULT_SECRET_KEY={{ garage_generated_s3_secret_key.stdout }}
+      GARAGE_DEFAULT_BUCKET={{ garage_default_bucket }}
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not garage_s3_bootstrap_file.stat.exists
+    - not ansible_check_mode
+  no_log: true
+  notify: Restart Garage
+
 - name: Download the checksum-verified Garage binary
   ansible.builtin.get_url:
     url: "https://garagehq.deuxfleurs.fr/_releases/v{{ garage_version }}/x86_64-unknown-linux-musl/garage"
