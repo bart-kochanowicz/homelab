@@ -4,6 +4,10 @@
 This first step only tells Ansible which machine to contact. It installs
 nothing and does not change the server configuration.
 
+The repository already uses Ansible in `system/bootstrap.yaml` to bootstrap
+ArgoCD from the local machine. This inventory serves a different target: the
+remote Debian host `houston-01`. Both use the same Ansible installation.
+
 ## What do these files do?
 
 - `ansible.cfg` tells Ansible where to find the host inventory.
