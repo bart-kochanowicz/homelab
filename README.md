@@ -8,6 +8,8 @@ only as SealedSecrets and local credentials are ignored.
 
 - Lenovo ThinkCentre m720q i3-8100T/8GB/256GB
 - Lenovo ThinkCentre m920q i5-8500T/32GB/512GB
+- Dell Wyse 3040 (`houston-01`) for Terraform infrastructure management;
+  see [its Ansible setup guide](infra/ansible/README.md).
 
 ## Software Requirements
 
