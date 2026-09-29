@@ -1,0 +1,24 @@
+[Unit]
+Description=Garage S3 state store
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/srv/terraform
+ConditionPathIsMountPoint=/srv/terraform
+
+[Service]
+Type=simple
+User=garage
+Group=garage
+Environment=GARAGE_CONFIG_FILE=/etc/garage.toml
+ExecStart=/srv/terraform/garage/bin/garage-v{{ garage_version }} server --single-node
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/terraform/garage
+LimitNOFILE=42000
+
+[Install]
+WantedBy=multi-user.target

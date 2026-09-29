@@ -1,0 +1,88 @@
+---
+- name: Ensure OpenSSL is installed for Garage RPC secret generation
+  ansible.builtin.package:
+    name: openssl
+    state: present
+
+- name: Create Garage service user
+  ansible.builtin.user:
+    name: garage
+    system: true
+    home: /srv/terraform/garage
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create Garage directories on SSD
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: garage
+    group: garage
+    mode: '0700'
+  loop:
+    - /srv/terraform/garage
+    - /srv/terraform/garage/meta
+    - /srv/terraform/garage/data
+    - /srv/terraform/garage/bin
+
+- name: Check whether the Garage RPC secret already exists
+  ansible.builtin.stat:
+    path: /srv/terraform/garage/rpc-secret
+  register: garage_rpc_secret_file
+
+- name: Generate a Garage RPC secret once
+  ansible.builtin.command: openssl rand -hex 32
+  register: garage_generated_rpc_secret
+  when:
+    - not garage_rpc_secret_file.stat.exists
+    - not ansible_check_mode
+  changed_when: true
+  no_log: true
+
+- name: Save the Garage RPC secret on the SSD
+  ansible.builtin.copy:
+    dest: /srv/terraform/garage/rpc-secret
+    content: "{{ garage_generated_rpc_secret.stdout }}\n"
+    owner: garage
+    group: garage
+    mode: '0600'
+  when:
+    - not garage_rpc_secret_file.stat.exists
+    - not ansible_check_mode
+  no_log: true
+  notify: Restart Garage
+
+- name: Download the checksum-verified Garage binary
+  ansible.builtin.get_url:
+    url: "https://garagehq.deuxfleurs.fr/_releases/v{{ garage_version }}/x86_64-unknown-linux-musl/garage"
+    dest: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
+    checksum: "sha256:{{ garage_sha256 }}"
+    owner: garage
+    group: garage
+    mode: '0755'
+  notify: Restart Garage
+
+- name: Install localhost-only Garage configuration
+  ansible.builtin.template:
+    src: garage.toml.j2
+    dest: /etc/garage.toml
+    owner: root
+    group: garage
+    mode: '0640'
+  notify: Restart Garage
+
+- name: Install the Garage systemd service
+  ansible.builtin.template:
+    src: garage.service.j2
+    dest: /etc/systemd/system/garage.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Garage
+
+- name: Start Garage at boot
+  ansible.builtin.systemd_service:
+    name: garage.service
+    daemon_reload: true
+    enabled: true
+    state: started

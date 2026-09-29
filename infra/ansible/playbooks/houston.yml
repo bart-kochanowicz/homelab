@@ -48,3 +48,5 @@
       tags: common
     - role: storage
       tags: storage
+    - role: garage
+      tags: garage
