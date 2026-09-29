@@ -158,13 +158,10 @@ ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
 
 The first apply creates `/srv/terraform/garage/s3-bootstrap.env` with mode
 `0600`, links the pinned binary to `/usr/local/bin/garage`, and restarts Garage
-so it can create the bucket and access key. Since Garage was initially running
-as the `garage` user, Ansible briefly stops the service, transfers ownership
-of its existing data to `garage-svc`, starts Garage under that account, and
-removes the old account without deleting its home directory. The credentials
-file is root-only; do not paste its contents into chat or commit it. When you
-need to copy the credentials to a password manager or a future runner secret
-store, read the file with `sudo` and handle the output as a secret.
+so it can create the bucket and access key. The credentials file is root-only;
+do not paste its contents into chat or commit it. When you need to copy the
+credentials to a password manager or a future runner secret store, read the
+file with `sudo` and handle the output as a secret.
 
 Verify Garage is healthy and that the bucket and access key exist:
 

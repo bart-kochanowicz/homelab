@@ -4,4 +4,3 @@
     name: garage.service
     daemon_reload: true
     state: restarted
-  when: garage_legacy_account.rc != 0

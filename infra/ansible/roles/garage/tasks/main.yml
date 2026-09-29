@@ -1,19 +1,4 @@
 ---
-- name: Check whether the previous Garage service account still exists
-  ansible.builtin.command: getent passwd garage
-  register: garage_legacy_account
-  changed_when: false
-  failed_when: false
-  check_mode: false
-
-- name: Stop Garage before transferring its data to the new service account
-  ansible.builtin.systemd_service:
-    name: garage.service
-    state: stopped
-  when:
-    - garage_legacy_account.rc == 0
-    - not ansible_check_mode
-
 - name: Ensure OpenSSL is installed for Garage RPC secret generation
   ansible.builtin.package:
     name: openssl
@@ -39,17 +24,6 @@
     - /srv/terraform/garage/meta
     - /srv/terraform/garage/data
     - /srv/terraform/garage/bin
-
-- name: Transfer existing Garage data to the new service account
-  ansible.builtin.file:
-    path: "{{ item }}"
-    owner: garage-svc
-    group: garage-svc
-    recurse: true
-  loop:
-    - /srv/terraform/garage/meta
-    - /srv/terraform/garage/data
-  when: garage_legacy_account.rc == 0
 
 - name: Check whether the Garage RPC secret already exists
   ansible.builtin.stat:
@@ -180,12 +154,3 @@
     daemon_reload: true
     enabled: true
     state: started
-
-- name: Remove the previous Garage service account without deleting its home
-  ansible.builtin.user:
-    name: garage
-    state: absent
-    remove: false
-  when:
-    - garage_legacy_account.rc == 0
-    - not ansible_check_mode
