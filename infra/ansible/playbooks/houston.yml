@@ -1,0 +1,44 @@
+---
+- name: Verify houston-01 workload SSD
+  hosts: terraform_hosts
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Read SSD filesystem UUID
+      ansible.builtin.command: /usr/sbin/blkid -s UUID -o value /dev/sda1
+      register: houston_ssd_uuid
+      changed_when: false
+      check_mode: false
+      tags: always
+
+    - name: Read SSD filesystem label
+      ansible.builtin.command: /usr/sbin/blkid -s LABEL -o value /dev/sda1
+      register: houston_ssd_label
+      changed_when: false
+      check_mode: false
+      tags: always
+
+    - name: Read mounted filesystem UUID
+      ansible.builtin.command: findmnt --noheadings --output UUID --target /srv/terraform
+      register: houston_mounted_uuid
+      changed_when: false
+      check_mode: false
+      tags: always
+
+    - name: Require the expected ext4 SSD to be mounted
+      ansible.builtin.assert:
+        that:
+          - houston_ssd_label.stdout == houston_expected_ssd_label
+          - houston_ssd_uuid.stdout | length > 0
+          - houston_ssd_uuid.stdout == houston_mounted_uuid.stdout
+          - >-
+            ansible_mounts
+            | selectattr('mount', 'equalto', '/srv/terraform')
+            | selectattr('fstype', 'equalto', 'ext4')
+            | list
+            | length == 1
+        fail_msg: >-
+          Stop: /dev/sda1 must have the expected label, use ext4, and be
+          mounted at /srv/terraform before Ansible can configure the host.
+      tags: always

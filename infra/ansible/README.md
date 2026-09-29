@@ -33,4 +33,23 @@ uses SSH to run an Ansible module; `pong` means Ansible can run a simple
 module on the server. It does not require `sudo` and is not an ICMP network
 ping.
 
-The next step will check the SSD before making any server changes.
+## Step 2 — verify the SSD
+
+Before Ansible configures the host, it checks that `/dev/sda1` has the
+expected `houston-data` label, uses ext4, and is mounted at
+`/srv/terraform`. It compares the partition UUID with the mounted filesystem
+UUID, so an unrelated disk mounted at that path does not pass the check.
+
+The playbook in `playbooks/houston.yml` contains only read-only checks. It
+does not format or mount disks, install packages, or modify configuration.
+`become` is used so the filesystem identity can be read reliably.
+
+Check the syntax locally, then run the read-only checks against the host:
+
+```bash
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --ask-become-pass
+```
+
+The second command asks for the sudo password locally. A successful run
+confirms the storage is ready for later configuration steps.
