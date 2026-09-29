@@ -6,7 +6,7 @@
 
 - name: Create Garage service user
   ansible.builtin.user:
-    name: garage
+    name: garage-svc
     system: true
     home: /srv/terraform/garage
     create_home: false
@@ -16,8 +16,8 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: garage
-    group: garage
+    owner: garage-svc
+    group: garage-svc
     mode: '0700'
   loop:
     - /srv/terraform/garage
@@ -43,11 +43,61 @@
   ansible.builtin.copy:
     dest: /srv/terraform/garage/rpc-secret
     content: "{{ garage_generated_rpc_secret.stdout }}\n"
-    owner: garage
-    group: garage
+    owner: garage-svc
+    group: garage-svc
     mode: '0600'
   when:
     - not garage_rpc_secret_file.stat.exists
+    - not ansible_check_mode
+  no_log: true
+  notify: Restart Garage
+
+- name: Ensure the Garage RPC secret belongs to the service account
+  ansible.builtin.file:
+    path: /srv/terraform/garage/rpc-secret
+    owner: garage-svc
+    group: garage-svc
+    mode: '0600'
+    state: file
+  when:
+    - garage_rpc_secret_file.stat.exists or not ansible_check_mode
+  notify: Restart Garage
+
+- name: Check whether Garage S3 bootstrap credentials already exist
+  ansible.builtin.stat:
+    path: /srv/terraform/garage/s3-bootstrap.env
+  register: garage_s3_bootstrap_file
+
+- name: Generate a Garage S3 access key ID once
+  ansible.builtin.command: openssl rand -hex 16
+  register: garage_generated_s3_access_key
+  when:
+    - not garage_s3_bootstrap_file.stat.exists
+    - not ansible_check_mode
+  changed_when: true
+  no_log: true
+
+- name: Generate a Garage S3 secret key once
+  ansible.builtin.command: openssl rand -hex 32
+  register: garage_generated_s3_secret_key
+  when:
+    - not garage_s3_bootstrap_file.stat.exists
+    - not ansible_check_mode
+  changed_when: true
+  no_log: true
+
+- name: Save Garage S3 bootstrap credentials on the SSD
+  ansible.builtin.copy:
+    dest: /srv/terraform/garage/s3-bootstrap.env
+    content: |
+      GARAGE_DEFAULT_ACCESS_KEY=GK{{ garage_generated_s3_access_key.stdout }}
+      GARAGE_DEFAULT_SECRET_KEY={{ garage_generated_s3_secret_key.stdout }}
+      GARAGE_DEFAULT_BUCKET={{ garage_default_bucket }}
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not garage_s3_bootstrap_file.stat.exists
     - not ansible_check_mode
   no_log: true
   notify: Restart Garage
@@ -57,9 +107,27 @@
     url: "https://garagehq.deuxfleurs.fr/_releases/v{{ garage_version }}/x86_64-unknown-linux-musl/garage"
     dest: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
     checksum: "sha256:{{ garage_sha256 }}"
-    owner: garage
-    group: garage
+    owner: garage-svc
+    group: garage-svc
     mode: '0755'
+  notify: Restart Garage
+
+- name: Ensure the Garage binary belongs to the service account
+  ansible.builtin.file:
+    path: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
+    owner: garage-svc
+    group: garage-svc
+    mode: '0755'
+    state: file
+  notify: Restart Garage
+
+- name: Link the pinned Garage binary to a stable CLI path
+  ansible.builtin.file:
+    src: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
+    dest: /usr/local/bin/garage
+    owner: root
+    group: root
+    state: link
   notify: Restart Garage
 
 - name: Install localhost-only Garage configuration
@@ -67,7 +135,7 @@
     src: garage.toml.j2
     dest: /etc/garage.toml
     owner: root
-    group: garage
+    group: garage-svc
     mode: '0640'
   notify: Restart Garage
 

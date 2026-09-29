@@ -94,11 +94,12 @@ ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
 
 ## Step 5 — install Garage
 
-The `garage` role installs the pinned Garage binary and runs it as a dedicated
-system user. Garage metadata and objects live on the SSD under
-`/srv/terraform/garage`. Its S3 API and internal RPC listener bind to localhost,
-so other machines cannot connect to them. The service also requires the SSD
-mountpoint and will not start against the small eMMC root filesystem.
+The `garage` role installs the pinned Garage binary and links it to the stable
+command `/usr/local/bin/garage`. The service runs as the dedicated `garage-svc`
+user, while `garage` is the CLI command. Its metadata and objects live on the
+SSD under `/srv/terraform/garage`. Its S3 API and internal RPC listener bind to
+localhost, so other machines cannot connect to them. The service also requires
+the SSD mountpoint and will not start against the small eMMC root filesystem.
 
 This step installs the service only. It does not create an S3 bucket, access
 key, or Terraform backend. Garage is configured as a single node with one copy
@@ -134,3 +135,43 @@ To stop the service while keeping its data, run
 binary, secret, metadata, and objects are under `/srv/terraform/garage`.
 Preserve that directory before removing it, because deleting it permanently
 removes the local Garage data and RPC secret.
+
+## Step 6 — bootstrap the Terraform bucket and access key
+
+Garage's `--single-node` flag initializes its one-node layout. The
+`--default-bucket` flag creates the `terraform-state` bucket and an S3 access
+key on startup. Ansible generates the key ID and secret once, stores them in a
+root-only environment file on the SSD, and tells systemd to pass them to
+Garage. The secret is not printed by Ansible or committed to Git. This follows
+Garage's [official single-node bootstrap
+flow](https://garagehq.deuxfleurs.fr/documentation/quick-start/).
+
+Review and apply the bootstrap, then run it again to check idempotency:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags garage --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
+```
+
+The first apply creates `/srv/terraform/garage/s3-bootstrap.env` with mode
+`0600`, links the pinned binary to `/usr/local/bin/garage`, and restarts Garage
+so it can create the bucket and access key. The credentials file is root-only;
+do not paste its contents into chat or commit it. When you need to copy the
+credentials to a password manager or a future runner secret store, read the
+file with `sudo` and handle the output as a secret.
+
+Verify Garage is healthy and that the bucket and access key exist:
+
+```bash
+sudo -u garage-svc garage status
+sudo -u garage-svc garage bucket info terraform-state
+sudo -u garage-svc garage key list
+sudo stat -c '%a %U:%G %n' /srv/terraform/garage/s3-bootstrap.env
+```
+
+The permissions check should show `600 root:root`. Terraform is not configured
+to use this bucket in this step; backend setup and state-locking verification
+come later.
