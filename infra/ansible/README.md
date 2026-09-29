@@ -134,3 +134,46 @@ To stop the service while keeping its data, run
 binary, secret, metadata, and objects are under `/srv/terraform/garage`.
 Preserve that directory before removing it, because deleting it permanently
 removes the local Garage data and RPC secret.
+
+## Step 6 — create the Terraform bucket and access key
+
+The Garage service was started with `--single-node`, which automatically
+configures the one-node layout. This step creates a bucket named
+`terraform-state` and a separate API key named `terraform-backend`, then gives
+that key access only to this bucket. Garage's CLI commands follow the
+[official quick start](https://garagehq.deuxfleurs.fr/documentation/quick-start/).
+
+Connect to `houston-01` and set a short shell variable for the versioned Garage
+binary. The `sudo -u garage` commands run the CLI as Garage's service user so
+it can read the service configuration and metadata:
+
+```bash
+ssh houston-01
+GARAGE=/srv/terraform/garage/bin/garage-v2.4.1
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" status
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" bucket list
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" key list
+```
+
+Confirm the node is healthy and check whether the bucket or key already exists.
+Create only the missing items; these are one-time commands:
+
+```bash
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" bucket create terraform-state
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" key create terraform-backend
+```
+
+The key-creation command prints a key ID and secret key. Save both in a
+password manager. The secret is sensitive: do not paste it into chat or commit
+it to Git. Grant the key access to the bucket and verify the result:
+
+```bash
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" bucket allow --read --write terraform-state --key terraform-backend
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" bucket info terraform-state
+sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" key info terraform-backend
+```
+
+The `--read` and `--write` permissions let this key list, retrieve, and update
+objects in the bucket without granting bucket-owner access. Terraform is not
+configured to use this bucket in this step; backend setup and state-locking
+verification come later.
