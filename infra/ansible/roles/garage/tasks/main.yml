@@ -102,21 +102,30 @@
   no_log: true
   notify: Restart Garage
 
+- name: Check whether the pinned Garage binary already has the expected checksum
+  ansible.builtin.stat:
+    path: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
+    checksum_algorithm: sha256
+  register: garage_binary_file
+
 - name: Download the checksum-verified Garage binary
   ansible.builtin.get_url:
     url: "https://garagehq.deuxfleurs.fr/_releases/v{{ garage_version }}/x86_64-unknown-linux-musl/garage"
     dest: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
     checksum: "sha256:{{ garage_sha256 }}"
-    owner: garage-svc
-    group: garage-svc
+    owner: root
+    group: root
     mode: '0755'
+  when: >-
+    not garage_binary_file.stat.exists or
+    garage_binary_file.stat.checksum != garage_sha256
   notify: Restart Garage
 
-- name: Ensure the Garage binary belongs to the service account
+- name: Ensure the Garage binary is owned by root
   ansible.builtin.file:
     path: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
-    owner: garage-svc
-    group: garage-svc
+    owner: root
+    group: root
     mode: '0755'
     state: file
   notify: Restart Garage
