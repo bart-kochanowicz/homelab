@@ -10,7 +10,6 @@
     argocd_chart: argo-cd
     argocd_repo: https://argoproj.github.io/argo-helm
     argocd_version: 8.6.3
-    kubeconfig_path: "{{ ansible_env.HOME }}/.kube/config"
 
   tasks:
     - name: Check if kubectl is available
