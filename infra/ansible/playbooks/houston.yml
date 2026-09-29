@@ -42,3 +42,7 @@
           Stop: /dev/sda1 must have the expected label, use ext4, and be
           mounted at /srv/terraform before Ansible can configure the host.
       tags: always
+
+  roles:
+    - role: common
+      tags: common
