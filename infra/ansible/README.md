@@ -95,11 +95,11 @@ ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
 ## Step 5 — install Garage
 
 The `garage` role installs the pinned Garage binary and links it to the stable
-command `/usr/local/bin/garage`. Garage runs as a dedicated system user, and
-its metadata and objects live on the SSD under
-`/srv/terraform/garage`. Its S3 API and internal RPC listener bind to localhost,
-so other machines cannot connect to them. The service also requires the SSD
-mountpoint and will not start against the small eMMC root filesystem.
+command `/usr/local/bin/garage`. The service runs as the dedicated `garage-svc`
+user, while `garage` is the CLI command. Its metadata and objects live on the
+SSD under `/srv/terraform/garage`. Its S3 API and internal RPC listener bind to
+localhost, so other machines cannot connect to them. The service also requires
+the SSD mountpoint and will not start against the small eMMC root filesystem.
 
 This step installs the service only. It does not create an S3 bucket, access
 key, or Terraform backend. Garage is configured as a single node with one copy
@@ -158,17 +158,20 @@ ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
 
 The first apply creates `/srv/terraform/garage/s3-bootstrap.env` with mode
 `0600`, links the pinned binary to `/usr/local/bin/garage`, and restarts Garage
-so it can create the bucket and access key. The credentials file is root-only;
-do not paste its contents into chat or commit it. When you need to copy the
-credentials to a password manager or a future runner secret store, read the
-file with `sudo` and handle the output as a secret.
+so it can create the bucket and access key. Since Garage was initially running
+as the `garage` user, Ansible briefly stops the service, transfers ownership
+of its existing data to `garage-svc`, starts Garage under that account, and
+removes the old account without deleting its home directory. The credentials
+file is root-only; do not paste its contents into chat or commit it. When you
+need to copy the credentials to a password manager or a future runner secret
+store, read the file with `sudo` and handle the output as a secret.
 
 Verify Garage is healthy and that the bucket and access key exist:
 
 ```bash
-sudo -u garage garage status
-sudo -u garage garage bucket info terraform-state
-sudo -u garage garage key list
+sudo -u garage-svc garage status
+sudo -u garage-svc garage bucket info terraform-state
+sudo -u garage-svc garage key list
 sudo stat -c '%a %U:%G %n' /srv/terraform/garage/s3-bootstrap.env
 ```
 

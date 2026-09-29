@@ -7,8 +7,8 @@ ConditionPathIsMountPoint=/srv/terraform
 
 [Service]
 Type=simple
-User=garage
-Group=garage
+User=garage-svc
+Group=garage-svc
 Environment=GARAGE_CONFIG_FILE=/etc/garage.toml
 EnvironmentFile=/srv/terraform/garage/s3-bootstrap.env
 ExecStart=/usr/local/bin/garage server --single-node --default-bucket
