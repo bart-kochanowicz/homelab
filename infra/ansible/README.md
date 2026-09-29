@@ -175,3 +175,52 @@ sudo stat -c '%a %U:%G %n' /srv/terraform/garage/s3-bootstrap.env
 The permissions check should show `600 root:root`. Terraform is not configured
 to use this bucket in this step; backend setup and state-locking verification
 come later.
+
+## Step 7 — install Terraform CLI
+
+The `terraform_cli` role installs Terraform 1.16.4 from the [official HashiCorp
+release](https://releases.hashicorp.com/terraform/1.16.4/). This is the command
+that the future infrastructure runner will use for `plan` and `apply`.
+The laptop/CI pin in `aqua.yaml` uses the same version. Change that pin and
+`terraform_cli_version` together when upgrading, and update both checksums.
+
+Ansible verifies the downloaded ZIP against HashiCorp's [published
+SHA-256](https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_SHA256SUMS).
+The executable checksum is derived from that verified ZIP. Downloads and the
+versioned executable live under `/srv/terraform/tools` on the SSD.
+`/usr/local/bin/terraform` is a symlink to that executable. Both the executable
+and symlink belong to `root:root`; ordinary users can execute Terraform.
+The role checks the executable checksum first and reinstalls it only when it
+is missing or differs from the pinned release.
+
+From `infra/ansible` on your computer, review the changes, apply them, and
+repeat the apply to verify idempotency:
+
+```bash
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags terraform_cli --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags terraform_cli --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags terraform_cli --ask-become-pass
+```
+
+On a fresh host, check mode reports the planned download and symlink but skips
+archive extraction because it has not downloaded the archive. An unchanged
+installation should report `changed=0` in both check mode and a normal apply.
+
+Verify on `houston-01` as `capcom`, without sudo:
+
+```bash
+terraform version
+command -v terraform
+readlink /usr/local/bin/terraform
+```
+
+Expect version `1.16.4`, command path `/usr/local/bin/terraform`, and target
+`/srv/terraform/tools/terraform-1.16.4/terraform`. This step installs the CLI;
+backend configuration, runner registration, and state locking are later steps.
+
+To roll back an upgrade, restore the previous version and its two checksums
+from Git, restore the matching `aqua.yaml` pin, then apply the role again.
+To remove the CLI, remove the role from the playbook and unlink
+`/usr/local/bin/terraform` with `sudo rm /usr/local/bin/terraform`.
+The versioned installation and ZIP remain on the SSD for explicit cleanup.
