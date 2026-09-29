@@ -91,3 +91,46 @@ ansible-playbook playbooks/houston.yml --check --diff --tags storage --ask-becom
 ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
 ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
 ```
+
+## Step 5 — install Garage
+
+The `garage` role installs the pinned Garage binary and runs it as a dedicated
+system user. Garage metadata and objects live on the SSD under
+`/srv/terraform/garage`. Its S3 API and internal RPC listener bind to localhost,
+so other machines cannot connect to them. The service also requires the SSD
+mountpoint and will not start against the small eMMC root filesystem.
+
+This step installs the service only. It does not create an S3 bucket, access
+key, or Terraform backend. Garage is configured as a single node with one copy
+of its data, so off-site backups will be needed before it stores important
+state.
+
+Review the proposed changes, apply them, and run the role again to check
+idempotency:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags garage --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
+```
+
+The first apply downloads the binary from the [official Garage release
+site](https://garagehq.deuxfleurs.fr/_releases.html) and verifies its SHA-256
+checksum. It creates a private RPC secret on the SSD; Ansible suppresses that
+task's output so the value is not printed. Check mode skips secret generation
+because it must not create the secret as a side effect.
+
+Verify the service and its local listeners on `houston-01`:
+
+```bash
+sudo systemctl status garage --no-pager
+sudo ss -ltnp | grep -E '127\.0\.0\.1:(3900|3901)'
+```
+
+To stop the service while keeping its data, run
+`sudo systemctl disable --now garage`. Its config is `/etc/garage.toml`; the
+binary, secret, metadata, and objects are under `/srv/terraform/garage`.
+Preserve that directory before removing it, because deleting it permanently
+removes the local Garage data and RPC secret.

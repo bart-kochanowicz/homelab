@@ -1,2 +1,5 @@
 ---
 houston_expected_ssd_label: houston-data
+# Garage release and SHA-256 of the official x86_64 Linux binary.
+garage_version: '2.4.1'
+garage_sha256: cb68cd3a55f6e59c130b9760004ed7cc398ede1af7773675d54fc47fb8ac2953
