@@ -1,0 +1,16 @@
+---
+- name: Persist the verified SSD mount by UUID
+  ansible.posix.mount:
+    path: /srv/terraform
+    src: "UUID={{ houston_ssd_uuid.stdout }}"
+    fstype: ext4
+    opts: defaults,noatime,nofail,x-systemd.device-timeout=10s
+    dump: '0'
+    passno: '2'
+    state: present
+
+- name: Enable scheduled SSD TRIM
+  ansible.builtin.systemd_service:
+    name: fstrim.timer
+    enabled: true
+    state: started

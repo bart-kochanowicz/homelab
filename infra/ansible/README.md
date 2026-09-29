@@ -73,3 +73,21 @@ ansible-playbook playbooks/houston.yml --tags common --ask-become-pass
 
 The final run checks idempotency: if the host already matches the desired
 settings, Ansible should report no changes.
+
+## Step 4 — keep the SSD mount across reboots
+
+The `storage` role records the already-verified filesystem UUID in
+`/etc/fstab` and enables the systemd `fstrim.timer`. The mount task uses
+`state: present`, which manages the boot-time entry without mounting or
+formatting the disk. The earlier preflight must pass before this role runs.
+
+Review the proposed `/etc/fstab` and timer changes, then apply the role and
+run it again to check idempotency:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags storage --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
+```
