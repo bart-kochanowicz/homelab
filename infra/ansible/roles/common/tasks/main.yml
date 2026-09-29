@@ -1,0 +1,56 @@
+---
+- name: Install packages for the Debian baseline
+  ansible.builtin.apt:
+    name:
+      - python3-apt
+      - unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Set the host timezone
+  community.general.timezone:
+    name: Europe/Warsaw
+
+- name: Check whether system NTP is enabled
+  ansible.builtin.command: timedatectl show -p NTP --value
+  register: houston_ntp_enabled
+  changed_when: false
+  check_mode: false
+
+- name: Enable system NTP when it is disabled
+  ansible.builtin.command: timedatectl set-ntp true
+  when: houston_ntp_enabled.stdout != 'yes'
+  changed_when: true
+
+- name: Enable unattended security upgrades without automatic reboot
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52houston-unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+- name: Create the journald drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Bound journald storage on the small eMMC
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/10-houston.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Journal]
+      SystemMaxUse=100M
+      RuntimeMaxUse=50M
+      MaxRetentionSec=7day
+  notify: Restart journald

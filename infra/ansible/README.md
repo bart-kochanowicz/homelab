@@ -53,3 +53,23 @@ ansible-playbook playbooks/houston.yml --ask-become-pass
 
 The second command asks for the sudo password locally. A successful run
 confirms the storage is ready for later configuration steps.
+
+## Step 3 — apply the Debian baseline
+
+The `common` role manages the timezone, NTP, unattended security updates, and
+journald limits. It does not change SSH settings or reboot the host. Journald
+restarts only if its configuration file changes.
+
+Install the Ansible collection and review the proposed changes before
+applying them:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags common --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags common --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags common --ask-become-pass
+```
+
+The final run checks idempotency: if the host already matches the desired
+settings, Ansible should report no changes.
