@@ -11,7 +11,7 @@ User=garage
 Group=garage
 Environment=GARAGE_CONFIG_FILE=/etc/garage.toml
 EnvironmentFile=/srv/terraform/garage/s3-bootstrap.env
-ExecStart=/srv/terraform/garage/bin/garage-v{{ garage_version }} server --single-node --default-bucket
+ExecStart=/usr/local/bin/garage server --single-node --default-bucket
 Restart=on-failure
 RestartSec=10
 NoNewPrivileges=true

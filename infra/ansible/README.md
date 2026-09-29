@@ -94,8 +94,9 @@ ansible-playbook playbooks/houston.yml --tags storage --ask-become-pass
 
 ## Step 5 — install Garage
 
-The `garage` role installs the pinned Garage binary and runs it as a dedicated
-system user. Garage metadata and objects live on the SSD under
+The `garage` role installs the pinned Garage binary and links it to the stable
+command `/usr/local/bin/garage`. Garage runs as a dedicated system user, and
+its metadata and objects live on the SSD under
 `/srv/terraform/garage`. Its S3 API and internal RPC listener bind to localhost,
 so other machines cannot connect to them. The service also requires the SSD
 mountpoint and will not start against the small eMMC root filesystem.
@@ -156,19 +157,18 @@ ansible-playbook playbooks/houston.yml --tags garage --ask-become-pass
 ```
 
 The first apply creates `/srv/terraform/garage/s3-bootstrap.env` with mode
-`0600`, restarts Garage, and lets Garage create the bucket and access key. The
-file contains credentials, so keep it on the host and do not paste its contents
-into chat or commit it. When you need to copy the credentials to a password
-manager or a future runner secret store, read the file with `sudo` and handle
-the output as a secret.
+`0600`, links the pinned binary to `/usr/local/bin/garage`, and restarts Garage
+so it can create the bucket and access key. The credentials file is root-only;
+do not paste its contents into chat or commit it. When you need to copy the
+credentials to a password manager or a future runner secret store, read the
+file with `sudo` and handle the output as a secret.
 
 Verify Garage is healthy and that the bucket and access key exist:
 
 ```bash
-GARAGE=/srv/terraform/garage/bin/garage-v2.4.1
-sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" status
-sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" bucket info terraform-state
-sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage.toml "$GARAGE" key list
+sudo -u garage garage status
+sudo -u garage garage bucket info terraform-state
+sudo -u garage garage key list
 sudo stat -c '%a %U:%G %n' /srv/terraform/garage/s3-bootstrap.env
 ```
 

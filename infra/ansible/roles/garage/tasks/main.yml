@@ -101,6 +101,15 @@
     mode: '0755'
   notify: Restart Garage
 
+- name: Link the pinned Garage binary to a stable CLI path
+  ansible.builtin.file:
+    src: "/srv/terraform/garage/bin/garage-v{{ garage_version }}"
+    dest: /usr/local/bin/garage
+    owner: root
+    group: root
+    state: link
+  notify: Restart Garage
+
 - name: Install localhost-only Garage configuration
   ansible.builtin.template:
     src: garage.toml.j2
