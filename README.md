@@ -32,6 +32,10 @@ make validate
 make -C system setup-from-scratch
 ```
 
+The `system/Makefile` installs Ansible on the machine running `make`.
+`system/bootstrap.yaml` also runs there and uses that machine's Kubernetes
+access to bootstrap ArgoCD.
+
 Bootstrap order is Talos, Cilium, ArgoCD, then ArgoCD-managed platform and
 applications. Cilium is deliberately installed outside ArgoCD so the network
 does not depend on GitOps for recovery.

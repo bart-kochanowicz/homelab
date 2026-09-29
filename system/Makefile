@@ -1,9 +1,5 @@
-KUBECONFIG ?= ~/.kube/config
 NAMESPACE := argocd
 RELEASE := argocd
-CHART := argo-cd
-REPO := https://argoproj.github.io/argo-helm
-VERSION := 8.6.3
 
 .PHONY: all install-ansible install-deps bootstrap bootstrap-cilium \
 	cilium-preflight cilium-migrate cilium-rollback clean force-clean \
@@ -15,7 +11,7 @@ setup-from-scratch: install-ansible install-deps bootstrap-cilium bootstrap
 	@echo "✅ Complete setup finished!"
 
 install-ansible:
-	@echo "📦 Installing Ansible and dependencies..."
+	@echo "📦 Installing Ansible and dependencies on this machine..."
 	pip3 install ansible kubernetes
 
 install-deps:
