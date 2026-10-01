@@ -217,8 +217,57 @@ A successful rehearsal checks restore of the built-in example only. Recovery
 of real infrastructure requires its matching configuration and provider
 versions, review of any plan against the existing resources, and deliberate
 selection of the destination backend. This script rejects infrastructure
-snapshots. Retention overwrite/deletion rejection and the trusted runner
-workflow are separate checks still to complete.
+snapshots. The trusted runner workflow is a separate step still to complete.
+
+## Verify rejection of overwrite and deletion
+
+Run `scripts/check-r2-retention.sh` from the repository checkout on Houston
+using the same bucket-scoped `Object Read & Write` credential. The script
+creates two small text objects under new UUID keys. It accepts no object key
+argument and operates only on its own probes.
+
+The unprotected control under `checks/retention/` must allow creation,
+overwrite, readback, and deletion. The probe under `backups/checks/retention/`
+must allow creation and readback, then reject both unconditional overwrite
+and deletion with HTTP 403 and the documented
+[`ObjectLockedByBucketPolicy` error](https://developers.cloudflare.com/r2/api/error-codes/).
+The script checks that the original bytes remain after each rejection.
+A permission denial, conditional-write rejection, rate limit, or network
+failure does not count as successful protection. Writes are spaced to respect
+R2's per-key write limit; mutations are not automatically retried.
+
+In Bash on Houston:
+
+```bash
+set +x
+umask 077
+read -r -p 'Cloudflare account ID: ' R2_ACCOUNT_ID
+read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID; printf '\n'
+read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY; printf '\n'
+export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
+
+./scripts/check-r2-retention.sh
+
+unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
+```
+
+Expect `Retention verified: overwrite and deletion rejected by Bucket Lock.`
+Record the printed probe key as evidence. Successful verification deletes the
+unprotected control and local staging files. The protected text object remains
+in R2 under the existing 90-day rule. There is no automatic cleanup after its
+protection expires; do not weaken the policy to remove this tiny probe.
+
+Failure returns nonzero, retains private staging files, and prints both
+probe keys for inspection. An interrupted request may have taken effect;
+inspect those exact keys before any manual cleanup. Another run generates
+new keys. If the rule is absent, the script fails when overwrite unexpectedly
+succeeds. Restore the desired lock configuration through a reviewed Terraform
+plan before repeating the test.
+
+This checks enforcement on a new object at the time of the run. Inspect the
+90-day age condition in the dashboard as described above; this script does
+not wait for expiry or prove that an administrator cannot change the rule.
+It does not read or change a Terraform state snapshot.
 
 ## Recovery and removal
 
@@ -228,7 +277,7 @@ Check credentials, network access, and R2 settings; another run pulls a fresh
 snapshot under a new key. An interrupted PUT may have created an R2 object
 although verification failed. Use the R2 dashboard to inspect it before any
 manual recovery. Remove only your retained staging directory after preserving
-its needed snapshot. The script never deletes R2 objects.
+its needed snapshot. The backup upload script never deletes R2 objects.
 
 If provisioning fails, check R2 activation and the Terraform token's account
 permissions, then review a new plan and retry. If the managed domain or lock
