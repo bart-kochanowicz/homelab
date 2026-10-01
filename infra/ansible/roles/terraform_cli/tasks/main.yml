@@ -1,0 +1,75 @@
+---
+- name: Install unzip for the official Terraform release archive
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+
+- name: Create Terraform installation directories on the SSD
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /srv/terraform/tools
+    - /srv/terraform/tools/archives
+    - "/srv/terraform/tools/terraform-{{ terraform_cli_version }}"
+
+- name: Check the installed Terraform executable checksum
+  ansible.builtin.stat:
+    path: "/srv/terraform/tools/terraform-{{ terraform_cli_version }}/terraform"
+    checksum_algorithm: sha256
+  register: terraform_cli_binary
+
+- name: Download the checksum-verified Terraform release archive
+  ansible.builtin.get_url:
+    url: "https://releases.hashicorp.com/terraform/{{ terraform_cli_version }}/terraform_{{ terraform_cli_version }}_linux_amd64.zip"
+    dest: "/srv/terraform/tools/archives/terraform_{{ terraform_cli_version }}_linux_amd64.zip"
+    checksum: "sha256:{{ terraform_cli_archive_sha256 }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: terraform_cli_binary.stat.checksum | default('') != terraform_cli_binary_sha256
+
+- name: Remove an executable whose checksum differs from the pinned release
+  ansible.builtin.file:
+    path: "/srv/terraform/tools/terraform-{{ terraform_cli_version }}/terraform"
+    state: absent
+  when:
+    - terraform_cli_binary.stat.exists
+    - terraform_cli_binary.stat.checksum | default('') != terraform_cli_binary_sha256
+    - not ansible_check_mode
+
+- name: Extract the Terraform executable from the verified archive
+  ansible.builtin.unarchive:
+    src: "/srv/terraform/tools/archives/terraform_{{ terraform_cli_version }}_linux_amd64.zip"
+    dest: "/srv/terraform/tools/terraform-{{ terraform_cli_version }}"
+    remote_src: true
+    include:
+      - terraform
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - terraform_cli_binary.stat.checksum | default('') != terraform_cli_binary_sha256
+    - not ansible_check_mode
+
+- name: Ensure Terraform executable permissions
+  ansible.builtin.file:
+    path: "/srv/terraform/tools/terraform-{{ terraform_cli_version }}/terraform"
+    state: file
+    owner: root
+    group: root
+    mode: '0755'
+  when: terraform_cli_binary.stat.exists or not ansible_check_mode
+
+- name: Link Terraform to the stable CLI path
+  ansible.builtin.file:
+    src: "/srv/terraform/tools/terraform-{{ terraform_cli_version }}/terraform"
+    dest: /usr/local/bin/terraform
+    state: link
+    owner: root
+    group: root
+    follow: false
+    force: "{{ ansible_check_mode }}"

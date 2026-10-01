@@ -50,3 +50,5 @@
       tags: storage
     - role: garage
       tags: garage
+    - role: terraform_cli
+      tags: terraform_cli
