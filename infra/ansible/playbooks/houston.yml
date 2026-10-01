@@ -52,3 +52,5 @@
       tags: garage
     - role: terraform_cli
       tags: terraform_cli
+    - role: github_runner
+      tags: github_runner
