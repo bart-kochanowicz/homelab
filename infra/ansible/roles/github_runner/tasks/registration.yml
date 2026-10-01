@@ -53,7 +53,6 @@
 
 - name: Decode runner registration settings
   ansible.builtin.set_fact:
-    # The official runner writes its JSON settings as UTF-8 with a BOM.
     github_runner_settings: "{{ github_runner_settings_file.content | b64decode(encoding='utf-8-sig') | from_json }}"
   when: github_runner_registration.stat.exists or not ansible_check_mode
 
@@ -73,7 +72,7 @@
     state: file
     owner: runner-svc
     group: runner-svc
-    mode: '0600'
+    mode: "0600"
   loop:
     - .runner
     - .credentials
@@ -86,7 +85,7 @@
     dest: /etc/systemd/system/github-runner.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: Restart GitHub runner
 
 - name: Verify the runner unit before service activation
