@@ -9,3 +9,4 @@ terraform_cli_binary_sha256: 44d3683c2ac9d72b6ca8ad880a2df8dd956dd5e019b1d111cb6
 github_runner_version: "2.337.0"
 github_runner_archive_sha256: 70920811a4f8ad4328818682bca5c6469c1c942fab52448868071d0063816613
 github_runner_binary_sha256: f4584cf5ef53ebc8507e9edfad07973e389ff6488906a1abe5f698aa86b295cf
+github_runner_repository_url: https://github.com/bart-kochanowicz/homelab-automation

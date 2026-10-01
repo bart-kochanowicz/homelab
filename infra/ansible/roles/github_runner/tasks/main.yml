@@ -152,3 +152,6 @@
     group: runner-svc
     mode: '0600'
   when: not ansible_check_mode
+
+- name: Configure registration and the runner service
+  ansible.builtin.import_tasks: registration.yml

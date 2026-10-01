@@ -1,0 +1,7 @@
+---
+- name: Restart GitHub runner
+  ansible.builtin.systemd_service:
+    name: github-runner.service
+    daemon_reload: true
+    state: restarted
+  when: github_runner_registration.stat.exists or not ansible_check_mode

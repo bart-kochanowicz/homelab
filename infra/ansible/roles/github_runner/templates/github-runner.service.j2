@@ -1,0 +1,30 @@
+[Unit]
+Description=Houston GitHub Actions infrastructure runner
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/srv/terraform
+ConditionPathIsMountPoint=/srv/terraform
+ConditionPathExists=/srv/terraform/runner/app-{{ github_runner_version }}/.runner
+
+[Service]
+Type=simple
+User=runner-svc
+Group=runner-svc
+WorkingDirectory=/srv/terraform/runner/app-{{ github_runner_version }}
+ExecStart=/srv/terraform/runner/app-{{ github_runner_version }}/runsvc.sh
+Environment=HOME=/srv/terraform/runner/home
+Environment=TMPDIR=/srv/terraform/runner/tmp
+UMask=0077
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/terraform/runner /srv/terraform/backup-staging /run/houston-terraform
+
+[Install]
+WantedBy=multi-user.target
