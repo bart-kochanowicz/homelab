@@ -53,7 +53,8 @@
 
 - name: Decode runner registration settings
   ansible.builtin.set_fact:
-    github_runner_settings: "{{ github_runner_settings_file.content | b64decode | from_json }}"
+    # The official runner writes its JSON settings as UTF-8 with a BOM.
+    github_runner_settings: "{{ github_runner_settings_file.content | b64decode(encoding='utf-8-sig') | from_json }}"
   when: github_runner_registration.stat.exists or not ansible_check_mode
 
 - name: Require the intended repository, name, work directory and update policy
