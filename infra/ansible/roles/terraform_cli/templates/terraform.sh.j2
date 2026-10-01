@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! /usr/bin/mountpoint --quiet /srv/terraform; then
+  echo 'Terraform requires the workload SSD mounted at /srv/terraform.' >&2
+  exit 1
+fi
+
+exec /usr/bin/flock --exclusive --no-fork \
+  /run/houston-terraform/operation.lock \
+  /srv/terraform/tools/terraform-{{ terraform_cli_version }}/terraform "$@"

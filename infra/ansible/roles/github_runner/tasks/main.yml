@@ -32,7 +32,8 @@
   ansible.builtin.user:
     name: runner-svc
     group: runner-svc
-    groups: []
+    groups:
+      - terraform-ops
     append: false
     system: true
     home: /srv/terraform/runner/home

@@ -188,8 +188,9 @@ Ansible verifies the downloaded ZIP against HashiCorp's [published
 SHA-256](https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_SHA256SUMS).
 The executable checksum is derived from that verified ZIP. Downloads and the
 versioned executable live under `/srv/terraform/tools` on the SSD.
-`/usr/local/bin/terraform` is a symlink to that executable. Both the executable
-and symlink belong to `root:root`; ordinary users can execute Terraform.
+`/usr/local/bin/terraform` is a root-owned wrapper that runs the executable
+with the shared Houston process lock described in step 9. The executable and
+wrapper belong to `root:root`.
 The role checks the executable checksum first and reinstalls it only when it
 is missing or differs from the pinned release.
 
@@ -203,7 +204,7 @@ ansible-playbook playbooks/houston.yml --tags terraform_cli --ask-become-pass
 ansible-playbook playbooks/houston.yml --tags terraform_cli --ask-become-pass
 ```
 
-On a fresh host, check mode reports the planned download and symlink but skips
+On a fresh host, check mode reports the planned installation but skips
 archive extraction because it has not downloaded the archive. An unchanged
 installation should report `changed=0` in both check mode and a normal apply.
 
@@ -212,11 +213,11 @@ Verify on `houston-01` as `capcom`, without sudo:
 ```bash
 terraform version
 command -v terraform
-readlink /usr/local/bin/terraform
+stat -c '%F %U:%G %n' /usr/local/bin/terraform
 ```
 
-Expect version `1.16.4`, command path `/usr/local/bin/terraform`, and target
-`/srv/terraform/tools/terraform-1.16.4/terraform`. This step installs the CLI;
+Expect version `1.16.4`, command path `/usr/local/bin/terraform`, and a regular
+file owned by `root:root`. This step installs the CLI;
 backend configuration, runner registration, and state locking are later steps.
 
 To roll back an upgrade, restore the previous version and its two checksums
@@ -229,7 +230,8 @@ The versioned installation and ZIP remain on the SSD for explicit cleanup.
 
 The `github_runner` role installs the official Linux x64 runner **2.337.0** and
 its Debian 13 runtime libraries. It creates `runner-svc`, a separate system
-account with a locked password, no login shell, and no supplementary groups.
+account with a locked password, no login shell, and only the `terraform-ops`
+supplementary group needed for the shared process lock.
 The runner application, home, future job workspace, and temporary directory
 live under `/srv/terraform/runner` on the SSD. These directories are private
 to the runner account. The application belongs to `runner-svc`, following the
@@ -279,3 +281,60 @@ any needed files, then explicitly remove `/srv/terraform/runner` and its
 release archive under `/srv/terraform/tools/archives`, followed by the unused
 `runner-svc` account and group. Do not use this removal procedure once a runner
 has been registered; unregister and stop its service first.
+
+## Step 9 — serialize Terraform commands on Houston
+
+Garage 2.4.1 cannot provide the conditional writes required by Terraform's
+native S3 locking. We keep Garage and use one host-wide Linux `flock` instead.
+All normal Terraform invocations on Houston must use `/usr/local/bin/terraform`,
+including manual commands and future runner jobs. This wrapper acquires
+`/run/houston-terraform/operation.lock` before executing the pinned binary.
+A second invocation waits until the first finishes. The same lock covers all
+commands and state keys, which is deliberately simple for this small host.
+
+The `terraform-ops` group gives `capcom` and `runner-svc` access to the lock.
+Its root-owned parent directory prevents either account from replacing or
+removing the lock file. Ansible preserves the lock file's inode when enforcing
+permissions; replacing a file that is already locked could allow two separate
+locks to exist. `systemd-tmpfiles` recreates the directory and file at boot.
+The kernel releases the lock after all processes holding its file descriptor
+have closed it or exited.
+The wrapper also refuses to run if the SSD mountpoint is unavailable.
+
+This is an operational rule for trusted users and workflows, not a security
+sandbox. Do not invoke the versioned binary directly, run Terraform from
+another machine against this bucket, or delete the runtime lock while a
+command is running. Those actions bypass the shared lock. A future Garage
+S3 backend must set `use_lockfile = false` because locking is external.
+The backend is not changed by this step.
+
+Apply both tags so the runner account receives its lock group:
+
+```bash
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags terraform_cli,github_runner --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags terraform_cli,github_runner --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags terraform_cli,github_runner --ask-become-pass
+```
+
+Open a new SSH session as `capcom` after group membership changes. Verify:
+
+```bash
+id capcom
+id runner-svc
+terraform version
+sudo stat -c '%F %a %U:%G %n' /usr/local/bin/terraform /run/houston-terraform/operation.lock
+```
+
+Expect both accounts in `terraform-ops`, a root-owned regular wrapper, and a
+`660 root:terraform-ops` lock file. To check waiting, hold the same lock in one
+terminal with `flock /run/houston-terraform/operation.lock sleep 15`, then run
+`terraform version` in another. It should print the version after the lock
+holder exits. The final Ansible apply should report `changed=0`.
+
+If a command waits unexpectedly, inspect running Terraform processes and
+`lslocks`; stop the responsible command deliberately. Do not remove the lock
+file to unblock a waiter. To remove this design, first stop all Terraform jobs
+and decide on a replacement locking mechanism, then remove the wrapper and
+its Ansible tasks, tmpfiles configuration, runtime directory, and unused group.
+Never revert to concurrent unlocked access to important state.
