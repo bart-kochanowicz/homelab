@@ -243,25 +243,21 @@ checks the executable before downloading or extracting it, then checks its
 reported version. The runner bundles its own .NET and Node runtimes; a separate
 Node installation is not needed.
 
-This step does not register or start the runner, and needs no GitHub token.
-Registration, systemd service configuration, and trusted Terraform workflows
-are separate steps. This repository is public: GitHub [recommends private
-repositories for self-hosted runners](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).
+Installation is followed by the registration and service setup in
+[Step 11](#step-11--register-the-private-infrastructure-runner). Initial
+registration requires a short-lived GitHub token; repeat applies do not.
+This repository is public: GitHub [recommends private repositories for
+self-hosted runners](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).
 Before registration, define which trusted jobs may use Houston. Pull request
 validation must continue to run on GitHub-hosted runners.
 
-From `infra/ansible` on your computer:
-
-```bash
-ansible-playbook playbooks/houston.yml --syntax-check
-ansible-playbook playbooks/houston.yml --check --diff --tags github_runner --ask-become-pass
-ansible-playbook playbooks/houston.yml --tags github_runner --ask-become-pass
-ansible-playbook playbooks/houston.yml --tags github_runner --ask-become-pass
-```
+Installation and registration share the `github_runner` tag. Use the complete
+controller commands in Step 11, including the initial registration token.
 
 On a fresh host, check mode reports the proposed installation and skips
-extraction and execution because the archive has not been downloaded. The
-second normal apply should report `changed=0`.
+extraction, registration, and execution because the archive has not been
+downloaded. Follow Step 11 before the first normal apply. The second normal
+apply should report `changed=0`.
 
 Verify on `houston-01`:
 
@@ -273,7 +269,7 @@ sudo stat -c '%a %U:%G %n' /srv/terraform/runner/{home,work,tmp,app-2.337.0}
 ```
 
 Expect version `2.337.0` and `700 runner-svc:runner-svc` for the four private
-directories. The runner will not appear in GitHub until it is registered.
+directories. Registration and the service are verified in Step 11.
 
 To retry an incomplete installation, apply the role again. To remove this
 unregistered installation, first remove the role from the playbook. Preserve
@@ -371,3 +367,97 @@ for the first upload. Successful runs remove their temporary files; failures
 retain private staging for recovery. After preserving any needed snapshots,
 remove their directories explicitly. To remove staging permanently, first
 remove its Ansible task so later applies do not recreate it.
+
+## Step 11 — register the private infrastructure runner
+
+Houston is registered only to the private repository
+[`bart-kochanowicz/homelab-automation`](https://github.com/bart-kochanowicz/homelab-automation).
+This repository contains trusted workflows. Infrastructure code stays in the
+public `homelab` repository; its PR validation runs on GitHub-hosted machines.
+Future Houston workflows must execute reviewed infrastructure revisions.
+Keep access to the private repository limited to trusted operators and keep
+its visibility private.
+
+The `github_runner` role registers `houston-01` with the default
+`self-hosted`, `Linux`, `X64` labels plus `houston` and `terraform`.
+Its work directory is `/srv/terraform/runner/work`. It checks an existing
+registration against the intended repository, name, work directory and
+update policy before starting the service. It does not replace an existing
+registration automatically. A local registration does not prove that its
+identity still exists in GitHub; verify the runner is online in the dashboard.
+
+Supply a short-lived registration token on the Ansible controller through
+`GITHUB_RUNNER_REGISTRATION_TOKEN`. The role passes it through the runner's
+supported `ACTIONS_RUNNER_INPUT_TOKEN` environment variable, with Ansible
+output hidden by `no_log`. The token is not passed in runner configuration arguments or saved in
+inventory. The runner persists its own private identity files on the
+SSD; these are restricted to `runner-svc` with mode `0600`.
+
+In the private repository, open **Settings → Actions → Runners → New
+self-hosted runner**, select **Linux / x64**, and copy only the temporary
+registration token from the displayed configuration command. Do not execute
+its download or service commands: Ansible manages the installed application
+and service. The registration token expires after one hour.
+
+From `infra/ansible` on your computer, in Bash or Zsh:
+
+```bash
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags github_runner --ask-become-pass
+
+set +x
+printf 'GitHub runner registration token: '
+read -r -s GITHUB_RUNNER_REGISTRATION_TOKEN; printf '\n'
+export GITHUB_RUNNER_REGISTRATION_TOKEN
+ansible-playbook playbooks/houston.yml --tags github_runner --ask-become-pass
+unset GITHUB_RUNNER_REGISTRATION_TOKEN
+
+ansible-playbook playbooks/houston.yml --tags github_runner --ask-become-pass
+```
+
+A fresh check-mode run skips registration and service activation. The normal
+apply registers and starts the runner; the second apply needs no token and
+should report `changed=0`. If registration fails before creating `.runner`,
+obtain a new token and retry. If settings or identity files are incomplete or
+unexpected, stop and inspect the registration instead of overwriting them.
+
+Ansible owns `github-runner.service`, which uses the official `runsvc.sh`
+entry point as `runner-svc`. It starts at boot and requires the SSD mount.
+Home, temporary files, and workspaces use the SSD. The service uses a private
+umask, grants no sudo access, and restricts filesystem writes to runner data,
+backup staging, and the existing Terraform lock directory. It still has LAN
+access; the private repository is a trust boundary, not a sandbox for hostile
+jobs. Apply service changes while the runner is idle: its handler restarts it.
+
+Verify on Houston:
+
+```bash
+systemctl is-enabled github-runner.service
+systemctl is-active github-runner.service
+sudo systemctl status github-runner.service --no-pager -l
+sudo stat -c '%a %U:%G %n' /srv/terraform/runner/app-2.337.0/{.runner,.credentials,.credentials_rsaparams}
+```
+
+Expect `enabled`, `active`, and `600 runner-svc:runner-svc` identity files.
+The private repository's runner page should show `houston-01` online and idle.
+No workflow or Terraform apply is triggered by registration alone.
+
+Automatic runner updates are disabled to preserve the version and checksums
+managed by Ansible. Keep the pin current: GitHub requires an update within
+30 days of a new release and may block jobs sooner for critical security
+updates. Stop and unregister an idle runner before changing the versioned
+installation, then apply the updated pin with a new registration token.
+
+To remove the runner, first remove its role from the desired playbook so the
+next apply will not recreate it. While idle, stop and disable
+`github-runner.service`. In the private repository's runner page choose
+**Remove** and use its short-lived removal token with the installed
+`config.sh remove`, run as `runner-svc`; keep the token out of shell history
+and arguments by supplying `ACTIONS_RUNNER_INPUT_TOKEN`. After unregistering,
+remove the unit and reload systemd. Preserve any needed SSD files before
+explicitly removing the installation and the unused account. Do not delete
+its private identity files as a substitute for unregistering it in GitHub.
+
+References: [runner registration](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners),
+[custom systemd services](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/configure-the-application?platform=linux),
+[runner update requirements](https://docs.github.com/en/actions/reference/runners/self-hosted-runners#runner-software-updates-on-self-hosted-runners).

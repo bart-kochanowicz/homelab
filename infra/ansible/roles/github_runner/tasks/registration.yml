@@ -1,0 +1,102 @@
+---
+- name: Require the dedicated private repository target
+  ansible.builtin.assert:
+    that:
+      - github_runner_repository_url == 'https://github.com/bart-kochanowicz/homelab-automation'
+    fail_msg: Houston must be registered only to the dedicated private automation repository.
+
+- name: Check whether this runner installation is registered
+  ansible.builtin.stat:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}/.runner"
+  register: github_runner_registration
+
+- name: Require a short-lived registration token for a new runner
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'GITHUB_RUNNER_REGISTRATION_TOKEN') | length > 0
+    fail_msg: Set GITHUB_RUNNER_REGISTRATION_TOKEN on the Ansible controller for initial registration.
+  when:
+    - not github_runner_registration.stat.exists
+    - not ansible_check_mode
+
+- name: Register Houston using the official runner configuration entry point
+  ansible.builtin.command:
+    argv:
+      - ./config.sh
+      - --unattended
+      - --url
+      - "{{ github_runner_repository_url }}"
+      - --name
+      - "{{ inventory_hostname }}"
+      - --labels
+      - houston,terraform
+      - --work
+      - /srv/terraform/runner/work
+      - --disableupdate
+    chdir: "/srv/terraform/runner/app-{{ github_runner_version }}"
+    creates: "/srv/terraform/runner/app-{{ github_runner_version }}/.runner"
+  become_user: runner-svc
+  environment:
+    ACTIONS_RUNNER_INPUT_TOKEN: "{{ lookup('ansible.builtin.env', 'GITHUB_RUNNER_REGISTRATION_TOKEN') }}"
+    HOME: /srv/terraform/runner/home
+    TMPDIR: /srv/terraform/runner/tmp
+  no_log: true
+  when:
+    - not github_runner_registration.stat.exists
+    - not ansible_check_mode
+
+- name: Read non-secret runner registration settings
+  ansible.builtin.slurp:
+    src: "/srv/terraform/runner/app-{{ github_runner_version }}/.runner"
+  register: github_runner_settings_file
+  when: github_runner_registration.stat.exists or not ansible_check_mode
+
+- name: Decode runner registration settings
+  ansible.builtin.set_fact:
+    github_runner_settings: "{{ github_runner_settings_file.content | b64decode | from_json }}"
+  when: github_runner_registration.stat.exists or not ansible_check_mode
+
+- name: Require the intended repository, name, work directory and update policy
+  ansible.builtin.assert:
+    that:
+      - github_runner_settings.gitHubUrl == github_runner_repository_url
+      - github_runner_settings.agentName == inventory_hostname
+      - github_runner_settings.workFolder == '/srv/terraform/runner/work'
+      - github_runner_settings.disableUpdate | bool
+    fail_msg: Runner registration differs from desired state; stop and review it before starting the service.
+  when: github_runner_registration.stat.exists or not ansible_check_mode
+
+- name: Keep runner identity files private
+  ansible.builtin.file:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}/{{ item }}"
+    state: file
+    owner: runner-svc
+    group: runner-svc
+    mode: '0600'
+  loop:
+    - .runner
+    - .credentials
+    - .credentials_rsaparams
+  when: github_runner_registration.stat.exists or not ansible_check_mode
+
+- name: Install the Ansible-managed runner service
+  ansible.builtin.template:
+    src: github-runner.service.j2
+    dest: /etc/systemd/system/github-runner.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart GitHub runner
+
+- name: Verify the runner unit before service activation
+  ansible.builtin.command: /usr/bin/systemd-analyze verify /etc/systemd/system/github-runner.service
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Enable and start the registered runner
+  ansible.builtin.systemd_service:
+    name: github-runner.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: github_runner_registration.stat.exists or not ansible_check_mode
