@@ -1,5 +1,5 @@
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token with permissions for Tunnel, Access, and DNS"
+  description = "Cloudflare API token with permissions for Tunnel, Access, DNS, and Workers R2 Storage Write"
   type        = string
   sensitive   = true
 }

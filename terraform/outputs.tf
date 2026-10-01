@@ -25,3 +25,8 @@ output "access_application_id" {
   description = "Cloudflare Access Application ID"
   value       = module.cloudflare.access_application_id
 }
+
+output "terraform_state_backup_bucket" {
+  description = "Private Cloudflare R2 bucket for off-site Terraform state snapshots"
+  value       = module.cloudflare.terraform_state_backup_bucket
+}

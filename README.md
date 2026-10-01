@@ -42,6 +42,13 @@ Bootstrap order is Talos, Cilium, ArgoCD, then ArgoCD-managed platform and
 applications. Cilium is deliberately installed outside ArgoCD so the network
 does not depend on GitOps for recovery.
 
+## Terraform state backups
+
+Garage is Houston's primary Terraform backend. The existing Cloudflare
+Terraform module also provisions a private R2 bucket with 90-day protection
+for off-site snapshots. See [the R2 setup guide](terraform/R2_BACKUP.md).
+Snapshot upload and restore verification are the next implementation steps.
+
 ## Security Operations
 
 See [docs/security-runbook.md](docs/security-runbook.md) for:
