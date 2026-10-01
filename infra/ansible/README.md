@@ -338,3 +338,36 @@ file to unblock a waiter. To remove this design, first stop all Terraform jobs
 and decide on a replacement locking mechanism, then remove the wrapper and
 its Ansible tasks, tmpfiles configuration, runtime directory, and unused group.
 Never revert to concurrent unlocked access to important state.
+
+## Step 10 — prepare state backup staging
+
+The `terraform_cli` role installs `curl`, CA certificates, and Python 3 for
+`backup-terraform-state.sh`. It creates `/srv/terraform/backup-staging` as
+`root:terraform-ops` with mode `1770`. The group lets `capcom` and `runner-svc`
+create staging directories. The sticky bit prevents either account from
+removing the other's directories. Each script run creates its own private
+`0700` directory and `0600` files on the SSD.
+
+From `infra/ansible` on your computer:
+
+```bash
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags terraform_cli --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags terraform_cli --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags terraform_cli --ask-become-pass
+```
+
+Expect `changed=0` on the second normal apply. On Houston, verify:
+
+```bash
+sudo stat -c '%a %U:%G %n' /srv/terraform/backup-staging
+curl --version
+python3 --version
+```
+
+Expect `1770 root:terraform-ops` for staging. See the
+[R2 guide](../../terraform/R2_BACKUP.md#upload-and-read-back-an-isolated-snapshot)
+for the first upload. Successful runs remove their temporary files; failures
+retain private staging for recovery. After preserving any needed snapshots,
+remove their directories explicitly. To remove staging permanently, first
+remove its Ansible task so later applies do not recreate it.

@@ -1,7 +1,10 @@
 ---
-- name: Install Terraform archive and process locking tools
+- name: Install Terraform archive, process locking, and state backup tools
   ansible.builtin.apt:
     name:
+      - ca-certificates
+      - curl
+      - python3
       - unzip
       - util-linux
     state: present
@@ -37,6 +40,14 @@
     owner: capcom
     group: capcom
     mode: '0700'
+
+- name: Create shared state backup staging on the SSD
+  ansible.builtin.file:
+    path: /srv/terraform/backup-staging
+    state: directory
+    owner: root
+    group: terraform-ops
+    mode: '1770'
 
 - name: Check the installed Terraform executable checksum
   ansible.builtin.stat:

@@ -17,9 +17,9 @@ The location is a best-effort hint, not a jurisdiction guarantee. No custom
 public domain or Worker binding is created for this bucket. Keep it private:
 Terraform state can contain credentials and other sensitive values.
 
-The future upload step will use a distinct UTC timestamp for every snapshot,
-for example `backups/prod/cloudflare/2026-10-01T12-00-00Z.tfstate`. Never reuse a
-snapshot key. Only the `backups/` prefix is protected by this rule.
+The upload script uses a UTC timestamp and a random UUID for every snapshot,
+for example `backups/prod/cloudflare/2026-10-01T12-00-00Z-<uuid>.tfstate`. Never
+reuse a snapshot key. Only the `backups/` prefix is protected by this rule.
 
 Ninety days is the minimum protection period measured from each object's age.
 It is not an expiration policy: there is no automatic deletion or storage
@@ -66,20 +66,74 @@ After applying, inspect the R2 bucket's Settings in the Cloudflare dashboard:
 - The enabled lock rule covers `backups/`, with a 90-day age condition.
 - A subsequent Terraform plan reports no changes.
 
-Snapshot upload and a restore rehearsal are separate steps. This bucket
-alone does not create backups. Before placing important state in Garage,
-verify upload, rejection of overwrite/deletion, and recovery using an
-isolated state key.
+A restore rehearsal and verification of overwrite/deletion rejection are
+still required before placing important state in Garage. The upload step
+below verifies a snapshot by downloading and comparing its bytes; it does
+not restore a Terraform backend.
 
-## Credentials for the later upload step
+## Upload credentials
 
 Create a separate R2 S3 credential with `Object Read & Write`, scoped only to
-this bucket, when implementing the upload step. It must not have Admin or
-bucket configuration permissions. Keep it in a secret store outside Git.
-These permissions support bucket scoping; do not assume they restrict the
+this bucket. It must not have Admin or bucket configuration permissions.
+Save its Access Key ID and Secret Access Key in your password manager. Keep
+them outside Git. These permissions support bucket scoping; do not assume they restrict the
 credential to a prefix. See [R2 authentication](https://developers.cloudflare.com/r2/api/tokens/).
 
+## Upload and read back an isolated snapshot
+
+Apply the [Ansible staging setup](../infra/ansible/README.md#step-10--prepare-state-backup-staging)
+first. In the current repository checkout on Houston's SSD, run Bash and load
+the Garage credentials as described in [the backend guide](BACKEND.md#verify-the-isolated-backend).
+Recreate the example marker with `apply` if you previously destroyed it.
+The example must already be initialized against Garage.
+
+Enter the separate R2 credential at prompts so its values do not enter shell
+history. Commands below assume Bash:
+
+```bash
+set +x
+read -r -p 'Cloudflare account ID: ' R2_ACCOUNT_ID
+read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID; printf '\n'
+read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY; printf '\n'
+export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
+
+./scripts/backup-terraform-state.sh terraform/examples/garage-backend checks/garage-backend
+
+unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+```
+
+The script calls `/usr/local/bin/terraform state pull`, which acquires the
+shared Houston process lock. It reads the state as it exists at that point;
+a subsequent Terraform operation can run while that snapshot is uploaded.
+This is a manual snapshot tool, not yet an apply-and-backup workflow.
+The state name selects the R2 path only; it does not choose the Terraform
+backend or workspace. Supply the matching initialized root directory.
+
+The script validates the state JSON without displaying it, sends a signed
+HTTPS PUT to R2 with `If-None-Match: *`, and downloads the result for byte
+comparison. [R2 supports this conditional PUT](https://developers.cloudflare.com/r2/api/s3/api/).
+The existing `curl` tool supplies [AWS Signature V4 authentication](https://curl.se/docs/manpage.html#--aws-sigv4);
+no AWS CLI or AWS account is required. Credentials are passed to curl on
+stdin, not in command-line arguments. Upload errors exit nonzero. PUT is not
+automatically retried because a failed response can follow a successful write.
+
+Expect `Verified R2 backup: s3://...` and a SHA256 hash. In the R2 dashboard,
+check that the named object exists under `backups/checks/garage-backend/`.
+Running the script again creates a separate object rather than overwriting
+one. Successful runs remove staging; the R2 snapshots remain protected by
+the bucket's lock rule. Readback verification is a check of upload/download,
+not a completed restore rehearsal.
+
 ## Recovery and removal
+
+If snapshot upload or readback fails, the script reports the retained private
+staging directory on the SSD. Keep it until the backup is safely recovered.
+Check credentials, network access, and R2 settings; another run pulls a fresh
+snapshot under a new key. An interrupted PUT may have created an R2 object
+although verification failed. Use the R2 dashboard to inspect it before any
+manual recovery. Remove only your retained staging directory after preserving
+its needed snapshot. The script never deletes R2 objects.
 
 If provisioning fails, check R2 activation and the Terraform token's account
 permissions, then review a new plan and retry. If the managed domain or lock
