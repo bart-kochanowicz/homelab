@@ -421,8 +421,10 @@ should report `changed=0`. If registration fails before creating `.runner`,
 obtain a new token and retry. If settings or identity files are incomplete or
 unexpected, stop and inspect the registration instead of overwriting them.
 
-Ansible owns `github-runner.service`, which uses the official `runsvc.sh`
-entry point as `runner-svc`. It starts at boot and requires the SSD mount.
+Ansible copies the packaged `bin/runsvc.sh` to the application root with mode
+`0755`, matching the official service installer. It owns
+`github-runner.service`, which uses this entry point as `runner-svc`. It starts
+at boot and requires the SSD mount.
 Home, temporary files, and workspaces use the SSD. The service uses a private
 umask, grants no sudo access, and restricts filesystem writes to runner data,
 backup staging, and the existing Terraform lock directory. It still has LAN
