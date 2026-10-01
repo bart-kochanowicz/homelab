@@ -11,6 +11,7 @@ Each root module defines its own state key:
 | --- | --- |
 | Cloudflare reference (`backend.tf.example`) | `prod/cloudflare/terraform.tfstate` |
 | Isolated backend check (`examples/garage-backend`) | `checks/garage-backend/terraform.tfstate` |
+| Restore rehearsal (`examples/garage-restore`, through the script) | `checks/garage-restore/<uuid>/terraform.tfstate` |
 
 Credentials come from `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the
 process environment. Do not put them in backend files or `-backend-config`
