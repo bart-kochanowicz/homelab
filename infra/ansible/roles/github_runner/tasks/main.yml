@@ -1,0 +1,153 @@
+---
+- name: Require Debian 13 x86_64 for the pinned runner package
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == 'Debian'
+      - ansible_distribution_major_version == '13'
+      - ansible_architecture == 'x86_64'
+    fail_msg: This runner package and dependency list target Debian 13 x86_64.
+
+- name: Install runner runtime libraries and lightweight workflow tools
+  ansible.builtin.apt:
+    name:
+      - acl
+      - ca-certificates
+      - curl
+      - git
+      - libicu76
+      - libkrb5-3
+      - liblttng-ust1t64
+      - libssl3t64
+      - zlib1g
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the dedicated runner group
+  ansible.builtin.group:
+    name: runner-svc
+    system: true
+
+- name: Create the dedicated runner account
+  ansible.builtin.user:
+    name: runner-svc
+    group: runner-svc
+    groups: []
+    append: false
+    system: true
+    home: /srv/terraform/runner/home
+    create_home: false
+    shell: /usr/sbin/nologin
+    password_lock: true
+
+- name: Create root-owned runner and archive parent directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /srv/terraform/runner
+    - /srv/terraform/tools
+    - /srv/terraform/tools/archives
+
+- name: Create private runner directories on the SSD
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: runner-svc
+    group: runner-svc
+    mode: '0700'
+  loop:
+    - /srv/terraform/runner/home
+    - /srv/terraform/runner/work
+    - /srv/terraform/runner/tmp
+    - "/srv/terraform/runner/app-{{ github_runner_version }}"
+
+- name: Check the installed runner executable checksum
+  ansible.builtin.stat:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}/bin/Runner.Listener"
+    checksum_algorithm: sha256
+  register: github_runner_binary
+
+- name: Check whether runner installation completed successfully
+  ansible.builtin.stat:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}/.ansible-installed"
+  register: github_runner_installation
+
+- name: Download the checksum-verified official runner archive
+  ansible.builtin.get_url:
+    url: "https://github.com/actions/runner/releases/download/v{{ github_runner_version }}/actions-runner-linux-x64-{{ github_runner_version }}.tar.gz"
+    dest: "/srv/terraform/tools/archives/actions-runner-linux-x64-{{ github_runner_version }}.tar.gz"
+    checksum: "sha256:{{ github_runner_archive_sha256 }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: >-
+    github_runner_binary.stat.checksum | default('') != github_runner_binary_sha256
+    or not github_runner_installation.stat.exists
+
+- name: Remove an executable whose checksum differs from the pinned release
+  ansible.builtin.file:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}/bin/Runner.Listener"
+    state: absent
+  when:
+    - github_runner_binary.stat.exists
+    - github_runner_binary.stat.checksum | default('') != github_runner_binary_sha256
+    - not ansible_check_mode
+
+- name: Extract the verified runner archive on the SSD
+  ansible.builtin.unarchive:
+    src: "/srv/terraform/tools/archives/actions-runner-linux-x64-{{ github_runner_version }}.tar.gz"
+    dest: "/srv/terraform/runner/app-{{ github_runner_version }}"
+    remote_src: true
+    owner: runner-svc
+    group: runner-svc
+  when:
+    - >-
+      github_runner_binary.stat.checksum | default('') != github_runner_binary_sha256
+      or not github_runner_installation.stat.exists
+    - not ansible_check_mode
+
+- name: Keep the application directory private after archive extraction
+  ansible.builtin.file:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}"
+    state: directory
+    owner: runner-svc
+    group: runner-svc
+    mode: '0700'
+
+- name: Ensure runner executable permissions
+  ansible.builtin.file:
+    path: "/srv/terraform/runner/app-{{ github_runner_version }}/bin/Runner.Listener"
+    state: file
+    owner: runner-svc
+    group: runner-svc
+    mode: '0755'
+  when: github_runner_binary.stat.exists or not ansible_check_mode
+
+- name: Read the installed runner version without registering it
+  ansible.builtin.command:
+    cmd: ./bin/Runner.Listener --version
+    chdir: "/srv/terraform/runner/app-{{ github_runner_version }}"
+  become_user: runner-svc
+  register: github_runner_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Require the pinned runner version
+  ansible.builtin.assert:
+    that:
+      - github_runner_installed_version.stdout | trim == github_runner_version
+    fail_msg: The installed runner does not report the pinned version.
+  when: not ansible_check_mode
+
+- name: Record successful runner installation after version verification
+  ansible.builtin.copy:
+    dest: "/srv/terraform/runner/app-{{ github_runner_version }}/.ansible-installed"
+    content: "{{ github_runner_version }}\n"
+    owner: runner-svc
+    group: runner-svc
+    mode: '0600'
+  when: not ansible_check_mode

@@ -224,3 +224,58 @@ from Git, restore the matching `aqua.yaml` pin, then apply the role again.
 To remove the CLI, remove the role from the playbook and unlink
 `/usr/local/bin/terraform` with `sudo rm /usr/local/bin/terraform`.
 The versioned installation and ZIP remain on the SSD for explicit cleanup.
+
+## Step 8 — install the GitHub Actions runner
+
+The `github_runner` role installs the official Linux x64 runner **2.337.0** and
+its Debian 13 runtime libraries. It creates `runner-svc`, a separate system
+account with a locked password, no login shell, and no supplementary groups.
+The runner application, home, future job workspace, and temporary directory
+live under `/srv/terraform/runner` on the SSD. These directories are private
+to the runner account. The application belongs to `runner-svc`, following the
+runner's normal installation model; it does not grant the account sudo access.
+
+The archive checksum comes from the [official release](https://github.com/actions/runner/releases/tag/v2.337.0).
+The executable checksum was calculated from that verified archive. Ansible
+checks the executable before downloading or extracting it, then checks its
+reported version. The runner bundles its own .NET and Node runtimes; a separate
+Node installation is not needed.
+
+This step does not register or start the runner, and needs no GitHub token.
+Registration, systemd service configuration, and trusted Terraform workflows
+are separate steps. This repository is public: GitHub [recommends private
+repositories for self-hosted runners](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).
+Before registration, define which trusted jobs may use Houston. Pull request
+validation must continue to run on GitHub-hosted runners.
+
+From `infra/ansible` on your computer:
+
+```bash
+ansible-playbook playbooks/houston.yml --syntax-check
+ansible-playbook playbooks/houston.yml --check --diff --tags github_runner --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags github_runner --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags github_runner --ask-become-pass
+```
+
+On a fresh host, check mode reports the proposed installation and skips
+extraction and execution because the archive has not been downloaded. The
+second normal apply should report `changed=0`.
+
+Verify on `houston-01`:
+
+```bash
+getent passwd runner-svc
+id runner-svc
+sudo -u runner-svc /srv/terraform/runner/app-2.337.0/bin/Runner.Listener --version
+sudo stat -c '%a %U:%G %n' /srv/terraform/runner/{home,work,tmp,app-2.337.0}
+```
+
+Expect version `2.337.0` and `700 runner-svc:runner-svc` for the four private
+directories. The runner will not appear in GitHub until it is registered.
+
+To retry an incomplete installation, apply the role again. To remove this
+unregistered installation, first remove the role from the playbook. Preserve
+any needed files, then explicitly remove `/srv/terraform/runner` and its
+release archive under `/srv/terraform/tools/archives`, followed by the unused
+`runner-svc` account and group. Do not use this removal procedure once a runner
+has been registered; unregister and stop its service first.
