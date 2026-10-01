@@ -72,6 +72,13 @@ if error.tag != "Error" or error.findtext("Code") != sys.argv[2]:
 PYTHON
 }
 
+expect_locked() {
+  # R2 documents 403, but its S3 endpoint also returns 409 for this error.
+  # A generic conflict or permission denial is not evidence of Bucket Lock.
+  [[ $response_status == 403 || $response_status == 409 ]] || fail "$1: unexpected HTTP $response_status."
+  expect_error ObjectLockedByBucketPolicy
+}
+
 read_original() {
   r2_request "$1"
   expect_status 200 'Read original probe'
@@ -107,13 +114,11 @@ sleep 2
 # No conditional header here: the rejection must come from Bucket Lock.
 r2_request "$protected_key" --upload-file "$staging_directory/replacement.txt" \
   --header "x-amz-content-sha256: $replacement_sha256"
-expect_status 403 'Overwrite protected probe'
-expect_error ObjectLockedByBucketPolicy
+expect_locked 'Overwrite protected probe'
 read_original "$protected_key"
 sleep 2
 r2_request "$protected_key" --request DELETE
-expect_status 403 'Delete protected probe'
-expect_error ObjectLockedByBucketPolicy
+expect_locked 'Delete protected probe'
 read_original "$protected_key"
 
 verified=true

@@ -229,8 +229,11 @@ argument and operates only on its own probes.
 The unprotected control under `checks/retention/` must allow creation,
 overwrite, readback, and deletion. The probe under `backups/checks/retention/`
 must allow creation and readback, then reject both unconditional overwrite
-and deletion with HTTP 403 and the documented
+and deletion with HTTP 403 or 409 and the documented
 [`ObjectLockedByBucketPolicy` error](https://developers.cloudflare.com/r2/api/error-codes/).
+Cloudflare documents HTTP 403 for this error; the S3 endpoint also returns
+HTTP 409 with the same error code. Either status requires that exact XML
+code: a generic conflict or permission denial is not evidence of the lock.
 The script checks that the original bytes remain after each rejection.
 A permission denial, conditional-write rejection, rate limit, or network
 failure does not count as successful protection. Writes are spaced to respect
