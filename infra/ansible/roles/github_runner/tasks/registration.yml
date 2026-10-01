@@ -79,6 +79,17 @@
     - .credentials_rsaparams
   when: github_runner_registration.stat.exists or not ansible_check_mode
 
+- name: Install the official runner service entry point
+  ansible.builtin.copy:
+    src: "/srv/terraform/runner/app-{{ github_runner_version }}/bin/runsvc.sh"
+    dest: "/srv/terraform/runner/app-{{ github_runner_version }}/runsvc.sh"
+    remote_src: true
+    owner: runner-svc
+    group: runner-svc
+    mode: "0755"
+  notify: Restart GitHub runner
+  when: github_runner_registration.stat.exists or not ansible_check_mode
+
 - name: Install the Ansible-managed runner service
   ansible.builtin.template:
     src: github-runner.service.j2
