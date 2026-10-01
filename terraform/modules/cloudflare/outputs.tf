@@ -23,3 +23,8 @@ output "access_application_id" {
   description = "Cloudflare Access Application ID"
   value       = cloudflare_zero_trust_access_application.argocd.id
 }
+
+output "terraform_state_backup_bucket" {
+  description = "Private Cloudflare R2 bucket for off-site Terraform state snapshots"
+  value       = cloudflare_r2_bucket.terraform_state_backups.name
+}
