@@ -1,8 +1,22 @@
 ---
-- name: Install unzip for the official Terraform release archive
+- name: Install Terraform archive and process locking tools
   ansible.builtin.apt:
-    name: unzip
+    name:
+      - unzip
+      - util-linux
     state: present
+
+- name: Create the Terraform operator group
+  ansible.builtin.group:
+    name: terraform-ops
+    system: true
+
+- name: Allow capcom to use the shared Terraform process lock
+  ansible.builtin.user:
+    name: capcom
+    groups:
+      - terraform-ops
+    append: true
 
 - name: Create Terraform installation directories on the SSD
   ansible.builtin.file:
@@ -64,12 +78,39 @@
     mode: '0755'
   when: terraform_cli_binary.stat.exists or not ansible_check_mode
 
-- name: Link Terraform to the stable CLI path
+- name: Create the protected runtime lock directory
   ansible.builtin.file:
-    src: "/srv/terraform/tools/terraform-{{ terraform_cli_version }}/terraform"
-    dest: /usr/local/bin/terraform
-    state: link
+    path: /run/houston-terraform
+    state: directory
+    owner: root
+    group: terraform-ops
+    mode: '0750'
+
+- name: Create the shared lock file without replacing its inode
+  ansible.builtin.file:
+    path: /run/houston-terraform/operation.lock
+    state: touch
+    access_time: preserve
+    modification_time: preserve
+    owner: root
+    group: terraform-ops
+    mode: '0660'
+
+- name: Recreate the runtime lock directory and file at boot
+  ansible.builtin.copy:
+    dest: /etc/tmpfiles.d/houston-terraform.conf
     owner: root
     group: root
+    mode: '0644'
+    content: |
+      d /run/houston-terraform 0750 root terraform-ops -
+      f /run/houston-terraform/operation.lock 0660 root terraform-ops -
+
+- name: Install the Terraform command with the shared process lock
+  ansible.builtin.template:
+    src: terraform.sh.j2
+    dest: /usr/local/bin/terraform
+    owner: root
+    group: root
+    mode: '0755'
     follow: false
-    force: "{{ ansible_check_mode }}"
