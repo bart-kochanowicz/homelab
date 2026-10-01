@@ -37,6 +37,8 @@ validate-format:
 	terraform -chdir=terraform validate -no-color
 	terraform -chdir=terraform/examples/garage-backend init -backend=false -input=false
 	terraform -chdir=terraform/examples/garage-backend validate -no-color
+	terraform -chdir=terraform/examples/garage-restore init -backend=false -input=false
+	terraform -chdir=terraform/examples/garage-restore validate -no-color
 
 validate-yaml:
 	find . -type f \( -name '*.yaml' -o -name '*.yml' \) \

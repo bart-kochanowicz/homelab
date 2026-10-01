@@ -47,8 +47,8 @@ does not depend on GitOps for recovery.
 Garage is Houston's primary Terraform backend. The existing Cloudflare
 Terraform module also provisions a private R2 bucket with 90-day protection
 for off-site snapshots. See [the R2 setup guide](terraform/R2_BACKUP.md).
-Manual snapshots include upload and readback verification. A restore rehearsal
-and workflow integration are the next implementation steps.
+Manual snapshots include upload and readback verification. An isolated restore
+rehearsal checks recovery from R2; workflow integration is the next step.
 
 ## Security Operations
 
