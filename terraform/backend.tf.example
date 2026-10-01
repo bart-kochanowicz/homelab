@@ -1,17 +1,8 @@
-# Terraform Cloud Backend Configuration Example
-# 
-# Copy this file to backend.tf and update with your organization/workspace
-# backend.tf is gitignored to keep your configuration private
-
+# Desired Garage backend for the Cloudflare root module.
+# Shared settings: terraform init -backend-config=garage.s3.tfbackend
+# Credentials come from the environment. Use the Houston Terraform wrapper.
 terraform {
-  cloud {
-    organization = "your-organization-name"
-
-    workspaces {
-      name = "homelab"
-    }
+  backend "s3" {
+    key = "prod/cloudflare/terraform.tfstate"
   }
 }
-
-# Alternative: Use local backend (default if backend.tf doesn't exist)
-# No configuration needed - Terraform will use local state files
