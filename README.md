@@ -44,11 +44,15 @@ does not depend on GitOps for recovery.
 
 ## Terraform state backups
 
-Garage is Houston's primary Terraform backend. The existing Cloudflare
-Terraform module also provisions a private R2 bucket with 90-day protection
-for off-site snapshots. See [the R2 setup guide](terraform/R2_BACKUP.md).
-Manual snapshots include upload and readback verification. An isolated restore
-rehearsal checks recovery from R2; workflow integration is the next step.
+Houston hosts the Garage backend, Terraform CLI, and a dedicated GitHub
+Actions runner. The existing Cloudflare configuration uses its HCP Terraform
+workspace and provisions a private R2 bucket with 90-day protection for
+snapshots. Garage currently holds the isolated Terraform check state.
+
+The private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation)
+provides manual backup, apply with pre/post backups, and isolated restore
+workflows for that check state. See [the R2 operations guide](terraform/R2_BACKUP.md#github-actions-workflows)
+for verification and recovery. Manual scripts remain available on Houston.
 
 ## Security Operations
 

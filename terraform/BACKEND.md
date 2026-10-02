@@ -29,15 +29,17 @@ another machine bypasses that lock. The host setup is described in
 [the Ansible guide](../infra/ansible/README.md#step-9--serialize-terraform-commands-on-houston).
 
 `backend.tf.example` describes the desired backend for a fresh Cloudflare
-root configuration. The isolated check below is the operational verification
-for this step. Off-site backup and a tested restore are required before
-storing important infrastructure state in the single-node Garage service.
+root configuration. The existing Cloudflare configuration continues to use
+its HCP Terraform workspace. The isolated check below has its own Garage key;
+the [private workflows](R2_BACKUP.md#github-actions-workflows) exercise its
+apply, off-site backup, and restore. Each new infrastructure root needs its
+own backend key and matching backup and recovery procedure.
 
 ## Operator workspace on the SSD
 
 The `terraform_cli` Ansible role creates `/srv/terraform/workspaces`, owned
 by `capcom` with mode `0700`. Keep manual checkouts and Terraform metadata
-there. The future runner uses its separate workspace on the same SSD.
+there. The runner uses `/srv/terraform/runner/work` on the same SSD.
 
 As `capcom` on Houston, clone this repository into that private workspace:
 

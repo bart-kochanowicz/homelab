@@ -29,7 +29,7 @@ and lock configuration also have Terraform `prevent_destroy` guards.
 [Bucket Lock](https://developers.cloudflare.com/r2/buckets/bucket-locks/)
 prevents object deletion and overwriting, but an administrator with bucket
 configuration permissions can change or remove its rules. The provisioning
-credential must therefore remain separate from the future upload credential.
+credential must therefore remain separate from the bucket-scoped upload credential.
 The resources use the pinned provider's
 [bucket](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.17.0/docs/resources/r2_bucket.md),
 [managed domain](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.17.0/docs/resources/r2_managed_domain.md),
@@ -117,7 +117,7 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 The script calls `/usr/local/bin/terraform state pull`, which acquires the
 shared Houston process lock. It reads the state as it exists at that point;
 a subsequent Terraform operation can run while that snapshot is uploaded.
-This is a manual snapshot tool, not yet an apply-and-backup workflow.
+The script can be run manually or called by the private apply workflow.
 The state name selects the R2 path only; it does not choose the Terraform
 backend or workspace. Supply the matching initialized root directory.
 
@@ -217,7 +217,49 @@ A successful rehearsal checks restore of the built-in example only. Recovery
 of real infrastructure requires its matching configuration and provider
 versions, review of any plan against the existing resources, and deliberate
 selection of the destination backend. This script rejects infrastructure
-snapshots. The trusted runner workflow is a separate step still to complete.
+snapshots. The private restore workflow calls this same script as
+`runner-svc`; see its operations guide for runner-owned workspace cleanup.
+
+## GitHub Actions workflows
+
+Trusted Houston jobs live in the private
+[homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
+Public repository PR validation stays on GitHub-hosted runners. The three
+workflows run manually from `main` and check out a reviewed, pinned revision
+of this repository:
+
+| Workflow | Operation and expected result |
+| --- | --- |
+| [Verify Garage state backup](https://github.com/bart-kochanowicz/homelab-automation/blob/main/.github/workflows/garage-backup.yaml) | Read the check state, upload a new R2 snapshot, and verify its bytes by downloading it. |
+| [Verify Terraform apply and backups](https://github.com/bart-kochanowicz/homelab-automation/blob/main/.github/workflows/garage-apply.yaml) | Validate and save a restricted check-module plan, verify a pre-apply backup, apply that plan, then verify a post-attempt backup. |
+| [Verify R2 state restore](https://github.com/bart-kochanowicz/homelab-automation/blob/main/.github/workflows/garage-restore.yaml) | Verify a selected snapshot and its SHA256, restore the marker into a fresh Garage check key, and require a plan with no changes. |
+
+These workflows operate on the built-in check marker. The apply input can
+explicitly request its replacement; the default is an unchanged apply.
+The restore workflow accepts the object key without the `s3://bucket/` prefix
+and the SHA256 printed for that exact backup. It preserves the original check
+state and the R2 snapshot.
+
+The private repository stores the Garage and R2 access keys as **Actions
+Secrets**. `R2_ACCOUNT_ID` is a nonsecret **Actions Variable**. Keep storage
+credentials separate from the Cloudflare provisioning token and the runner
+registration token. The runner receives them in the storage operation step
+and has no sudo access. Configuration, verification, and cleanup instructions
+live in the [private operations guide](https://github.com/bart-kochanowicz/homelab-automation#manual-garage-backup-check).
+
+All three workflows share a concurrency group. Every Terraform command also
+uses Houston's host lock; that lock covers one command at a time, not the
+whole workflow. Avoid concurrent manual state changes. A failed pre-apply
+backup prevents apply; a failed apply still attempts a backup, and a failed
+post-apply backup leaves the job failed. Inspect the apply result before
+retrying and use the backup-only workflow to capture current state after
+resolving a backup failure. Cancellation can prevent the final backup.
+
+A restored workspace is private and owned by `runner-svc`; successful
+rehearsals keep it for inspection. Recovery after a lost host or SSD starts
+with the documented host bootstrap and Ansible setup, then restoration of
+credentials and the runner. Real infrastructure recovery requires its own
+matching configuration, providers, and destination backend.
 
 ## Verify rejection of overwrite and deletion
 
