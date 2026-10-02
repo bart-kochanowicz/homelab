@@ -1,7 +1,8 @@
 # Security Verification Record
 
-This record captures operational verification of the security remediation.
-Update it after material architecture changes or scheduled rehearsals.
+This record captures dated operational verification. Results describe the
+configuration tested on each recorded date. Verify private application access
+after configuring its LAN entry point, then append new live results.
 
 ## June 14, 2026
 

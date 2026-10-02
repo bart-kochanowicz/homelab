@@ -20,9 +20,12 @@ only as SealedSecrets and local credentials are ignored.
 
 ## Hosted Apps
 
-- Home Assistant is deployed in-cluster and exposed through Cloudflare Tunnel.
-- Crafty Controller is deployed in-cluster and exposed through Cloudflare Tunnel.
-- n8n is deployed in-cluster and exposed through Cloudflare Tunnel with a protected editor at `n8n.thecavespace.com` and public webhooks at `n8n-webhook.thecavespace.com`.
+- Home Assistant is deployed in-cluster and supports LAN discovery.
+- Crafty Controller is deployed in-cluster with a private administration UI.
+- n8n is deployed in-cluster with private editor and webhook endpoints.
+
+Application UIs are not published through a public tunnel. See the
+[private access guide](docs/security-runbook.md#private-application-access).
 
 Minecraft TCP `30000` remains publicly reachable through its NodePort. Home
 Assistant retains host networking for LAN discovery.

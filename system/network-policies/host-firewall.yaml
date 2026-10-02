@@ -38,14 +38,6 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            k8s:io.kubernetes.pod.namespace: kube-system
-            k8s:app.kubernetes.io/name: cloudflared
-      toPorts:
-        - ports:
-            - port: "8123"
-              protocol: TCP
-    - fromEndpoints:
-        - matchLabels:
             k8s:io.kubernetes.pod.namespace: monitoring
       toPorts:
         - ports:

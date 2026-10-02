@@ -5,7 +5,7 @@ This guide provides essential information for AI coding agents working in this h
 ## Project Overview
 
 This is a **Kubernetes homelab infrastructure repository** containing:
-- **Terraform configuration** for Cloudflare Tunnel and Access setup
+- **Terraform configuration** for Cloudflare DNS and R2 backup storage
 - **Talos Linux** configuration for cluster nodes
 - **Kubernetes manifests** (YAML/Kustomize) for system components
 - **ArgoCD** GitOps bootstrap and configuration
@@ -127,7 +127,7 @@ homelab/
 
 ## Important Project-Specific Rules
 
-1. **Cloudflare Tunnel**: All external access goes through `system/cloudflare/` tunnel setup
+1. **Application Access**: Application endpoints are private; public Cloudflare Tunnel publication is not part of the desired configuration
 2. **ArgoCD Sync**: Changes in `system/argocd/` require bootstrap or manual sync
 3. **State Management**: Terraform state is remote (configured in `backend.tf`)
 4. **KUBECONFIG**: Set via `KUBECONFIG` environment variable (default: `~/.kube/config`)
