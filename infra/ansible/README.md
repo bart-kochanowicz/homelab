@@ -1,8 +1,20 @@
-# houston-01: step 1 — connection
+# houston-01: configuration and operations
 
-`houston-01` is a Dell Wyse 3040 that will eventually manage Terraform state.
-This first step only tells Ansible which machine to contact. It installs
-nothing and does not change the server configuration.
+`houston-01` is a Debian 13 Dell Wyse 3040 dedicated to Terraform operations,
+with an Intel Atom x5-Z8350 and 2 GB RAM. Debian boots from eMMC; mutable
+workloads use the external SSD mounted at `/srv/terraform`.
+
+Ansible manages the Debian baseline, persistent SSD mount, native Garage
+service, locked Terraform CLI, and dedicated GitHub Actions runner. Garage
+runs as `garage-svc`; the runner runs as `runner-svc` without sudo. Terraform
+state, runner workspaces, and backup staging stay on the SSD. The
+[private workflows](../../terraform/R2_BACKUP.md#github-actions-workflows)
+exercise apply, verified R2 backups, and isolated restore on the check module.
+
+## Step 1 — connection
+
+The inventory selects the remote host. The connection check below installs
+nothing and does not change server configuration.
 
 The repository already uses Ansible in `system/bootstrap.yaml` to bootstrap
 ArgoCD from the local machine. This inventory serves a different target: the
@@ -40,15 +52,16 @@ expected `houston-data` label, uses ext4, and is mounted at
 `/srv/terraform`. It compares the partition UUID with the mounted filesystem
 UUID, so an unrelated disk mounted at that path does not pass the check.
 
-The playbook in `playbooks/houston.yml` contains only read-only checks. It
-does not format or mount disks, install packages, or modify configuration.
-`become` is used so the filesystem identity can be read reliably.
+The preflight tasks in `playbooks/houston.yml` are read-only and tagged
+`always`. The full playbook then applies the roles described below. Use
+`--tags always` to run just the preflight; `become` lets it read filesystem
+identity reliably. No role formats or repartitions disks.
 
-Check the syntax locally, then run the read-only checks against the host:
+Check the syntax locally, then run only the read-only preflight:
 
 ```bash
 ansible-playbook playbooks/houston.yml --syntax-check
-ansible-playbook playbooks/houston.yml --ask-become-pass
+ansible-playbook playbooks/houston.yml --tags always --ask-become-pass
 ```
 
 The second command asks for the sudo password locally. A successful run
@@ -101,10 +114,10 @@ SSD under `/srv/terraform/garage`. Its S3 API and internal RPC listener bind to
 localhost, so other machines cannot connect to them. The service also requires
 the SSD mountpoint and will not start against the small eMMC root filesystem.
 
-This step installs the service only. It does not create an S3 bucket, access
-key, or Terraform backend. Garage is configured as a single node with one copy
-of its data, so off-site backups will be needed before it stores important
-state.
+The `garage` tag enforces both installation and the bucket bootstrap
+explained in Step 6. Garage has one local copy of its data; R2 holds off-site
+snapshots. Terraform backend settings are described in the
+[backend guide](../../terraform/BACKEND.md).
 
 Review the proposed changes, apply them, and run the role again to check
 idempotency:
@@ -160,8 +173,8 @@ The first apply creates `/srv/terraform/garage/s3-bootstrap.env` with mode
 `0600`, links the pinned binary to `/usr/local/bin/garage`, and restarts Garage
 so it can create the bucket and access key. The credentials file is root-only;
 do not paste its contents into chat or commit it. When you need to copy the
-credentials to a password manager or a future runner secret store, read the
-file with `sudo` and handle the output as a secret.
+credentials to a password manager or the private repository's Actions Secrets,
+read the file with `sudo` and handle the output as a secret.
 
 Verify Garage is healthy and that the bucket and access key exist:
 
@@ -180,7 +193,7 @@ come later.
 
 The `terraform_cli` role installs Terraform 1.16.4 from the [official HashiCorp
 release](https://releases.hashicorp.com/terraform/1.16.4/). This is the command
-that the future infrastructure runner will use for `plan` and `apply`.
+that the infrastructure runner uses for `plan` and `apply`.
 The laptop/CI pin in `aqua.yaml` uses the same version. Change that pin and
 `terraform_cli_version` together when upgrading, and update both checksums.
 
@@ -217,8 +230,10 @@ stat -c '%F %U:%G %n' /usr/local/bin/terraform
 ```
 
 Expect version `1.16.4`, command path `/usr/local/bin/terraform`, and a regular
-file owned by `root:root`. This step installs the CLI;
-backend configuration, runner registration, and state locking are later steps.
+file owned by `root:root`. The role also enforces the shared process lock
+explained in Step 9. Backend settings live in the
+[backend guide](../../terraform/BACKEND.md); runner registration is covered
+in Step 11.
 
 To roll back an upgrade, restore the previous version and its two checksums
 from Git, restore the matching `aqua.yaml` pin, then apply the role again.
@@ -232,7 +247,7 @@ The `github_runner` role installs the official Linux x64 runner **2.337.0** and
 its Debian 13 runtime libraries. It creates `runner-svc`, a separate system
 account with a locked password, no login shell, and only the `terraform-ops`
 supplementary group needed for the shared process lock.
-The runner application, home, future job workspace, and temporary directory
+The runner application, home, job workspace, and temporary directory
 live under `/srv/terraform/runner` on the SSD. These directories are private
 to the runner account. The application belongs to `runner-svc`, following the
 runner's normal installation model; it does not grant the account sudo access.
@@ -283,7 +298,7 @@ has been registered; unregister and stop its service first.
 Garage 2.4.1 cannot provide the conditional writes required by Terraform's
 native S3 locking. We keep Garage and use one host-wide Linux `flock` instead.
 All normal Terraform invocations on Houston must use `/usr/local/bin/terraform`,
-including manual commands and future runner jobs. This wrapper acquires
+including manual commands and runner jobs. This wrapper acquires
 `/run/houston-terraform/operation.lock` before executing the pinned binary.
 A second invocation waits until the first finishes. The same lock covers all
 commands and state keys, which is deliberately simple for this small host.
@@ -300,9 +315,10 @@ The wrapper also refuses to run if the SSD mountpoint is unavailable.
 This is an operational rule for trusted users and workflows, not a security
 sandbox. Do not invoke the versioned binary directly, run Terraform from
 another machine against this bucket, or delete the runtime lock while a
-command is running. Those actions bypass the shared lock. A future Garage
-S3 backend must set `use_lockfile = false` because locking is external.
-The backend is not changed by this step.
+command is running. Those actions bypass the shared lock. Garage S3 backends
+must set `use_lockfile = false` because locking is external; the shared
+settings in `terraform/garage.s3.tfbackend` already do so. The Ansible role
+manages the CLI and lock; each Terraform root selects its own backend key.
 
 Apply both tags so the runner account receives its lock group:
 
@@ -374,7 +390,7 @@ Houston is registered only to the private repository
 [`bart-kochanowicz/homelab-automation`](https://github.com/bart-kochanowicz/homelab-automation).
 This repository contains trusted workflows. Infrastructure code stays in the
 public `homelab` repository; its PR validation runs on GitHub-hosted machines.
-Future Houston workflows must execute reviewed infrastructure revisions.
+Houston workflows must execute reviewed infrastructure revisions.
 Keep access to the private repository limited to trusted operators and keep
 its visibility private.
 
