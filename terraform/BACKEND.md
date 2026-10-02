@@ -9,7 +9,7 @@ Each root module defines its own state key:
 
 | Configuration | State key |
 | --- | --- |
-| Cloudflare reference (`backend.tf.example`) | `prod/cloudflare/terraform.tfstate` |
+| Cloudflare root (`backend.tf`) | `prod/cloudflare/terraform.tfstate` |
 | Isolated backend check (`examples/garage-backend`) | `checks/garage-backend/terraform.tfstate` |
 | Restore rehearsal (`examples/garage-restore`, through the script) | `checks/garage-restore/<uuid>/terraform.tfstate` |
 
@@ -28,12 +28,12 @@ the shared host process lock. Direct access through the versioned binary or
 another machine bypasses that lock. The host setup is described in
 [the Ansible guide](../infra/ansible/README.md#step-9--serialize-terraform-commands-on-houston).
 
-`backend.tf.example` describes the desired backend for a fresh Cloudflare
-root configuration. The existing Cloudflare configuration continues to use
-its HCP Terraform workspace. The isolated check below has its own Garage key;
-the [private workflows](R2_BACKUP.md#github-actions-workflows) exercise its
-apply, off-site backup, and restore. Each new infrastructure root needs its
-own backend key and matching backup and recovery procedure.
+The tracked `backend.tf` configures the Cloudflare root with Terraform
+`~> 1.16.4` and the production key shown above. Shared connection settings
+remain in `garage.s3.tfbackend`. The [private workflows](R2_BACKUP.md#github-actions-workflows)
+exercise a separate built-in check marker; they do not operate on the
+Cloudflare root. Each new infrastructure root needs its own backend key and
+matching backup and recovery procedure.
 
 ## Operator workspace on the SSD
 
@@ -51,6 +51,46 @@ cd homelab
 ```
 
 Use an existing current checkout there if one is already present.
+
+## Verify the Cloudflare root
+
+Run production commands only on Houston through `/usr/local/bin/terraform`.
+Provide the Garage `AWS_*` credentials as shown below. Keep Cloudflare inputs
+in a private `terraform/variables.tfvars` file or process environment, using
+`TF_VAR_<variable_name>` for Terraform variables. The repository ignores both
+`*.tfvars` and `*.tfvars.json`; neither credentials nor state belong in Git.
+The [input definitions](variables.tf) describe the required values. The
+Cloudflare management token is separate from Garage and R2 S3 credentials.
+
+From the repository root, initialize the shared backend settings and
+validate the configuration:
+
+```bash
+/usr/local/bin/terraform -chdir=terraform init -input=false -backend-config=garage.s3.tfbackend
+/usr/local/bin/terraform -chdir=terraform validate
+/usr/local/bin/terraform -chdir=terraform state list
+/usr/local/bin/terraform -chdir=terraform plan -input=false -var-file=variables.tfvars -detailed-exitcode
+```
+
+For an existing deployment, the initialized backend must contain its matching
+state before planning. Verify the expected `module.cloudflare.*` addresses.
+A missing or incorrect state can make Terraform propose recreating resources;
+stop and check the backend rather than approving that plan. An unchanged
+configuration should return exit code `0`; exit code `2` means changes and
+`1` means an error. Review every proposed change before an apply.
+
+Capture a verified production snapshot with the existing upload script and
+separate R2 credentials:
+
+```bash
+./scripts/backup-terraform-state.sh terraform prod/cloudflare
+```
+
+Expect an object under `backups/prod/cloudflare/` and its SHA256 receipt.
+The restore rehearsal script accepts only the built-in check marker. Recovery
+of Cloudflare state requires its matching configuration and providers and a
+reviewed destination backend. The private test workflows remain independent
+of this production root.
 
 ## Verify the isolated backend
 
