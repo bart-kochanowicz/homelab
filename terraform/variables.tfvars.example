@@ -1,7 +1,4 @@
 # Copy to variables.tfvars and provide private values. Never commit that file.
-# The management token needs DNS Edit and Workers R2 Storage Write permissions.
+# The management token needs Workers R2 Storage Write permission.
 cloudflare_api_token  = "your-cloudflare-api-token-here"
 cloudflare_account_id = "your-account-id-here"
-cloudflare_zone_id    = "your-zone-id-here"
-domain                = "example.com"
-cluster_public_ip     = "192.0.2.1"
