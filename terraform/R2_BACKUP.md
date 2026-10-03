@@ -1,214 +1,208 @@
-# Off-site Terraform state backup storage
+# Terraform state backups in R2
 
 ## Purpose and configuration
 
-Garage is the primary backend on Houston's SSD. Cloudflare R2 provides storage
-outside the host so state snapshots can survive an SSD or host failure.
-The existing Cloudflare module manages three R2 resources using the already
-pinned provider version `5.17.0`:
+Garage on Houston's SSD is the primary Terraform backend. Cloudflare R2 holds
+verified off-site snapshots in the private `houston-terraform-state-backups`
+bucket. The Cloudflare Terraform root manages only these three resources:
 
 | Resource | Desired setting |
 | --- | --- |
-| Bucket | `houston-terraform-state-backups`, Standard storage, `weur` location hint |
-| Managed public domain | `r2.dev` access disabled |
-| Bucket Lock | Objects under `backups/` protected from deletion and overwrite for 90 days |
+| Bucket | Standard storage, `weur` location hint. |
+| Managed domain | Public `r2.dev` access disabled. |
+| Bucket Lock | `backups/` protected from overwrite and deletion for 90 days. |
 
-The location is a best-effort hint, not a jurisdiction guarantee. No custom
-public domain or Worker binding is created for this bucket. Keep it private:
-Terraform state can contain credentials and other sensitive values.
+The provider is pinned to 5.17.0. The bucket and lock have `prevent_destroy`
+guards. The location is a best-effort hint, not a jurisdiction guarantee.
+No custom public domain, Worker binding, expiration, or automatic object
+cleanup is configured. Objects remain stored after protection expires.
 
-The upload script uses a UTC timestamp and a random UUID for every snapshot,
-for example `backups/prod/cloudflare/2026-10-01T12-00-00Z-<uuid>.tfstate`. Never
-reuse a snapshot key. Only the `backups/` prefix is protected by this rule.
-
-Ninety days is the minimum protection period measured from each object's age.
-It is not an expiration policy: there is no automatic deletion or storage
-class transition. Objects remain stored after the lock expires. The bucket
-and lock configuration also have Terraform `prevent_destroy` guards.
+Snapshots have unique keys such as
+`backups/prod/cloudflare/<UTC-timestamp>-<uuid>.tfstate`. Terraform state can
+contain secrets; keep the bucket private and keep object keys paired with
+the SHA256 from the corresponding successful receipt.
 
 [Bucket Lock](https://developers.cloudflare.com/r2/buckets/bucket-locks/)
-prevents object deletion and overwriting, but an administrator with bucket
-configuration permissions can change or remove its rules. The provisioning
-credential must therefore remain separate from the bucket-scoped upload credential.
-The resources use the pinned provider's
-[bucket](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.17.0/docs/resources/r2_bucket.md),
-[managed domain](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.17.0/docs/resources/r2_managed_domain.md),
-and [lock](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.17.0/docs/resources/r2_bucket_lock.md)
-schemas.
+protects objects but does not stop an administrator from changing the rules.
+Keep the Cloudflare management credential separate from the bucket-scoped
+S3 upload credential. Inspect bucket settings as well as Terraform plans;
+the pinned provider does not refresh the managed-domain setting from the API.
 
-## Provision and verify
+## Credentials
 
-Enable R2 on the existing Cloudflare account if it is not already enabled.
-The existing Terraform `cloudflare_api_token` needs the account permission
-`Workers R2 Storage Write`. Keep its value in the private Terraform input
-file or process environment.
-This is a Cloudflare management API token, not a Garage or R2 S3 access key.
+Production workflows receive credentials from the private repository's
+Actions secrets. See the [automation guide](https://github.com/bart-kochanowicz/homelab-automation#github-configuration)
+for their names and permissions.
 
-Run this step through the Cloudflare root on Houston using its production
-Garage backend and matching state, following the
-[backend guide](BACKEND.md#verify-the-cloudflare-root). The built-in Garage
-example and its private workflows use separate check keys. A fresh checkout
-must be initialized with the shared settings and Garage credentials before
-it can read the production state.
+For manual operations, use Bash on Houston from the private checkout on the
+SSD. Load Garage credentials without displaying them, then enter the separate
+R2 S3 keys at hidden prompts:
 
-Review the full plan. This root manages only these three R2 resources:
+```bash
+set +x
+umask 077
+AWS_ACCESS_KEY_ID=$(sudo sed -n 's/^GARAGE_DEFAULT_ACCESS_KEY=//p' /srv/terraform/garage/s3-bootstrap.env)
+AWS_SECRET_ACCESS_KEY=$(sudo sed -n 's/^GARAGE_DEFAULT_SECRET_KEY=//p' /srv/terraform/garage/s3-bootstrap.env)
+: "${AWS_ACCESS_KEY_ID:?Garage access key was not loaded}"
+: "${AWS_SECRET_ACCESS_KEY:?Garage secret key was not loaded}"
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
 
-- `module.cloudflare.cloudflare_r2_bucket.terraform_state_backups`
-- `module.cloudflare.cloudflare_r2_managed_domain.terraform_state_backups`
-- `module.cloudflare.cloudflare_r2_bucket_lock.terraform_state_backups`
+export R2_ACCOUNT_ID=f572e035612c37b4ae02d5f64e0f04e1
+read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID
+printf '\n'
+read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY
+printf '\n'
+export R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
+```
 
-For a new bucket, the expected summary is `3 to add, 0 to change, 0 to
-destroy`. An existing bucket needs matching Terraform state before applying;
-a creation plan caused by missing state is not a provisioning instruction.
-An already managed deployment should report no changes. The output is
-`terraform_state_backup_bucket = "houston-terraform-state-backups"`.
+The R2 S3 credential needs **Object Read & Write**, scoped to this bucket.
+It does not need bucket configuration permissions; bucket scoping does not
+imply prefix scoping. Store it in a password manager. The provisioning token
+uses **Workers R2 Storage Write** and is separate from both S3 key pairs.
 
-After applying, inspect the R2 bucket's Settings in the Cloudflare dashboard:
+## Production snapshot
 
-- Public access through `r2.dev` is disabled and there are no custom domains.
-- The enabled lock rule covers `backups/`, with a 90-day age condition.
-- A subsequent Terraform plan reports no changes.
+Initialize the production backend using
+[backend operations](BACKEND.md#verify-the-cloudflare-root), then run:
 
-A restore rehearsal and verification of overwrite/deletion rejection are
-still required before placing important state in Garage. The upload step
-below verifies a snapshot by downloading and comparing its bytes; it does
-not restore a Terraform backend.
+```bash
+./scripts/backup-terraform-state.sh terraform prod/cloudflare
+```
 
-## Upload credentials
+Expect `Verified R2 backup: s3://…/backups/prod/cloudflare/…` and `SHA256: …`.
+The second argument chooses the R2 snapshot prefix, not the backend: the first
+argument must point to the initialized production root and correct workspace.
 
-Create a separate R2 S3 credential with `Object Read & Write`, scoped only to
-this bucket. It must not have Admin or bucket configuration permissions.
-Save its Access Key ID and Secret Access Key in your password manager. Keep
-them outside Git. These permissions support bucket scoping; do not assume
-they restrict the credential to a prefix. See [R2 authentication](https://developers.cloudflare.com/r2/api/tokens/).
+The script pulls state through Houston's locked Terraform wrapper, validates
+its JSON structure without printing it, uploads with `If-None-Match: *`, then
+downloads and compares the bytes. Credentials reach curl over stdin rather
+than process arguments. Failed or ambiguous PUTs are not automatically retried.
+Successful runs remove private staging; failures retain it and print its path.
+Upload verification does not itself prove that state can be restored.
 
 ## Upload and read back an isolated snapshot
 
-Apply the [Ansible staging setup](../infra/ansible/README.md#step-10--prepare-state-backup-staging)
-first. Run the commands below in Bash, from the current repository checkout
-on Houston's SSD. Initialization needs Garage credentials too. Applying this
-example creates only the built-in marker, or leaves an existing marker
-unchanged.
-
-Enter the separate R2 credential at prompts so its values do not enter shell
-history. Commands below assume Bash:
+The disposable diagnostic state contains only `terraform_data.backend_check`.
+It has its own Garage key, separate from production. With the credentials
+above loaded, initialize and review this example:
 
 ```bash
-set +x
-umask 077
-AWS_ACCESS_KEY_ID=$(sudo sed -n 's/^GARAGE_DEFAULT_ACCESS_KEY=//p' /srv/terraform/garage/s3-bootstrap.env)
-AWS_SECRET_ACCESS_KEY=$(sudo sed -n 's/^GARAGE_DEFAULT_SECRET_KEY=//p' /srv/terraform/garage/s3-bootstrap.env)
-: "${AWS_ACCESS_KEY_ID:?Garage access key was not loaded}"
-: "${AWS_SECRET_ACCESS_KEY:?Garage secret key was not loaded}"
-export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
-
-/usr/local/bin/terraform -chdir=terraform/examples/garage-backend init -backend-config=../../garage.s3.tfbackend
+/usr/local/bin/terraform -chdir=terraform/examples/garage-backend init \
+  -backend-config=../../garage.s3.tfbackend
+/usr/local/bin/terraform -chdir=terraform/examples/garage-backend plan
 /usr/local/bin/terraform -chdir=terraform/examples/garage-backend apply
-
-read -r -p 'Cloudflare account ID: ' R2_ACCOUNT_ID
-read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID; printf '\n'
-read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY; printf '\n'
-export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
-
 ./scripts/backup-terraform-state.sh terraform/examples/garage-backend checks/garage-backend
-
-unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 ```
 
-The script calls `/usr/local/bin/terraform state pull`, which acquires the
-shared Houston process lock. It reads the state as it exists at that point;
-a subsequent Terraform operation can run while that snapshot is uploaded.
-The script can be run manually or called by the private apply workflow.
-The state name selects the R2 path only; it does not choose the Terraform
-backend or workspace. Supply the matching initialized root directory.
-
-The script validates the state JSON without displaying it, sends a signed
-HTTPS PUT to R2 with `If-None-Match: *`, and downloads the result for byte
-comparison. [R2 supports this conditional PUT](https://developers.cloudflare.com/r2/api/s3/api/).
-The existing `curl` tool supplies [AWS Signature V4 authentication](https://curl.se/docs/manpage.html#--aws-sigv4);
-no AWS CLI or AWS account is required. Credentials are passed to curl on
-stdin, not in command-line arguments. Upload errors exit nonzero. PUT is not
-automatically retried because a failed response can follow a successful write.
-
-Expect `Verified R2 backup: s3://...` and a SHA256 hash. In the R2 dashboard,
-check that the named object exists under `backups/checks/garage-backend/`.
-Running the script again creates a separate object rather than overwriting
-one. Successful runs remove staging; the R2 snapshots remain protected by
-the bucket's lock rule. Readback verification is a check of upload/download,
-not a completed restore rehearsal.
+Approve only the built-in check marker. Expect a verified receipt under
+`backups/checks/garage-backend/`. Use the matching receipt for the restore
+rehearsal below. The [Ansible staging setup](../infra/ansible/README.md#workspaces-and-backup-staging)
+provides private SSD storage and required tools.
 
 ## Rehearse an isolated restore
 
-Run `scripts/check-terraform-state-restore.sh` on Houston to recover the
-completed example marker from an R2 snapshot into a fresh Garage state key.
-The script accepts only `backups/checks/garage-backend/` objects containing
-`terraform_data.backend_check`. If the snapshot is from an empty/destroyed
-example, apply the example and create a new backup first.
-
-In Bash, load Garage credentials again if you previously unset them:
+This diagnostic restores only a completed check marker into a fresh Garage
+key. It rejects production infrastructure snapshots and empty/destroyed check
+states. Load the credentials above, then provide a matching key and hash:
 
 ```bash
-set +x
-umask 077
-AWS_ACCESS_KEY_ID=$(sudo sed -n 's/^GARAGE_DEFAULT_ACCESS_KEY=//p' /srv/terraform/garage/s3-bootstrap.env)
-AWS_SECRET_ACCESS_KEY=$(sudo sed -n 's/^GARAGE_DEFAULT_SECRET_KEY=//p' /srv/terraform/garage/s3-bootstrap.env)
-: "${AWS_ACCESS_KEY_ID:?Garage access key was not loaded}"
-: "${AWS_SECRET_ACCESS_KEY:?Garage secret key was not loaded}"
-export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
-
-read -r -p 'Cloudflare account ID: ' R2_ACCOUNT_ID
-read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID; printf '\n'
-read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY; printf '\n'
-export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
-
 read -r -p 'R2 object key (backups/checks/garage-backend/...tfstate): ' RESTORE_OBJECT_KEY
-read -r -p 'SHA256 printed by the backup script: ' RESTORE_SHA256
+read -r -p 'Backup SHA256: ' RESTORE_SHA256
 ./scripts/check-terraform-state-restore.sh "$RESTORE_OBJECT_KEY" "$RESTORE_SHA256"
 ```
 
-Use the object key from the successful backup output, without the
-`s3://houston-terraform-state-backups/` prefix, and its printed SHA256 hash.
-Keep the hash with your verification notes so a later restore can check the
-selected snapshot independently of R2. This rehearsal verifies the transfer
-and state recovery; it is not a cryptographic authenticity signature.
+The object key excludes `s3://houston-terraform-state-backups/`. The script
+checks SHA256 and the marker before initializing a new
+`checks/garage-restore/<uuid>/terraform.tfstate` destination. It verifies
+backend settings, pushes the snapshot with Terraform safety checks intact,
+compares resource attributes, IDs, and outputs, and requires an unchanged plan.
+The original Garage state and R2 object remain unchanged.
 
-The script creates a private workspace under SSD backup staging and downloads
-the R2 snapshot through signed HTTPS. It checks SHA256 and the example marker
-before initializing the copied `examples/garage-restore` configuration at
-`checks/garage-restore/<uuid>/terraform.tfstate`. Each invocation has a fresh
-key and private Terraform metadata. It verifies the initialized bucket, key,
-region, and loopback endpoint before `state push`. Every Terraform command
-uses the Houston wrapper. Inherited workspace/data-directory/command options
-are cleared for this rehearsal.
+Expect `Restore verified: terraform_data.backend_check`, the fresh Garage key,
+and a private workspace path. Success removes downloaded snapshot copies
+and keeps the workspace for inspection. Failure keeps private staging.
 
-[State push](https://developer.hashicorp.com/terraform/cli/commands/state/push)
-restores the snapshot without disabling Terraform's safety checks. No
-`apply`, migration, or force flag is used. The fresh destination can receive
-new lineage/serial metadata, so verification compares resource attributes,
-IDs, and outputs, then requires `plan -detailed-exitcode` to return `0`.
-The source Garage state and the R2 object are not modified.
-
-Expect `terraform_data.backend_check`, a plan with no changes, and
-`Restore verified: terraform_data.backend_check`. Record the printed Garage
-key and private workspace as evidence of the rehearsal. Success removes the
-temporary snapshot copies and retains the workspace for inspection. Failure
-returns nonzero and retains private files for troubleshooting.
-
-To clean up this disposable rehearsal, set `RESTORE_DIRECTORY` to the exact
-private workspace printed by the script. With Garage credentials still
-loaded, run:
+For deliberate cleanup, set `RESTORE_DIRECTORY` to the exact printed module
+workspace and run, as the account that owns it:
 
 ```bash
 /usr/local/bin/terraform -chdir="$RESTORE_DIRECTORY" destroy
 ```
 
-Approve only deletion of `terraform_data.backend_check`. The empty rehearsal
-state object remains in Garage. Remove the printed private staging directory
-only after it contains no needed files. Each future rehearsal uses a new key.
-When finished, clear the credentials:
+Approve only deletion of `terraform_data.backend_check`. For runner-owned
+workspaces, use sudo as `runner-svc`, preserving only the two Garage credential
+variables. After preserving needed files, remove only that specific staging
+directory. The empty rehearsal state object remains in Garage.
+
+A successful diagnostic proves restore of the check marker only. Production
+recovery needs the matching configuration and provider versions, a deliberately
+selected backend, and review against existing infrastructure.
+
+## Verify rejection of overwrite and deletion
+
+With the R2 credentials loaded:
+
+```bash
+./scripts/check-r2-retention.sh
+```
+
+The script creates two disposable UUID-named probes. Its unprotected control
+under `checks/retention/` must allow overwrite and deletion. Its protected
+probe under `backups/checks/retention/` must reject both operations and retain
+the original bytes. HTTP 403 or 409 counts only with the exact
+`ObjectLockedByBucketPolicy` error; a generic conflict, permission failure,
+or network error is not proof of retention.
+
+Expect `Retention verified: overwrite and deletion rejected by Bucket Lock.`
+Success removes the local staging and unprotected control. The protected tiny
+probe remains under the existing 90-day rule; do not weaken protection to
+remove it. Failed runs print their two exact keys and retain local files.
+Inspect those keys before cleanup because an interrupted request can take effect.
+
+This test checks enforcement at the time of the run. It does not wait for
+expiry or prove that an administrator cannot change the policy. Inspect the
+bucket's Settings for the enabled `backups/` rule with age 90 days, disabled
+`r2.dev`, and no custom public domains.
+
+## GitHub Actions workflows
+
+A successful **Validate** push run on `homelab/main` triggers production apply
+in the private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
+That workflow verifies the commit, checks the existing R2 state and saved
+plan, verifies a pre-apply snapshot, applies, then attempts a post-apply
+snapshot. Production receipts use `backups/prod/cloudflare/`.
+
+Public CI and dispatch use GitHub-hosted runners. Trusted operations run on
+Houston without sudo and use the shared Terraform wrapper. Workflow concurrency
+serializes private jobs; the host lock covers each Terraform command, not the
+whole sequence. Avoid intervening manual state changes: Terraform rejects a
+saved plan if state changes after planning.
+
+The private repository also provides manual marker backup, apply, and restore
+diagnostics under `checks/`. They preserve production state. Trigger, secret,
+retry, and failure instructions live in the
+[private operations guide](https://github.com/bart-kochanowicz/homelab-automation).
+
+## Recovery and removal
+
+After a failed backup, preserve retained staging until the failure is
+understood and current state is safely backed up. A new attempt uses a new
+object key. The upload script never deletes R2 objects or restores state.
+A pre-apply backup failure stops production apply. After a failed apply, the
+workflow attempts another backup; a post-apply backup failure does not undo
+an apply. Inspect the result and capture current state before retrying.
+
+Rebuild a lost host through Ansible before restoring production state. Restore
+requires matching code/provider versions, verified recovery material, and a
+reviewed destination backend. Never automatically overwrite state after a
+failed apply.
+
+Removing backup storage requires preserving snapshots elsewhere, deliberately
+changing the `prevent_destroy` guards and lock rules, and emptying the bucket.
+Ordinary `terraform destroy` is blocked by those guards.
+
+When manual operations are finished, clear credentials from the shell:
 
 ```bash
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
@@ -216,126 +210,7 @@ unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
 unset RESTORE_OBJECT_KEY RESTORE_SHA256 RESTORE_DIRECTORY
 ```
 
-A successful rehearsal checks restore of the built-in example only. Recovery
-of real infrastructure requires its matching configuration and provider
-versions, review of any plan against the existing resources, and deliberate
-selection of the destination backend. This script rejects infrastructure
-snapshots. The private restore workflow calls this same script as
-`runner-svc`; see its operations guide for runner-owned workspace cleanup.
-
-## GitHub Actions workflows
-
-Trusted Houston jobs live in the private
-[homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
-Public repository PR validation stays on GitHub-hosted runners. The three
-workflows run manually from `main` and check out a reviewed, pinned revision
-of this repository:
-
-| Workflow | Operation and expected result |
-| --- | --- |
-| [Verify Garage state backup](https://github.com/bart-kochanowicz/homelab-automation/blob/main/.github/workflows/garage-backup.yaml) | Read the check state, upload a new R2 snapshot, and verify its bytes by downloading it. |
-| [Verify Terraform apply and backups](https://github.com/bart-kochanowicz/homelab-automation/blob/main/.github/workflows/garage-apply.yaml) | Validate and save a restricted check-module plan, verify a pre-apply backup, apply that plan, then verify a post-attempt backup. |
-| [Verify R2 state restore](https://github.com/bart-kochanowicz/homelab-automation/blob/main/.github/workflows/garage-restore.yaml) | Verify a selected snapshot and its SHA256, restore the marker into a fresh Garage check key, and require a plan with no changes. |
-
-These workflows operate on the built-in check marker. The apply input can
-explicitly request its replacement; the default is an unchanged apply.
-The restore workflow accepts the object key without the `s3://bucket/` prefix
-and the SHA256 printed for that exact backup. It preserves the original check
-state and the R2 snapshot.
-
-The private repository stores the Garage and R2 access keys as **Actions
-Secrets**. `R2_ACCOUNT_ID` is a nonsecret **Actions Variable**. Keep storage
-credentials separate from the Cloudflare provisioning token and the runner
-registration token. The runner receives them in the storage operation step
-and has no sudo access. Configuration, verification, and cleanup instructions
-live in the [private operations guide](https://github.com/bart-kochanowicz/homelab-automation#manual-garage-backup-check).
-
-All three workflows share a concurrency group. Every Terraform command also
-uses Houston's host lock; that lock covers one command at a time, not the
-whole workflow. Avoid concurrent manual state changes. A failed pre-apply
-backup prevents apply; a failed apply still attempts a backup, and a failed
-post-apply backup leaves the job failed. Inspect the apply result before
-retrying and use the backup-only workflow to capture current state after
-resolving a backup failure. Cancellation can prevent the final backup.
-
-A restored workspace is private and owned by `runner-svc`; successful
-rehearsals keep it for inspection. Recovery after a lost host or SSD starts
-with the documented host bootstrap and Ansible setup, then restoration of
-credentials and the runner. Real infrastructure recovery requires its own
-matching configuration, providers, and destination backend.
-
-## Verify rejection of overwrite and deletion
-
-Run `scripts/check-r2-retention.sh` from the repository checkout on Houston
-using the same bucket-scoped `Object Read & Write` credential. The script
-creates two small text objects under new UUID keys. It accepts no object key
-argument and operates only on its own probes.
-
-The unprotected control under `checks/retention/` must allow creation,
-overwrite, readback, and deletion. The probe under `backups/checks/retention/`
-must allow creation and readback, then reject both unconditional overwrite
-and deletion with HTTP 403 or 409 and the documented
-[`ObjectLockedByBucketPolicy` error](https://developers.cloudflare.com/r2/api/error-codes/).
-Cloudflare documents HTTP 403 for this error; the S3 endpoint also returns
-HTTP 409 with the same error code. Either status requires that exact XML
-code: a generic conflict or permission denial is not evidence of the lock.
-The script checks that the original bytes remain after each rejection.
-A permission denial, conditional-write rejection, rate limit, or network
-failure does not count as successful protection. Writes are spaced to respect
-R2's per-key write limit; mutations are not automatically retried.
-
-In Bash on Houston:
-
-```bash
-set +x
-umask 077
-read -r -p 'Cloudflare account ID: ' R2_ACCOUNT_ID
-read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID; printf '\n'
-read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY; printf '\n'
-export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
-
-./scripts/check-r2-retention.sh
-
-unset R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
-```
-
-Expect `Retention verified: overwrite and deletion rejected by Bucket Lock.`
-Record the printed probe key as evidence. Successful verification deletes the
-unprotected control and local staging files. The protected text object remains
-in R2 under the existing 90-day rule. There is no automatic cleanup after its
-protection expires; do not weaken the policy to remove this tiny probe.
-
-Failure returns nonzero, retains private staging files, and prints both
-probe keys for inspection. An interrupted request may have taken effect;
-inspect those exact keys before any manual cleanup. Another run generates
-new keys. If the rule is absent, the script fails when overwrite unexpectedly
-succeeds. Restore the desired lock configuration through a reviewed Terraform
-plan before repeating the test.
-
-This checks enforcement on a new object at the time of the run. Inspect the
-90-day age condition in the dashboard as described above; this script does
-not wait for expiry or prove that an administrator cannot change the rule.
-It does not read or change a Terraform state snapshot.
-
-## Recovery and removal
-
-If snapshot upload or readback fails, the script reports the retained private
-staging directory on the SSD. Keep it until the backup is safely recovered.
-Check credentials, network access, and R2 settings; another run pulls a fresh
-snapshot under a new key. An interrupted PUT may have created an R2 object
-although verification failed. Use the R2 dashboard to inspect it before any
-manual recovery. Remove only your retained staging directory after preserving
-its needed snapshot. The backup upload script never deletes R2 objects.
-
-If provisioning fails, check R2 activation and the Terraform token's account
-permissions, then review a new plan and retry. If the managed domain or lock
-configuration drifts, review and apply Terraform to restore the settings.
-Changing the lock policy can affect existing snapshots, so review it before
-applying.
-
-Before removing this storage, preserve and verify any needed snapshots in
-another off-site location. Removal requires an explicit reviewed change to
-the `prevent_destroy` guards, a deliberate change to the lock rules, and
-emptying the bucket before deletion. The Cloudflare root manages only this
-R2 storage and its protection settings. Its `prevent_destroy` guards block
-ordinary `terraform destroy`; removal requires the deliberate procedure above.
+References: [R2 authentication](https://developers.cloudflare.com/r2/api/tokens/),
+[S3 API](https://developers.cloudflare.com/r2/api/s3/api/),
+[error codes](https://developers.cloudflare.com/r2/api/error-codes/),
+[Terraform state push](https://developer.hashicorp.com/terraform/cli/commands/state/push).
