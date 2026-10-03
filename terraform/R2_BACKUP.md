@@ -13,7 +13,9 @@ bucket. The production Terraform root currently manages these three R2 resources
 | Bucket Lock | `backups/` protected from overwrite and deletion for 90 days. |
 
 The provider is pinned to 5.17.0. The bucket and lock have `prevent_destroy`
-guards. The location is a best-effort hint, not a jurisdiction guarantee.
+guards. Keep their resource blocks in configuration; removing a block also
+removes its lifecycle guard. The location is a best-effort hint, not a
+jurisdiction guarantee.
 No custom public domain, Worker binding, expiration, or automatic object
 cleanup is configured. Objects remain stored after protection expires.
 
@@ -169,7 +171,7 @@ bucket's Settings for the enabled `backups/` rule with age 90 days, disabled
 
 A successful **Validate** push run on `homelab/main` triggers production apply
 in the private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
-That workflow verifies the commit, checks the existing R2 state and saved
+That workflow verifies the commit and production backend, saves a Terraform
 plan, verifies a pre-apply snapshot, applies, then attempts a post-apply
 snapshot. Production receipts use `backups/prod/homelab/`.
 
