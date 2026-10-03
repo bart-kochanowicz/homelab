@@ -1,8 +1,8 @@
 # Security Operations Runbook
 
-## Current Security State
+## Desired Security State
 
-As verified on June 14, 2026:
+The tracked configuration defines these controls:
 
 - Cilium `1.19.3` manages all cluster pods with policy enforcement set to
   `default`; the host firewall is enforced on both nodes.
@@ -10,8 +10,7 @@ As verified on June 14, 2026:
   the manually synced `network-policies` ArgoCD Application.
 - ArgoCD local admin is disabled; GitHub SSO grants admin only to
   `bart-kochanowicz`.
-- Cloudflared validates ArgoCD's internal CA. Crafty's self-signed TLS remains
-  the documented temporary exception.
+- Application UIs and webhooks use private operator access.
 - Crafty, Home Assistant, and n8n backups are encrypted with restic and report
   their latest result through Kubernetes Leases.
 - The local-path StorageClass uses `Retain`, and new volume directories use
@@ -31,6 +30,32 @@ verification and rehearsal record.
 
 Cilium is intentionally bootstrap-managed. Do not add it to the ArgoCD
 ApplicationSet because loss of the CNI also removes ArgoCD's ability to repair it.
+
+## Private Application Access
+
+Canonical application URLs use private DNS:
+
+| Application | Private URL |
+| --- | --- |
+| ArgoCD | `https://argocd.thecavespace.com` |
+| n8n editor | `https://n8n.thecavespace.com` |
+| n8n webhooks | `https://n8n-webhook.thecavespace.com/` |
+
+Resolve these names to a private HTTPS entry point with routes to the matching
+cluster Services. ArgoCD's OAuth callback and certificate use its canonical
+hostname; ArgoCD server pods must also resolve and reach that hostname for SSO.
+Clients must trust the certificate issuer. n8n's editor and webhook URLs are
+configured in its Deployment.
+
+The current ArgoCD and n8n Services are `ClusterIP`. A private LAN entry point,
+its DNS records, TLS configuration, and reviewed ingress rules are required
+before hostname access works. These are separate from application deployment.
+Keep working Kubernetes API access available while configuring private access.
+
+Verify private DNS resolution, HTTPS, GitHub login, n8n login, and a disposable
+webhook from an authorized LAN client. Record live results in the dated
+verification record. Restore the matching private DNS and HTTPS route when
+access fails, using Kubernetes API access for recovery.
 
 ## GitHub SSO
 
@@ -58,13 +83,12 @@ After ArgoCD syncs the SSO configuration, verify:
 
 1. `bart-kochanowicz` can log in through GitHub and use the UI and CLI.
 2. A second GitHub identity receives no ArgoCD permissions.
-3. Cloudflare Access still protects the public endpoint.
+3. The private endpoint is reachable only through the approved LAN entry point.
 4. Cluster-admin access can temporarily restore the local account for recovery.
 
-Cloudflare Access protects the ArgoCD UI and API. Two path-specific Access
-applications bypass authentication only for Dex's public OIDC discovery
-document and signing keys, which `argocd-server` must fetch to verify login
-tokens. Do not broaden this bypass to other ArgoCD or Dex paths.
+The private HTTPS route must serve Dex's OIDC discovery document and signing
+keys so that `argocd-server` can verify GitHub login tokens. GitHub SSO and
+ArgoCD RBAC control access to the UI and API.
 
 Local admin is disabled after the SSO and RBAC tests. Recovery requires
 temporary cluster-admin access to set `admin.enabled: "true"` in `argocd-cm`
@@ -78,15 +102,14 @@ plaintext.
 The offline CA private key is stored under `.secrets/` with mode `0600`; only its
 sealed form is tracked. Back up the private key separately from the repository.
 The `argocd-server-tls` certificate renews automatically through cert-manager.
-Cloudflared mounts the public CA and verifies
-`argocd-server.argocd.svc.cluster.local`.
+Private clients must trust the public CA to verify the ArgoCD server certificate.
 
 To rotate the CA:
 
 1. Generate a new offline key and certificate.
 2. Seal the TLS secret for the `cert-manager` namespace.
-3. Update `system/cloudflared/root-ca-configmap.yaml`.
-4. Commit both changes and verify certificate issuance before removing old trust.
+3. Distribute the new public CA to private clients.
+4. Commit the sealed secret and verify certificate issuance before removing old trust.
 
 ## PVC Backup And Restore
 
@@ -171,7 +194,7 @@ During an approved maintenance window:
 3. Confirm out-of-band Talos access to both nodes.
 4. Run `make -C system cilium-migrate`.
 5. Verify `cilium status`, `cilium connectivity test`, DNS, ClusterIP, NodePort,
-   Hubble Relay, ArgoCD, cloudflared, and all applications.
+   Hubble Relay, ArgoCD, and all applications.
 6. The migration script uses temporary Helm overrides to disable policy
    enforcement and the host firewall. Keep them for 24-48 hours while reviewing
    flows; they are not the steady-state configuration.
@@ -216,10 +239,9 @@ After changing its rules, manually sync it before applying Cilium configuration
 with `policyEnforcementMode: default`. Run negative tests for cross-namespace
 traffic and unauthorized ingress immediately after enforcement.
 
-Home Assistant uses host networking, so cloudflared reaches identity `host` or
-`remote-node` rather than a namespaced pod identity. The dedicated Cilium policy
-allows only those identities on TCP `8123`; do not replace it with unrestricted
-LAN egress.
+Home Assistant uses host networking. Its private LAN access and discovery
+traffic are controlled by the Cilium host firewall rather than pod ingress
+rules alone.
 
 The Cilium host policy at `system/network-policies/host-firewall.yaml` is
 managed by the manually synced `network-policies` Application. Before changing
@@ -231,13 +253,12 @@ live policy before restarting an agent.
 The current allowlist was reviewed on June 14, 2026. It preserves node-internal
 traffic, cluster workload access to the Kubernetes API on TCP `6443`, CoreDNS
 access to the node-local resolver, Hubble Relay access to agent peers,
-monitoring scrapes, Cloudflare access to Home Assistant, management LAN access,
+monitoring scrapes, management LAN access,
 Home Assistant discovery, and public Minecraft TCP `30000`.
 
 Required preserved paths:
 
-- Cloudflared to ArgoCD, Crafty, Home Assistant, Grafana, and n8n.
-- Public n8n webhook host paths through the tunnel.
+- Kubernetes API access for private application administration.
 - Public Minecraft TCP `30000`.
 - Home Assistant LAN discovery and TCP `8123`.
 - Kubernetes and Talos management from the management LAN.

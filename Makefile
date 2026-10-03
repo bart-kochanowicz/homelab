@@ -7,7 +7,6 @@ KUSTOMIZE_DIRS := \
 	system/app-namespaces \
 	system/argocd \
 	system/cert-manager-ca \
-	system/cloudflared \
 	system/local-path-provisioner \
 	system/network-policies
 
