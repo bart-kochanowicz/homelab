@@ -40,8 +40,8 @@ schemas.
 
 Enable R2 on the existing Cloudflare account if it is not already enabled.
 The existing Terraform `cloudflare_api_token` needs the account permission
-`Workers R2 Storage Write` alongside the DNS permission used for the
-Minecraft record. Keep its value in the existing secret variable store.
+`Workers R2 Storage Write`. Keep its value in the private Terraform input
+file or process environment.
 This is a Cloudflare management API token, not a Garage or R2 S3 access key.
 
 Run this step through the Cloudflare root on Houston using its production
@@ -51,16 +51,16 @@ example and its private workflows use separate check keys. A fresh checkout
 must be initialized with the shared settings and Garage credentials before
 it can read the production state.
 
-Review the full plan. The intended additions are:
+Review the full plan. This root manages only these three R2 resources:
 
 - `module.cloudflare.cloudflare_r2_bucket.terraform_state_backups`
 - `module.cloudflare.cloudflare_r2_managed_domain.terraform_state_backups`
 - `module.cloudflare.cloudflare_r2_bucket_lock.terraform_state_backups`
 
-When adding these backup resources to an otherwise unchanged deployment,
-the expected summary is `3 to add, 0 to change, 0 to destroy`. An already
-configured deployment should report no changes. Resolve unrelated changes
-before approving a run. The output is
+For a new bucket, the expected summary is `3 to add, 0 to change, 0 to
+destroy`. An existing bucket needs matching Terraform state before applying;
+a creation plan caused by missing state is not a provisioning instruction.
+An already managed deployment should report no changes. The output is
 `terraform_state_backup_bucket = "houston-terraform-state-backups"`.
 
 After applying, inspect the R2 bucket's Settings in the Cloudflare dashboard:
@@ -336,6 +336,6 @@ applying.
 Before removing this storage, preserve and verify any needed snapshots in
 another off-site location. Removal requires an explicit reviewed change to
 the `prevent_destroy` guards, a deliberate change to the lock rules, and
-emptying the bucket before deletion. Do not use root-wide `terraform destroy`
-as cleanup for the backup bucket: that root also manages the public
-Minecraft DNS record.
+emptying the bucket before deletion. The Cloudflare root manages only this
+R2 storage and its protection settings. Its `prevent_destroy` guards block
+ordinary `terraform destroy`; removal requires the deliberate procedure above.

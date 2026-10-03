@@ -5,7 +5,7 @@ This guide provides essential information for AI coding agents working in this h
 ## Project Overview
 
 This is a **Kubernetes homelab infrastructure repository** containing:
-- **Terraform configuration** for Cloudflare DNS and R2 backup storage
+- **Terraform configuration** for Cloudflare R2 backup storage
 - **Talos Linux** configuration for cluster nodes
 - **Kubernetes manifests** (YAML/Kustomize) for system components
 - **ArgoCD** GitOps bootstrap and configuration
