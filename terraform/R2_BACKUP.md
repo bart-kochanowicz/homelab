@@ -4,7 +4,7 @@
 
 Garage on Houston's SSD is the primary Terraform backend. Cloudflare R2 holds
 verified off-site snapshots in the private `houston-terraform-state-backups`
-bucket. The Cloudflare Terraform root manages only these three resources:
+bucket. The production Terraform root currently manages these three R2 resources:
 
 | Resource | Desired setting |
 | --- | --- |
@@ -18,7 +18,7 @@ No custom public domain, Worker binding, expiration, or automatic object
 cleanup is configured. Objects remain stored after protection expires.
 
 Snapshots have unique keys such as
-`backups/prod/cloudflare/<UTC-timestamp>-<uuid>.tfstate`. Terraform state can
+`backups/prod/homelab/<UTC-timestamp>-<uuid>.tfstate`. Terraform state can
 contain secrets; keep the bucket private and keep object keys paired with
 the SHA256 from the corresponding successful receipt.
 
@@ -64,13 +64,13 @@ uses **Workers R2 Storage Write** and is separate from both S3 key pairs.
 ## Production snapshot
 
 Initialize the production backend using
-[backend operations](BACKEND.md#verify-the-cloudflare-root), then run:
+[backend operations](BACKEND.md#verify-the-production-root), then run:
 
 ```bash
-./scripts/backup-terraform-state.sh terraform prod/cloudflare
+./scripts/backup-terraform-state.sh terraform prod/homelab
 ```
 
-Expect `Verified R2 backup: s3://…/backups/prod/cloudflare/…` and `SHA256: …`.
+Expect `Verified R2 backup: s3://…/backups/prod/homelab/…` and `SHA256: …`.
 The second argument chooses the R2 snapshot prefix, not the backend: the first
 argument must point to the initialized production root and correct workspace.
 
@@ -171,7 +171,7 @@ A successful **Validate** push run on `homelab/main` triggers production apply
 in the private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
 That workflow verifies the commit, checks the existing R2 state and saved
 plan, verifies a pre-apply snapshot, applies, then attempts a post-apply
-snapshot. Production receipts use `backups/prod/cloudflare/`.
+snapshot. Production receipts use `backups/prod/homelab/`.
 
 Public CI and dispatch use GitHub-hosted runners. Trusted operations run on
 Houston without sudo and use the shared Terraform wrapper. Workflow concurrency

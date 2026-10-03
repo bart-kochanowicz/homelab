@@ -48,11 +48,11 @@ does not depend on GitOps for recovery.
 ## Terraform operations
 
 Houston hosts the Garage backend, Terraform CLI, and a dedicated GitHub
-Actions runner. The Cloudflare root configuration stores its state in Garage
-at `prod/cloudflare/terraform.tfstate` and provisions a private R2 bucket with
-90-day protection for snapshots. It manages only R2 storage and its settings.
+Actions runner. The production root in `terraform/` stores its state in Garage
+at `prod/homelab/terraform.tfstate` and provisions a private R2 bucket with
+90-day protection for snapshots. Its current scope is R2 storage and its settings.
 Diagnostic check modules use separate state keys. See
-[backend operations](terraform/BACKEND.md#verify-the-cloudflare-root).
+[backend operations](terraform/BACKEND.md#verify-the-production-root).
 
 The private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation)
 runs production Terraform on Houston after a commit reaches `homelab/main`

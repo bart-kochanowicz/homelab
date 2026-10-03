@@ -9,7 +9,7 @@ Each root module defines its own state key:
 
 | Configuration | State key |
 | --- | --- |
-| Cloudflare root (`backend.tf`) | `prod/cloudflare/terraform.tfstate` |
+| Production root (`backend.tf`) | `prod/homelab/terraform.tfstate` |
 | Isolated backend check (`examples/garage-backend`) | `checks/garage-backend/terraform.tfstate` |
 | Restore rehearsal (`examples/garage-restore`, through the script) | `checks/garage-restore/<uuid>/terraform.tfstate` |
 
@@ -28,7 +28,7 @@ the shared host process lock. Direct access through the versioned binary or
 another machine bypasses that lock. The host setup is described in
 [the Ansible guide](../infra/ansible/README.md#terraform-and-locking).
 
-The tracked `backend.tf` configures the Cloudflare root with Terraform
+The tracked `backend.tf` configures the production root with Terraform
 `~> 1.16.4` and the production key shown above. Shared connection settings
 remain in `garage.s3.tfbackend`. The [private workflows](R2_BACKUP.md#github-actions-workflows)
 apply the validated `homelab/main` revision to this production root after
@@ -53,7 +53,7 @@ cd homelab
 
 Use an existing current checkout there if one is already present.
 
-## Verify the Cloudflare root
+## Verify the production root
 
 Run production commands only on Houston through `/usr/local/bin/terraform`.
 Provide the Garage `AWS_*` credentials as shown below. Keep Cloudflare inputs
@@ -94,12 +94,12 @@ Capture a verified production snapshot with the existing upload script and
 separate R2 credentials:
 
 ```bash
-./scripts/backup-terraform-state.sh terraform prod/cloudflare
+./scripts/backup-terraform-state.sh terraform prod/homelab
 ```
 
-Expect an object under `backups/prod/cloudflare/` and its SHA256 receipt.
+Expect an object under `backups/prod/homelab/` and its SHA256 receipt.
 The restore rehearsal script accepts only the built-in check marker. Recovery
-of Cloudflare state requires its matching configuration and providers and a
+of production state requires its matching configuration and providers and a
 reviewed destination backend. The private test workflows remain independent
 of this production root.
 
@@ -136,7 +136,7 @@ only the creation of `terraform_data.backend_check`:
 Expect the marker `Garage backend read/write verified`, one state resource,
 and exit code `0` from the final plan. These checks read the marker back from
 Garage and confirm there is no remaining change. Every command uses the same
-host lock. The check state key is separate from the Cloudflare reference key.
+host lock. The check state key is separate from the production key.
 
 When finished, clear the credentials from the current shell:
 
@@ -158,6 +158,6 @@ To remove the check resource, reload credentials and run:
 ```
 
 Approve only the removal of `terraform_data.backend_check`. This leaves an
-empty check state in Garage; it does not remove the bucket or the Cloudflare
+empty check state in Garage; it does not remove the bucket or the production
 state. The private checkout can be removed once it contains no needed local
 files. Removing the example from Git alone does not delete stored state.
