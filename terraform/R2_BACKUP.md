@@ -44,11 +44,12 @@ The existing Terraform `cloudflare_api_token` needs the account permission
 Minecraft record. Keep its value in the existing secret variable store.
 This is a Cloudflare management API token, not a Garage or R2 S3 access key.
 
-Run this step through the existing Terraform root configuration and its
-existing remote state, including the existing HCP Terraform workspace if
-that is where the Cloudflare resources are managed. A fresh Houston checkout
-without that backend configuration does not have the existing Cloudflare
-state. The isolated Garage example is only a backend check.
+Run this step through the Cloudflare root on Houston using its production
+Garage backend and matching state, following the
+[backend guide](BACKEND.md#verify-the-cloudflare-root). The built-in Garage
+example and its private workflows use separate check keys. A fresh checkout
+must be initialized with the shared settings and Garage credentials before
+it can read the production state.
 
 Review the full plan. The intended additions are:
 
@@ -56,8 +57,10 @@ Review the full plan. The intended additions are:
 - `module.cloudflare.cloudflare_r2_managed_domain.terraform_state_backups`
 - `module.cloudflare.cloudflare_r2_bucket_lock.terraform_state_backups`
 
-The expected summary is `3 to add, 0 to change, 0 to destroy`. Resolve any
-unrelated changes before approving the run. The new output is
+When adding these backup resources to an otherwise unchanged deployment,
+the expected summary is `3 to add, 0 to change, 0 to destroy`. An already
+configured deployment should report no changes. Resolve unrelated changes
+before approving a run. The output is
 `terraform_state_backup_bucket = "houston-terraform-state-backups"`.
 
 After applying, inspect the R2 bucket's Settings in the Cloudflare dashboard:

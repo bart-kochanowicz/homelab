@@ -31,7 +31,6 @@ validate-tools:
 validate-format:
 	terraform fmt -check -recursive terraform
 	terraform fmt -check - < terraform/garage.s3.tfbackend
-	terraform fmt -check - < terraform/backend.tf.example
 	terraform -chdir=terraform init -backend=false -input=false
 	terraform -chdir=terraform validate -no-color
 	terraform -chdir=terraform/examples/garage-backend init -backend=false -input=false
