@@ -40,8 +40,8 @@ schemas.
 
 Enable R2 on the existing Cloudflare account if it is not already enabled.
 The existing Terraform `cloudflare_api_token` needs the account permission
-`Workers R2 Storage Write` in addition to its Tunnel, Access, and DNS
-permissions. Keep its value in the existing secret variable store.
+`Workers R2 Storage Write` alongside the DNS permission used for the
+Minecraft record. Keep its value in the existing secret variable store.
 This is a Cloudflare management API token, not a Garage or R2 S3 access key.
 
 Run this step through the Cloudflare root on Houston using its production
@@ -337,5 +337,5 @@ Before removing this storage, preserve and verify any needed snapshots in
 another off-site location. Removal requires an explicit reviewed change to
 the `prevent_destroy` guards, a deliberate change to the lock rules, and
 emptying the bucket before deletion. Do not use root-wide `terraform destroy`
-as cleanup for the backup bucket: that root also manages Tunnel, Access, and
-DNS resources.
+as cleanup for the backup bucket: that root also manages the public
+Minecraft DNS record.
