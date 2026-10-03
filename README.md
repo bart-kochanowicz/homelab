@@ -45,9 +45,10 @@ does not depend on GitOps for recovery.
 ## Terraform state backups
 
 Houston hosts the Garage backend, Terraform CLI, and a dedicated GitHub
-Actions runner. The existing Cloudflare configuration uses its HCP Terraform
-workspace and provisions a private R2 bucket with 90-day protection for
-snapshots. Garage currently holds the isolated Terraform check state.
+Actions runner. The Cloudflare root configuration stores its state in Garage
+at `prod/cloudflare/terraform.tfstate` and provisions a private R2 bucket with
+90-day protection for snapshots. Each check module has a separate state key;
+see [the backend guide](terraform/BACKEND.md#verify-the-cloudflare-root).
 
 The private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation)
 provides manual backup, apply with pre/post backups, and isolated restore

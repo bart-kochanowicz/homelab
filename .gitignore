@@ -12,7 +12,7 @@ terraform/**/*.tfstate
 terraform/**/*.tfstate.backup
 terraform/**/*.tfplan
 terraform/**/*.tfvars
-terraform/backend.tf
+terraform/**/*.tfvars.json
 
 # Local security and backup material
 .secrets/
