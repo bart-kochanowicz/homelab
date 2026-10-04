@@ -24,6 +24,7 @@ Retain device IDs, MAC addresses and exports in private recovery material.
 | Setting | Live observation |
 | --- | --- |
 | Controller / site path | `https://192.168.1.1/network/default`; authenticated UI available |
+| Houston HTTPS trust | Read-only curl to https://192.168.1.1 failed certificate verification (self-signed certificate); no verification bypass used |
 | LAN | One listed network, `Default`, 192.168.1.0/24; gateway 192.168.1.1 |
 | DHCP | Server; auto-scale enabled; range 192.168.1.6–192.168.1.254; lease 86400 seconds |
 | DNS / DHCP gateway | Automatic; DHCP domain `localdomain` |
@@ -52,7 +53,7 @@ provider compatibility and PPSK behavior still need staged tests.
 | Candidate node at 192.168.1.217 | UniFi: eight-port switch port 7, GbE; Talos TCP 50000 and Kubernetes TCP 6443 refused connections | Identity and node role unverified; refusal does not prove worker role |
 | Unidentified wired client reported by operator | UniFi: eight-port switch port 8, GbE, IPv4 Unknown, IPv6 link-local present | No confirmed Talos identity or role; private MAC mapping retained outside Git |
 | Talos version | Local client v1.11.1; no server version returned | Installed node versions pending |
-| Operator-reported node displays | Control plane shows 192.168.100.1; worker shows 192.168.1.1; displayed field/source not yet identified | Neither is accepted as a node address: 192.168.1.1 is the live UCG LAN address and 192.168.100.1 is the documented LEOX address |
+| Operator-confirmed console gateway fields | Locally connected monitors show gateway 192.168.100.1 on the control plane and gateway 192.168.1.1 on the worker | These are gateway fields, not node interface addresses; actual IPv4/prefixes and hostnames remain pending |
 | Home Assistant | Tracked Deployment uses hostNetwork, Recreate and a local-path PVC; no node selector | Actual running node, PV affinity, integrations and data unverified |
 | Apple receivers | UI shows two HomePod mini clients and one wired Apple TV client; Apple TV on gateway port 2 | Selection, IP reservations and receiver access settings pending |
 | Monitoring | Prometheus/Grafana manifests tracked | Live collectors, targets and management protocols pending |
@@ -62,11 +63,14 @@ Keep node names, role evidence, Talos addresses, PV node/path/affinity and
 application health together in the private inventory. UniFi model detection
 is a heuristic and cannot establish a Kubernetes role.
 
-Clarify whether the reported displays show interface addresses, default
-gateways or cluster endpoints. If they are actual node interface addresses,
-resolve the duplicate/overlapping addressing through a separately reviewed
-recovery procedure before continuing. Do not repoint kubeconfig or assign the
-candidate 192.168.1.217 a role based on these reports.
+The operator clarified that the reported addresses are gateway fields on the
+local node consoles. They do not establish a duplicate node IP. The worker's
+reported gateway matches the current UCG LAN gateway. The control plane's
+reported gateway suggests retained legacy networking; its actual interface
+address/prefix and route reachability must be verified before choosing a
+recovery procedure. Today 192.168.100.1 is the documented WAN-side ONT address,
+not a verified reachable LAN gateway for the control plane. Do not repoint
+kubeconfig or assign the candidate 192.168.1.217 a role based on gateway fields.
 
 ## Address and recovery gates
 
@@ -89,7 +93,7 @@ or reuse ONT space as a new LAN to resolve this discrepancy.
 | HA placement/PVC affinity, integration endpoints and live storage dependencies | Pending |
 | Switch/AP firmware and complete port/profile/override inventory | Pending |
 | Current rules, forwarding, VPNs, WLAN settings and receiver inventory | Pending |
-| Houston-to-controller trusted TLS, API credential procedure and private site/object IDs | Pending |
+| Houston-to-controller trusted TLS, API credential procedure and private site/object IDs | Unresolved: Houston rejects the self-signed HTTPS certificate; verified trust and authenticated API procedure pending |
 | Labelled wired recovery path, local gateway/node access and operator rehearsal | Pending |
 | Private UniFi backup, etcd snapshot, PVC backup and restore evidence | Pending; June verification is historical evidence only |
 | WAN/LEOX runtime baseline and restricted-client ONT protection test design | Pending |
