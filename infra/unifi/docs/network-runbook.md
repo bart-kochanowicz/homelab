@@ -1,7 +1,8 @@
 # Cavespace Network Preflight and Recovery
 
 Use with the [architecture plan](../../../thoughts/shared/plans/2026-10-04-cavespace-unifi-baseline.md)
-and [current inventory](network-inventory.md). PR 01 collects evidence only.
+and [current inventory](network-inventory.md). PR 01 contains documentation only;
+separately authorized API recovery is recorded in the verification ledger.
 Each later PR must be merged, deployed and verified before the next is opened.
 
 ## Read-only preflight
@@ -36,11 +37,44 @@ kubectl --context=homelab-prod -n monitoring get leases \
   workstation-pvc-backup-success workstation-pvc-backup-failure
 ```
 
-The kubeconfig's current endpoint is unverified. Substitute only an identified,
+The control-plane endpoint and API readiness are verified on the direct cable;
+worker and application health remain unresolved. Substitute only an identified,
 certificate-valid endpoint; do not disable TLS verification. Query Talos with
 the existing private talosconfig and explicit verified `--endpoints` / `--nodes`.
 Keep machine configurations, certificates, raw exports and detailed output
 private. Record only sanitized conclusions in the verification ledger.
+
+## Direct-cable Talos recovery
+
+Separately authorized recovery on October 4 confirmed Talos v1.11.1 at
+192.168.100.86. On the isolated control-plane cable, a workstation Ethernet
+alias 192.168.100.250/24 restored authenticated TCP 50000 access. A /32 alias
+with a manual host route failed on this workstation. Interface names are
+workstation-specific; verify them before any command.
+
+The temporary /24 route also intercepts workstation traffic to the WAN-side
+ONT range. Remove the alias after recovery and verify ordinary LAN/ONT access:
+
+```bash
+sudo /sbin/ifconfig en8 inet 192.168.100.250 -alias
+```
+
+Initially Kubernetes TCP 6443 refused connections while etcd, kubelet and trustd
+waited for time synchronization. Inspect `timestatus`, `timeservers`, services
+and NTP/DNS reachability before changing network settings. A successful Talos
+request does not establish Kubernetes health. Keep a private copy of the live
+machine configuration before patches; it is not an etcd or PVC backup.
+
+Use a reachable, synchronized NTP source. Do not treat disabling time sync or
+bypassing its startup wait as proof of recovery. If a temporary NTP relay is
+used, restrict it to the direct-link node, preserve actual upstream responses,
+record the exact patch and rollback, then restore a permanent reachable time
+source before reboot. This recovery temporarily set `machine.time.servers` to
+192.168.100.250 with `--mode=no-reboot`, obtained synchronized time, checked API
+readiness, and saved an etcd snapshot. Removing the added `machine.time` section
+restored the original configuration values; API readiness still passed. Stop
+the relay after rollback. Keep the cable/alias until permanent operator access
+is verified. Follow the installed-version [time synchronization documentation](https://docs.siderolabs.com/talos/v1.11/configure-your-talos-cluster/system-configuration/time-sync).
 
 ## Recovery prerequisites
 

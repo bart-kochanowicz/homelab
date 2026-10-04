@@ -451,12 +451,14 @@ Select proposed reservations and secret procedure deliberately. No WAN changes.
 - [x] Record the accepted seven-VLAN / three-SSID architecture and sequential PRs.
 - [x] Add a minimal UniFi README and English inventory/recovery runbook.
 - [x] Record read-only UniFi UI and Houston observations with their evidence source.
-- [x] Record unreachable cluster endpoints as unresolved, without inferring node roles.
+- [x] Record initial endpoint failures and separate direct-cable API recovery evidence.
+- [x] Verify control-plane Talos/Kubernetes API, cluster CIDRs and stored PV affinity.
+- [x] Save and verify a private local etcd snapshot; independent copy/restore remain pending.
 - [ ] Verify remaining ports/versions, identities, cluster/storage/application inventory.
 - [ ] Validate all range conflicts and accept reservation/secret-loading choices.
 - [ ] Verify controller TLS/API from Houston and rehearse wired/local recovery.
 - [ ] Confirm recoverable private UniFi, etcd and PVC backups.
-- [x] Pass local documentation checks and full GitHub Validate (fdaf1c2).
+- [x] Pass local documentation checks and full GitHub Validate (ac1ede2); recheck each new head.
 - [ ] Review and merge PR 01 after resolving its live gates.
 - [ ] Confirm all PR 01 live gates before opening PR 02.
 
