@@ -52,6 +52,7 @@ provider compatibility and PPSK behavior still need staged tests.
 | Candidate node at 192.168.1.217 | UniFi: eight-port switch port 7, GbE; Talos TCP 50000 and Kubernetes TCP 6443 refused connections | Identity and node role unverified; refusal does not prove worker role |
 | Unidentified wired client reported by operator | UniFi: eight-port switch port 8, GbE, IPv4 Unknown, IPv6 link-local present | No confirmed Talos identity or role; private MAC mapping retained outside Git |
 | Talos version | Local client v1.11.1; no server version returned | Installed node versions pending |
+| Operator-reported node displays | Control plane shows 192.168.100.1; worker shows 192.168.1.1; displayed field/source not yet identified | Neither is accepted as a node address: 192.168.1.1 is the live UCG LAN address and 192.168.100.1 is the documented LEOX address |
 | Home Assistant | Tracked Deployment uses hostNetwork, Recreate and a local-path PVC; no node selector | Actual running node, PV affinity, integrations and data unverified |
 | Apple receivers | UI shows two HomePod mini clients and one wired Apple TV client; Apple TV on gateway port 2 | Selection, IP reservations and receiver access settings pending |
 | Monitoring | Prometheus/Grafana manifests tracked | Live collectors, targets and management protocols pending |
@@ -60,6 +61,12 @@ provider compatibility and PPSK behavior still need staged tests.
 Keep node names, role evidence, Talos addresses, PV node/path/affinity and
 application health together in the private inventory. UniFi model detection
 is a heuristic and cannot establish a Kubernetes role.
+
+Clarify whether the reported displays show interface addresses, default
+gateways or cluster endpoints. If they are actual node interface addresses,
+resolve the duplicate/overlapping addressing through a separately reviewed
+recovery procedure before continuing. Do not repoint kubeconfig or assign the
+candidate 192.168.1.217 a role based on these reports.
 
 ## Address and recovery gates
 
