@@ -40,9 +40,9 @@ gates. [PR 01 (#54)](https://github.com/bart-kochanowicz/homelab/pull/54) is a
 draft, with no merged/deployed commit. Local checks passed for 22 file links,
 Markdown whitespace/final newlines and staged diff whitespace. Full local
 validation stopped on missing `shellcheck`;
-[GitHub Validate](https://github.com/bart-kochanowicz/homelab/actions/runs/37227659249)
-was pending when this entry was written. Verify the latest PR head's required
-check before merge. Do not advance to PR 02 until its live gates pass.
+[GitHub Validate](https://github.com/bart-kochanowicz/homelab/actions/runs/37227726402)
+passed the full repository checks for `fdaf1c2`. Verify the latest PR head's
+required check before merge. Do not advance to PR 02 until its live gates pass.
 
 ## Rehearsal Procedure
 

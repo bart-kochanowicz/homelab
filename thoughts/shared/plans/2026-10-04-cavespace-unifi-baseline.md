@@ -2,8 +2,9 @@
 
 Date: 2026-10-04
 
-Status: PR 01 documentation prepared; live inventory and recovery gates remain
-pending. No Terraform apply or live migration has been completed.
+Status: Draft PR 01 (#54) opened; documentation checks passed, live inventory
+and recovery gates remain pending. No Terraform apply or live migration has
+been completed.
 
 ## Objective and delivery rules
 
@@ -455,7 +456,8 @@ Select proposed reservations and secret procedure deliberately. No WAN changes.
 - [ ] Validate all range conflicts and accept reservation/secret-loading choices.
 - [ ] Verify controller TLS/API from Houston and rehearse wired/local recovery.
 - [ ] Confirm recoverable private UniFi, etcd and PVC backups.
-- [ ] Pass repository checks and review/merge PR 01.
+- [x] Pass local documentation checks and full GitHub Validate (fdaf1c2).
+- [ ] Review and merge PR 01 after resolving its live gates.
 - [ ] Confirm all PR 01 live gates before opening PR 02.
 
 Detailed current findings and unresolved gates are in
