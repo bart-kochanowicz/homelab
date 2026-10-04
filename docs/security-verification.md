@@ -30,9 +30,10 @@ execution, Terraform state operations or workload restarts.
 | UniFi inventory | Partial | Authenticated UI: UCG-Fiber 5.1.33, Network 10.6.106, two switches and U7 Lite Online; current LAN 192.168.1.0/24, Allow All, mDNS Auto. |
 | Physical paths | Partial | Gateway port 1 → five-port switch; its port 3 → eight-port switch; gateway port 4 → AP. Complete native/tagged profiles and labels pending. |
 | Houston | Passed for read-only host checks | SSH: 192.168.1.165/24 via 192.168.1.1; Terraform 1.16.4, ext4 mount, Garage/runner active and loopback-only S3 listener. No backend recovery test performed. |
-| Existing Kubernetes endpoint | Unresolved | Configured 192.168.100.86:6443 timed out; current cluster health and node roles unknown. |
-| Operator-reported candidate node | Unresolved | 192.168.1.217 on eight-port switch port 7; Talos 50000 and Kubernetes 6443 refused connections. Port 8 client has no IPv4 reported in UniFi. |
-| Operator-reported console gateways | Clarified; node addressing unresolved | Operator confirmed the local monitors' gateway fields: control plane 192.168.100.1, worker 192.168.1.1. These are not node IPs; control-plane legacy networking is suspected, not yet verified. Actual IPv4/prefixes and hostnames pending. |
+| Existing Kubernetes endpoint / control plane | Unresolved connectivity | Operator's console confirms control plane 192.168.100.86/24. Configured Kubernetes request and authenticated Talos request timed out. Health and hostnames pending. |
+| Worker identity | Operator-confirmed; API unresolved | Operator's console identifies worker 192.168.1.217/24; UniFi maps that IP to eight-port switch port 7. Talos 50000 refused connections. Port 8 client remains unidentified. |
+| Operator-reported console gateways | Clarified | Control plane gateway 192.168.100.1; worker gateway 192.168.1.1. These are gateway fields, not duplicate node IPs. |
+| Private configuration / address ranges | Partial | Original private configs: control plane eno1 192.168.100.86/24, wg0 10.0.0.1/24; configured pods 10.244.0.0/16 and services 10.96.0.0/12. No overlap with target ranges in these files; live CIDRs remain unverified. |
 | Route/CIDR conflicts | Pending | Legacy LAN and Houston routes checked; employer VPN, gateway routes and live cluster CIDRs not verified. |
 | Controller TLS/API, wired recovery and backups | Pending | Browser access is available; trusted Houston API access and current UniFi/etcd/PVC recovery evidence remain required. June results are historical. |
 | Houston controller TLS | Unresolved | Read-only curl to https://192.168.1.1 returned certificate verification error 60 for a self-signed certificate. No insecure bypass or trust-store changes were made. |

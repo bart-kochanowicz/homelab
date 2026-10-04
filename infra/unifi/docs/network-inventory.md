@@ -49,11 +49,13 @@ provider compatibility and PPSK behavior still need staged tests.
 | Houston runtime | Terraform 1.16.4; `/srv/terraform` mounted on ext4; Garage and runner services active; S3 listening on 127.0.0.1:3900 | Backend host available; state contents and recovery not tested here |
 | Houston permissions | Private operator directory 0700 `capcom:capcom`; Terraform lock 0660 `root:terraform-ops` | Expected permissions observed; no lock contention test performed |
 | Garage version | Tracked deployment pins 2.4.1; runtime version command denied for operator account | Runtime version unverified |
-| Kubernetes | Local `homelab-prod` kubeconfig points to 192.168.100.86:6443; read-only request timed out | Stale/unreachable endpoint; cluster health unknown |
-| Candidate node at 192.168.1.217 | UniFi: eight-port switch port 7, GbE; Talos TCP 50000 and Kubernetes TCP 6443 refused connections | Identity and node role unverified; refusal does not prove worker role |
+| Kubernetes / control plane | Operator's local console reports 192.168.100.86/24; local `homelab-prod` kubeconfig points to that IP; Kubernetes request and authenticated Talos version request timed out | Endpoint matches reported control plane; no verified operator path or cluster health yet |
+| Worker at 192.168.1.217 | Operator's local console identifies worker at 192.168.1.217/24; UniFi: eight-port switch port 7, GbE; Talos TCP 50000 refused connections | Worker role reported by operator; hostname and authenticated API health pending |
 | Unidentified wired client reported by operator | UniFi: eight-port switch port 8, GbE, IPv4 Unknown, IPv6 link-local present | No confirmed Talos identity or role; private MAC mapping retained outside Git |
 | Talos version | Local client v1.11.1; no server version returned | Installed node versions pending |
-| Operator-confirmed console gateway fields | Locally connected monitors show gateway 192.168.100.1 on the control plane and gateway 192.168.1.1 on the worker | These are gateway fields, not node interface addresses; actual IPv4/prefixes and hostnames remain pending |
+| Operator-confirmed console gateway fields | Locally connected monitors show gateway 192.168.100.1 on the control plane and gateway 192.168.1.1 on the worker | Distinct gateway configurations; node IPv4/prefixes reported above, hostnames pending |
+| Existing control-plane WireGuard | Console also reports 10.0.0.1/24; private machine configuration assigns it to wg0, with peer allowed IP 10.0.0.2/32 | Existing 10.0.0.0/24 VPN, not proof of a Pod CIDR; operator route to 10.0.0.1 currently uses the UCG default route |
+| Private machine configuration | Original checkout: control plane eno1 static 192.168.100.86/24 via 192.168.100.1; worker has no explicit interface override; both specify pod 10.244.0.0/16 and service 10.96.0.0/12 | Configuration evidence only; live cluster CIDRs and effective worker configuration still need API verification |
 | Home Assistant | Tracked Deployment uses hostNetwork, Recreate and a local-path PVC; no node selector | Actual running node, PV affinity, integrations and data unverified |
 | Apple receivers | UI shows two HomePod mini clients and one wired Apple TV client; Apple TV on gateway port 2 | Selection, IP reservations and receiver access settings pending |
 | Monitoring | Prometheus/Grafana manifests tracked | Live collectors, targets and management protocols pending |
@@ -63,14 +65,13 @@ Keep node names, role evidence, Talos addresses, PV node/path/affinity and
 application health together in the private inventory. UniFi model detection
 is a heuristic and cannot establish a Kubernetes role.
 
-The operator clarified that the reported addresses are gateway fields on the
-local node consoles. They do not establish a duplicate node IP. The worker's
-reported gateway matches the current UCG LAN gateway. The control plane's
-reported gateway suggests retained legacy networking; its actual interface
-address/prefix and route reachability must be verified before choosing a
-recovery procedure. Today 192.168.100.1 is the documented WAN-side ONT address,
-not a verified reachable LAN gateway for the control plane. Do not repoint
-kubeconfig or assign the candidate 192.168.1.217 a role based on gateway fields.
+The operator clarified the gateway fields and then reported the actual node
+addresses above. The control plane retains legacy 192.168.100.86/24 networking,
+while the worker is on the current 192.168.1.0/24 LAN. Gateway fields do not
+establish duplicate node IPs. Today 192.168.100.1 is the documented WAN-side ONT
+address, not a verified reachable LAN gateway for the control plane. Restore
+a separately reviewed operator path before collecting live cluster evidence;
+do not reset nodes or readdress them as part of this documentation stage.
 
 ## Address and recovery gates
 
@@ -78,7 +79,10 @@ Target VLANs 30/40/50/60/70/80/90 and `10.0.<VLAN>.0/24` are proposals awaiting
 collision checks. The current LAN and Houston route table contain no overlapping
 target route, but that is only partial evidence. Employer VPN routes, gateway
 routes/VPNs, live pod/service CIDRs, and every other host reservation remain
-pending. Do not freeze DHCP, media, VPN or future LoadBalancer allocations yet.
+pending. The configured pod 10.244.0.0/16, service 10.96.0.0/12 and existing
+WireGuard 10.0.0.0/24 ranges do not overlap the proposed LAN ranges or candidate
+10.0.100.0/24 gateway VPN. Live verification is still required. Do not freeze
+DHCP, media, VPN or future LoadBalancer allocations yet.
 
 The tracked WAN guide uses 192.168.100.2/24, while the tracked LEOX script uses
 192.168.100.2/32 with a host route and SNAT. Legacy Talos configuration also

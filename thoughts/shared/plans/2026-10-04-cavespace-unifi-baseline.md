@@ -568,6 +568,12 @@ split-tunnel/private DNS instructions. Peer `allowed_ips` describes networks
 behind a peer, not target authorization; apply Admin-equivalent firewall rules
 in the built-in VPN zone, including Work/Guest exclusions.
 
+PR 01 found existing control-plane `wg0` configuration at 10.0.0.1/24 with a
+10.0.0.2/32 peer. Inventory its current listener, routes, forwarding, purpose
+and operator dependency before deploying the gateway VPN. Preserve any working
+recovery path until the replacement is verified; do not silently remove it or
+assume that a reported wg0 address proves remote access works.
+
 **Gate:** External/cellular client reaches intended Admin services; forbidden
 zones stay blocked; DNS/replies work and removing a test peer revokes access.
 
