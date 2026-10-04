@@ -36,8 +36,13 @@ execution, Terraform state operations or workload restarts.
 | Controller TLS/API, wired recovery and backups | Pending | Browser access is available; trusted Houston API access and current UniFi/etcd/PVC recovery evidence remain required. June results are historical. |
 
 See [network-inventory.md](../infra/unifi/docs/network-inventory.md) for remaining
-gates. PR 01 is not deployed/merged in this record; PR URL and CI evidence will
-be recorded after creation. Do not advance to PR 02 until its live gates pass.
+gates. [PR 01 (#54)](https://github.com/bart-kochanowicz/homelab/pull/54) is a
+draft, with no merged/deployed commit. Local checks passed for 22 file links,
+Markdown whitespace/final newlines and staged diff whitespace. Full local
+validation stopped on missing `shellcheck`;
+[GitHub Validate](https://github.com/bart-kochanowicz/homelab/actions/runs/37227659249)
+was pending when this entry was written. Verify the latest PR head's required
+check before merge. Do not advance to PR 02 until its live gates pass.
 
 ## Rehearsal Procedure
 
