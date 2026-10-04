@@ -20,6 +20,25 @@ after configuring its LAN entry point, then append new live results.
 | ArgoCD local-admin recovery | Tabletop pending | Review enable, restart, login, and disable procedure without changing the live cluster. |
 | Cilium rollback | Tabletop pending | Review Flannel patch, node order, out-of-band access, and backup availability without executing rollback. |
 
+## October 4, 2026 — UniFi PR 01 read-only baseline
+
+Scope: documentation and inventory; no live configuration changes, backup
+execution, Terraform state operations or workload restarts.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| UniFi inventory | Partial | Authenticated UI: UCG-Fiber 5.1.33, Network 10.6.106, two switches and U7 Lite Online; current LAN 192.168.1.0/24, Allow All, mDNS Auto. |
+| Physical paths | Partial | Gateway port 1 → five-port switch; its port 3 → eight-port switch; gateway port 4 → AP. Complete native/tagged profiles and labels pending. |
+| Houston | Passed for read-only host checks | SSH: 192.168.1.165/24 via 192.168.1.1; Terraform 1.16.4, ext4 mount, Garage/runner active and loopback-only S3 listener. No backend recovery test performed. |
+| Existing Kubernetes endpoint | Unresolved | Configured 192.168.100.86:6443 timed out; current cluster health and node roles unknown. |
+| Operator-reported candidate node | Unresolved | 192.168.1.217 on eight-port switch port 7; Talos 50000 and Kubernetes 6443 refused connections. Port 8 client has no IPv4 reported in UniFi. |
+| Route/CIDR conflicts | Pending | Legacy LAN and Houston routes checked; employer VPN, gateway routes and live cluster CIDRs not verified. |
+| Controller TLS/API, wired recovery and backups | Pending | Browser access is available; trusted Houston API access and current UniFi/etcd/PVC recovery evidence remain required. June results are historical. |
+
+See [network-inventory.md](../infra/unifi/docs/network-inventory.md) for remaining
+gates. PR 01 is not deployed/merged in this record; PR URL and CI evidence will
+be recorded after creation. Do not advance to PR 02 until its live gates pass.
+
 ## Rehearsal Procedure
 
 For each quarterly tabletop:

@@ -1,13 +1,10 @@
 # UniFi Infrastructure
 
-This directory contains source-controlled, credential-free operational material
-for the UniFi Cloud Gateway Fiber (UCG-Fiber). It does not configure the gateway
-automatically; install the documented runtime script on the gateway after
-reviewing it.
+Operational documentation for the UCG-Fiber. The planned UniFi Terraform root
+is `terraform/unifi`; no LAN migration has been applied.
 
-## Contents
-
-- [WAN / Netia GPON](docs/wan-netia.md): topology, installation, smoke test,
-  and recovery procedure.
-- [LEOX management restoration script](scripts/leox-management.sh): restores
-  the UCG-Fiber's untagged management path after a reboot.
+- [Architecture and sequential PR plan](../../thoughts/shared/plans/2026-10-04-cavespace-unifi-baseline.md)
+- [Current inventory and pending gates](docs/network-inventory.md)
+- [Network preflight and recovery](docs/network-runbook.md)
+- [Existing Netia GPON WAN](docs/wan-netia.md)
+- [LEOX runtime support](scripts/leox-management.sh)
