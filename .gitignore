@@ -1,6 +1,9 @@
 .DS_Store
 .cache/
 
+# Local planning material
+/thoughts/
+
 # Explicitly ignore Talos config files
 talos/controlplane.yaml
 talos/talosconfig
