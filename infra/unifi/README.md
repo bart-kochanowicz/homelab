@@ -1,9 +1,9 @@
 # UniFi Infrastructure
 
-UCG-Fiber network architecture and WAN support material. Target Terraform layout:
+UCG-Fiber network architecture and WAN configuration. Terraform layout:
 `terraform/unifi` with reusable modules under `terraform/modules/unifi`.
 
-## Target network
+## Networks
 
 Each network uses the `cavespace-` prefix and gateway `10.0.<VLAN>.1`.
 
@@ -23,10 +23,11 @@ Three SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30), and
 Inter-zone access is denied by default, with stateful replies and explicit service
 exceptions. Admin has access to Servers, Management and gateway administration;
 remote administration uses WireGuard. Guest AirPlay is limited to selected Home
-receivers, with AirPlay mDNS scoped to Home and Guest. Home Assistant stays in
-Servers with explicit IoT integration rules. Application endpoints remain private.
+receivers, with AirPlay mDNS scoped to Home and Guest. Home Assistant runs in
+Servers with explicit IoT integration rules. Application endpoints are private.
 
-Netia GPON, WAN VLAN 35/PPPoE and WAN-side LEOX management remain unchanged.
+The WAN uses Netia GPON through LEOX LXT-010S-H, VLAN 35 and PPPoE.
+LEOX management uses a WAN-side route and SNAT.
 
 ## WAN support
 
