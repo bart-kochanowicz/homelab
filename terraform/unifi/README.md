@@ -9,8 +9,8 @@ See [provider constraints](../../infra/unifi/docs/provider-exceptions.md).
 
 The private [Apply production Terraform workflow](https://github.com/bart-kochanowicz/homelab-automation/actions/workflows/terraform-apply.yaml)
 runs on Houston through its locked `/usr/local/bin/terraform`.
-Select `terraform_root=unifi` and `operation=plan` or `apply`, using the current
-`homelab/main` SHA and its successful Validate push run ID.
+Select `terraform_root=unifi` and `operation=plan` or `apply`. Empty source fields
+select current `homelab/main` and verify its successful Validate push run.
 
 `UNIFI_AUTH` is an Actions secret containing local credentials or an API key.
 The job supplies it as ephemeral `TF_VAR_unifi_auth`. `UNIFI_CONTROLLER` and
@@ -19,3 +19,6 @@ on Houston and matches the certificate SAN; TLS verification is enabled.
 See [automation configuration](https://github.com/bart-kochanowicz/homelab-automation#github-configuration).
 
 Public CI uses backend-disabled validation and mock providers without credentials.
+
+[Local plans on macOS](LOCAL_PLAN.md) use the same backend through SSH with a
+read-only Garage key and Houston's shared lock. Apply runs through Actions.

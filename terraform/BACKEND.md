@@ -11,10 +11,11 @@ Houston stores state in the `terraform-state` bucket on Garage at
 | Backend diagnostic (`examples/garage-backend`) | `checks/garage-backend/terraform.tfstate` |
 | Restore diagnostic (`examples/garage-restore`) | `checks/garage-restore/<uuid>/terraform.tfstate` |
 
-Run Terraform on Houston through `/usr/local/bin/terraform`. Garage 2.4.1
+Run write operations on Houston through `/usr/local/bin/terraform`. Garage 2.4.1
 [lacks native S3 locking](https://github.com/deuxfleurs-org/garage/blob/v2.4.1/doc/book/reference-manual/known-issues.md),
 so the wrapper serializes commands with a shared host lock. See
 [host configuration](../infra/ansible/README.md#terraform-and-locking).
+Read-only [local UniFi plans](unifi/LOCAL_PLAN.md) hold this same lock over SSH.
 
 Keep checkouts in `/srv/terraform/workspaces` (`0700 capcom:capcom`). Supply
 Garage credentials through `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
