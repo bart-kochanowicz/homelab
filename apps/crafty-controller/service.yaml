@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: crafty-controller
     app.kubernetes.io/part-of: homelab
 spec:
-  type: ClusterIP  # Web UI only accessible via Cloudflare Tunnel
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: crafty-controller
   ports:

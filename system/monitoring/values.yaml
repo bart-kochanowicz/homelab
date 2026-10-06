@@ -43,15 +43,12 @@ alertmanager:
             requests:
               storage: 5Gi
 
-# Node Exporter - metrics from all nodes
 nodeExporter:
   enabled: true
 
-# Kube State Metrics - cluster state metrics
 kubeStateMetrics:
   enabled: true
 
-# Prometheus Operator
 prometheusOperator:
   enabled: true
   admissionWebhooks:

@@ -17,7 +17,6 @@ spec:
       labels:
         app.kubernetes.io/managed-by: apps-generator
         app.kubernetes.io/part-of: homelab
-        environment: test
     spec:
       project: applications
       source:

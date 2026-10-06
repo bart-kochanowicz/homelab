@@ -24,19 +24,17 @@ fi
     trap 'rm -f "$PIDFILE"' EXIT INT TERM
 
     while true; do
-        # Only operate when the expected WAN interfaces exist.
         if ip link show "$IFACE" >/dev/null 2>&1 &&
            ip link show "$VLAN_IFACE" >/dev/null 2>&1; then
 
-            # Remove legacy /24 configuration if it is still present.
+            # Keep a host address so management does not add a /24 WAN route.
             if ip -4 addr show dev "$IFACE" | grep -q "${UCG_IP}/24"; then
                 ip addr del "${UCG_IP}/24" dev "$IFACE"
 
                 logger -t leox-management \
-                    "Removed legacy ${UCG_IP}/24 from ${IFACE}"
+                    "Removed ${UCG_IP}/24 from ${IFACE}"
             fi
 
-            # Restore the UCG management source address as a host address.
             if ! ip -4 addr show dev "$IFACE" | grep -q "${UCG_IP}/32"; then
                 ip addr add "${UCG_IP}/32" dev "$IFACE"
 
@@ -44,7 +42,6 @@ fi
                     "Restored ${UCG_IP}/32 on ${IFACE}"
             fi
 
-            # Explicit host route to the LEOX management interface.
             ip route replace "${LEOX_IP}/32" \
                 dev "$IFACE" \
                 scope link \

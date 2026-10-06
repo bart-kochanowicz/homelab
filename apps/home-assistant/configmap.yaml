@@ -8,14 +8,11 @@ metadata:
     app.kubernetes.io/part-of: homelab
 data:
   configuration.yaml: |
-    # Loads default set of integrations. Do not remove.
     default_config:
 
-    # Load frontend themes from the themes folder
     frontend:
       themes: !include_dir_merge_named themes
 
-    # HTTP configuration for reverse proxy (Cloudflare Tunnel)
     http:
       use_x_forwarded_for: true
       trusted_proxies:
@@ -23,7 +20,6 @@ data:
         - 127.0.0.1
         - ::1
 
-    # Text to speech
     tts:
       - platform: google_translate
 
@@ -31,7 +27,6 @@ data:
     script: !include scripts.yaml
     scene: !include scenes.yaml
 
-    # Logger configuration
     logger:
       default: warning
       logs:

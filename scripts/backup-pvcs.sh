@@ -68,8 +68,6 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p .backups
-rm -f .backups/last-successful-restore-test
-rm -rf .backups/restore-tests
 restic snapshots >/dev/null 2>&1 || restic init
 
 for entry in "${entries[@]}"; do

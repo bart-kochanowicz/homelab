@@ -46,17 +46,6 @@ if ! restic ls latest --tag "$namespace" "$archive_path" >/dev/null; then
   exit 1
 fi
 
-mark_restore_test() {
-  local marker_dir=".backups/restore-tests"
-  mkdir -p "$marker_dir"
-  date -u +"%Y-%m-%dT%H:%M:%SZ" > "${marker_dir}/${namespace}-${pvc}"
-  if [[ -f "${marker_dir}/crafty-controller-crafty-data" &&
-    -f "${marker_dir}/home-assistant-home-assistant-config" &&
-    -f "${marker_dir}/n8n-n8n-data" ]]; then
-    date -u +"%Y-%m-%dT%H:%M:%SZ" > .backups/last-successful-restore-test
-  fi
-}
-
 if [[ "$in_place" != "true" ]]; then
   : "${RESTORE_TEST_DIR:?Set RESTORE_TEST_DIR to a writable location with enough free space}"
   mkdir -p "$RESTORE_TEST_DIR"
@@ -78,7 +67,6 @@ if [[ "$in_place" != "true" ]]; then
     exit 1
   fi
   restore_succeeded=true
-  mark_restore_test
   trap - EXIT
   echo "Restore test passed. Inspect or remove: ${restore_dir}"
   exit 0
