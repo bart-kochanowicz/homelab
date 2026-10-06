@@ -1,7 +1,8 @@
 # UniFi Infrastructure
 
 UCG-Fiber network architecture and WAN configuration. Terraform layout:
-`terraform/unifi` with reusable modules under `terraform/modules/unifi`.
+[`terraform/unifi`](../../terraform/unifi) with reusable modules under
+[`terraform/modules/unifi`](../../terraform/modules/unifi).
 
 ## Networks
 
