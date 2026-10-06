@@ -1,0 +1,10 @@
+{
+  "controller": {
+    "url": "https://unifi.local",
+    "site": "default"
+  },
+  "unifi_auth": {
+    "username": "cavespace-houston",
+    "password": ""
+  }
+}

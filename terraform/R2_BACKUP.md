@@ -65,14 +65,16 @@ uses **Workers R2 Storage Write** and is separate from both S3 key pairs.
 
 ## Production snapshot
 
-Initialize the production backend using
-[backend operations](BACKEND.md#verify-the-production-root), then run:
+Initialize each root through [Cloudflare backend operations](BACKEND.md#verify-the-production-root)
+or [UniFi operations](unifi/README.md), then run:
 
 ```bash
 ./scripts/backup-terraform-state.sh terraform prod/homelab
+./scripts/backup-terraform-state.sh terraform/unifi prod/unifi
 ```
 
-Expect `Verified R2 backup: s3://…/backups/prod/homelab/…` and `SHA256: …`.
+Successful receipts report `Verified R2 backup: s3://…/backups/prod/<root>/…`
+and `SHA256: …`, where `<root>` is `homelab` or `unifi`.
 The second argument chooses the R2 snapshot prefix, not the backend: the first
 argument must point to the initialized production root and correct workspace.
 

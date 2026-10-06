@@ -12,7 +12,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes \
-	validate-security validate-permissions
+	validate-security validate-permissions validate-terraform-tests
 
 default: system
 
@@ -21,7 +21,7 @@ system:
 
 validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
-	validate-permissions
+	validate-permissions validate-terraform-tests
 
 validate-tools:
 	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks; do \
@@ -33,18 +33,25 @@ validate-format:
 	terraform fmt -check - < terraform/garage.s3.tfbackend
 	terraform -chdir=terraform init -backend=false -input=false -lockfile=readonly
 	terraform -chdir=terraform validate -no-color
+	terraform -chdir=terraform/unifi init -backend=false -input=false -lockfile=readonly
+	terraform -chdir=terraform/unifi validate -no-color
 	terraform -chdir=terraform/examples/garage-backend init -backend=false -input=false
 	terraform -chdir=terraform/examples/garage-backend validate -no-color
 	terraform -chdir=terraform/examples/garage-restore init -backend=false -input=false
 	terraform -chdir=terraform/examples/garage-restore validate -no-color
+
+validate-terraform-tests: validate-format
+	terraform -chdir=terraform/unifi test -no-color
 
 validate-yaml:
 	find . -type f \( -name '*.yaml' -o -name '*.yml' \) \
 		-not -path './.git/*' \
 		-not -path './.cache/*' \
 		-not -path './.secrets/*' \
+		-not -path './.backups/*' \
+		-not -path './thoughts/*' \
 		-not -path '*/charts/*' \
-		-not -path './terraform/.terraform/*' \
+		-not -path '*/.terraform/*' \
 		-not -path './talos/controlplane.yaml' \
 		-not -path './talos/worker.yaml' \
 		-not -path './talos/talosconfig' \
@@ -54,6 +61,9 @@ validate-shell:
 	find . -type f -name '*.sh' \
 		-not -path './.git/*' \
 		-not -path './.cache/*' \
+		-not -path './.secrets/*' \
+		-not -path './.backups/*' \
+		-not -path './thoughts/*' \
 		-not -path '*/charts/*' \
 		-print0 | xargs -0 shellcheck
 
@@ -104,6 +114,7 @@ validate-security:
 	trivy config --exit-code 1 --severity HIGH,CRITICAL \
 		--ignorefile .trivyignore.yaml \
 		--skip-dirs .git --skip-dirs .terraform --skip-dirs .cache \
+		--skip-dirs .secrets --skip-dirs .backups --skip-dirs thoughts \
 		--skip-dirs '**/charts' .
 	trivy config --exit-code 1 --severity HIGH,CRITICAL \
 		--ignorefile .trivyignore.yaml .cache/rendered
