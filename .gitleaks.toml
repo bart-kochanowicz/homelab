@@ -5,6 +5,7 @@ useDefault = true
 description = "SealedSecret ciphertext is safe to publish"
 paths = [
   '''^apps/n8n/sealed-secret\.yaml$''',
+  # Full-history scans include this removed manifest's ciphertext.
   '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
   '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',

@@ -60,8 +60,7 @@ url="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com/$bucket/$key"
 snapshot_sha256=$(sha256sum "$snapshot" | cut -d ' ' -f 1)
 
 r2_request() {
-  # Feed the credentials over stdin instead of putting them in process arguments.
-  # Hex-only validation above makes these values safe in curl's config syntax.
+  # Validated hex credentials reach curl through stdin, outside process arguments.
   printf 'user = "%s:%s"\n' "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" |
     curl --disable --config - --aws-sigv4 aws:amz:auto:s3 \
       --proto '=https' --silent --show-error --fail \

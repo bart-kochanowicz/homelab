@@ -31,4 +31,3 @@ kubectl create secret generic argocd-secret \
     -o yaml >"${output}"
 
 printf 'Generated %s\n' "${output}"
-printf 'Follow docs/security-runbook.md to enable and test SSO safely.\n'

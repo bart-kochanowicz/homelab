@@ -3,6 +3,7 @@
 `ubiquiti-community/unifi` 0.57.0 manages LAN configuration through
 [`../modules/unifi`](../modules/unifi). Garage stores state at
 `prod/unifi/terraform.tfstate`; [R2 snapshots](../R2_BACKUP.md) use `backups/prod/unifi/`.
+LAN resources come from the `networks` input; an empty map manages none.
 
 The private [Apply production Terraform workflow](https://github.com/bart-kochanowicz/homelab-automation/actions/workflows/terraform-apply.yaml)
 runs on Houston through its locked `/usr/local/bin/terraform`.

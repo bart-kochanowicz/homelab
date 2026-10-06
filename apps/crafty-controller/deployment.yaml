@@ -40,7 +40,6 @@ spec:
             - name: dynmap
               containerPort: 8123
               protocol: TCP
-            # Minecraft server ports (25565-25575 range for multiple servers)
             - name: mc-server
               containerPort: 30000
               protocol: TCP

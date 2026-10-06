@@ -1,5 +1,5 @@
 ---
-- name: Verify houston-01 workload SSD
+- name: Configure Houston
   hosts: terraform_hosts
   become: true
   gather_facts: true
