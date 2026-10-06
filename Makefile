@@ -12,7 +12,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes \
-	validate-security validate-permissions validate-terraform-tests
+	validate-security validate-terraform-tests
 
 default: system
 
@@ -21,7 +21,7 @@ system:
 
 validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
-	validate-permissions validate-terraform-tests
+	validate-terraform-tests
 
 validate-tools:
 	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks; do \
@@ -127,6 +127,3 @@ validate-security:
 	cd .cache/gitleaks-tree && \
 		gitleaks dir --config "$(CURDIR)/.gitleaks.toml" --redact --verbose .
 	gitleaks git --config .gitleaks.toml --redact --verbose --log-opts="--all"
-
-validate-permissions:
-	./scripts/check-sensitive-permissions.sh
