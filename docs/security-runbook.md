@@ -279,7 +279,7 @@ documented root-running workloads receive `0:0`.
 
 ## Secret And Credential Rotation
 
-- Run `./scripts/check-sensitive-permissions.sh` before maintenance.
+- Keep credential and state files mode `0600` in private `0700` directories.
 - Rotate Cloudflare, GitHub OAuth, n8n, Sealed Secrets, and CA credentials
   independently.
 - Regenerate SealedSecrets; never edit ciphertext manually.

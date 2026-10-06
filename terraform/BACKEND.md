@@ -9,7 +9,8 @@ Each root module defines its own state key:
 
 | Configuration | State key |
 | --- | --- |
-| Production root (`backend.tf`) | `prod/homelab/terraform.tfstate` |
+| Cloudflare root (`backend.tf`) | `prod/homelab/terraform.tfstate` |
+| UniFi root (`unifi/backend.tf`) | `prod/unifi/terraform.tfstate` |
 | Isolated backend check (`examples/garage-backend`) | `checks/garage-backend/terraform.tfstate` |
 | Restore rehearsal (`examples/garage-restore`, through the script) | `checks/garage-restore/<uuid>/terraform.tfstate` |
 
