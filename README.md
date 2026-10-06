@@ -1,90 +1,51 @@
 # Homelab
 
-Kubernetes homelab infrastructure managed with Talos, Terraform, ArgoCD, and
-Kustomize. The repository is public, so all Kubernetes secrets are committed
-only as SealedSecrets and local credentials are ignored.
+Infrastructure managed with Talos, Kubernetes, ArgoCD, Terraform, and Ansible.
+Application endpoints are private; Minecraft is exposed on TCP `30000`.
+Home Assistant uses host networking for LAN discovery.
 
-## Hardware
+## Configuration
 
-- Lenovo ThinkCentre m720q i3-8100T/8GB/256GB
-- Lenovo ThinkCentre m920q i5-8500T/32GB/512GB
-- Dell Wyse 3040 (`houston-01`) for Terraform infrastructure management;
-  see [its Ansible setup guide](infra/ansible/README.md).
+| Path | Scope |
+| --- | --- |
+| `apps/` | Home Assistant, Crafty Controller, and n8n |
+| `system/` | ArgoCD, Cilium, certificates, storage, monitoring, and network policies |
+| `talos/patches/cilium.yaml` | Talos CNI configuration |
+| `terraform/` | Cloudflare R2 backup storage; Garage state at `prod/homelab/terraform.tfstate` |
+| `terraform/unifi/` | UniFi LAN configuration; Garage state at `prod/unifi/terraform.tfstate` |
+| `infra/ansible/` | Houston: Garage, Terraform CLI, and private Actions runner |
+| `infra/unifi/` | Network architecture and Netia/LEOX WAN configuration |
 
-## Software Requirements
+Hardware: Lenovo ThinkCentre m720q (i3-8100T, 8 GB, 256 GB), m920q
+(i5-8500T, 32 GB, 512 GB), and Dell Wyse 3040 (`houston-01`).
 
-- Kubernetes v1.34
-- Talos Linux
-- kubectl configured to access your cluster
-- Helm, Terraform, Ansible, restic, and the tools in `aqua.yaml`
+## Bootstrap and validation
 
-## Hosted Apps
-
-- Home Assistant is deployed in-cluster and supports LAN discovery.
-- Crafty Controller is deployed in-cluster with a private administration UI.
-- n8n is deployed in-cluster with private editor and webhook endpoints.
-
-Application UIs are not published through a public tunnel. See the
-[private access guide](docs/security-runbook.md#private-application-access).
-
-Minecraft TCP `30000` remains publicly reachable through its NodePort. Home
-Assistant retains host networking for LAN discovery.
-
-## Bootstrap
+Use Kubernetes v1.34, Talos, Helm, Terraform, Ansible, yamllint, and the tools in
+`aqua.yaml`. Bootstrap runs locally using the current `KUBECONFIG`.
 
 ```bash
 make validate
 make -C system setup-from-scratch
 ```
 
-The `system/Makefile` installs Ansible on the machine running `make`.
-`system/bootstrap.yaml` also runs there and uses that machine's Kubernetes
-access to bootstrap ArgoCD.
+Generate Talos configuration with the Cilium patch first. Bootstrap installs
+Cilium before ArgoCD; ArgoCD manages the remaining platform and applications.
+Cilium is managed separately so network recovery does not depend on GitOps.
 
-Bootstrap order is Talos, Cilium, ArgoCD, then ArgoCD-managed platform and
-applications. Cilium is deliberately installed outside ArgoCD so the network
-does not depend on GitOps for recovery.
+## Operations
 
-## Terraform operations
+- [Private access, SSO, certificates, PVC backup/restore, and network policies](docs/security-runbook.md)
+- [Security exceptions](docs/exception-register.md)
+- [Houston configuration](infra/ansible/README.md)
+- [Terraform backend](terraform/BACKEND.md) and [R2 backup/restore](terraform/R2_BACKUP.md)
+- [UniFi Terraform](terraform/unifi/README.md) and [network/WAN configuration](infra/unifi/README.md)
 
-Houston hosts the Garage backend, Terraform CLI, and a dedicated GitHub
-Actions runner. The production root in `terraform/` stores its state in Garage
-at `prod/homelab/terraform.tfstate` and provisions a private R2 bucket with
-90-day protection for snapshots. Its current scope is R2 storage and its settings.
-Diagnostic check modules use separate state keys. See
-[backend operations](terraform/BACKEND.md#verify-the-production-root).
+Production Terraform runs on Houston through the private
+[homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
+Public CI validates configuration and dispatches automation; each production
+apply verifies an R2 backup before applying its saved plan and attempts another
+verified backup afterward.
 
-The private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation)
-runs production Terraform on Houston after a commit reaches `homelab/main`
-and passes **Validate**. Each run verifies an R2 backup before applying its
-saved plan and attempts another verified backup afterward. Public CI and
-dispatch stay on GitHub-hosted runners.
-
-See the [private automation guide](https://github.com/bart-kochanowicz/homelab-automation)
-for trigger configuration and failure handling, and the
-[R2 operations guide](terraform/R2_BACKUP.md) for manual backup and isolated
-restore diagnostics.
-
-## Security Operations
-
-See [docs/security-runbook.md](docs/security-runbook.md) for:
-
-- GitHub SSO activation and local-admin recovery
-- Internal CA and secret rotation
-- encrypted PVC backup and restore
-- Cilium migration and Flannel rollback
-- network-policy and host-firewall enforcement
-- retained local-path PV cleanup
-- maintenance cadence and recovery rehearsals
-
-Documented compatibility exceptions are tracked in
-[docs/exception-register.md](docs/exception-register.md).
-Completed checks and pending tabletop exercises are tracked in
-[docs/security-verification.md](docs/security-verification.md).
-
-## Network Infrastructure
-
-The UniFi gateway WAN configuration, LEOX ONT management-access restoration
-script, smoke tests, and recovery checklist are documented in
-[infra/unifi/README.md](infra/unifi/README.md). Device backups, GPON identities,
-and WAN credentials are intentionally excluded from this public repository.
+Commit Kubernetes secrets only as SealedSecrets. Credentials, device backups,
+Terraform state, and generated Talos configuration stay outside Git.

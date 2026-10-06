@@ -1,77 +1,51 @@
-# Security Operations Runbook
+# Security operations
 
-## Desired Security State
+## Configuration
 
-The tracked configuration defines these controls:
+- Cilium enforces pod policies and the host firewall on both nodes.
+- The `network-policies` ArgoCD Application requires manual sync.
+- ArgoCD local admin is disabled; GitHub SSO grants admin to `bart-kochanowicz`.
+- Application UIs and webhooks use private access.
+- Application PVCs have encrypted restic backups; Kubernetes Leases report results.
+- Local-path volumes use `Retain`, mode `0770`, and workload-specific ownership.
 
-- Cilium `1.19.3` manages all cluster pods with policy enforcement set to
-  `default`; the host firewall is enforced on both nodes.
-- Application NetworkPolicies and the cluster-wide host policy are managed by
-  the manually synced `network-policies` ArgoCD Application.
-- ArgoCD local admin is disabled; GitHub SSO grants admin only to
-  `bart-kochanowicz`.
-- Application UIs and webhooks use private operator access.
-- Crafty, Home Assistant, and n8n backups are encrypted with restic and report
-  their latest result through Kubernetes Leases.
-- The local-path StorageClass uses `Retain`, and new volume directories use
-  mode `0770` with workload-specific ownership.
+Compatibility exceptions are listed in [exception-register.md](exception-register.md).
 
-See [security-verification.md](security-verification.md) for the dated
-verification and rehearsal record.
-
-## Bootstrap Order
+## Bootstrap
 
 1. Generate Talos machine configuration with `talos/patches/cilium.yaml`.
 2. Bootstrap Talos and wait for the Kubernetes API through KubePrism.
-3. Run `make -C system bootstrap-cilium`.
-4. Verify `cilium status --wait`.
-5. Run `make -C system bootstrap`.
-6. Verify ArgoCD applications, cert-manager, sealed-secrets, storage, and monitoring.
+3. Run `make -C system bootstrap-cilium`, then `cilium status --wait`.
+4. Run `make -C system bootstrap`.
+5. Verify ArgoCD applications, certificates, storage, monitoring, and network policies.
 
-Cilium is intentionally bootstrap-managed. Do not add it to the ArgoCD
-ApplicationSet because loss of the CNI also removes ArgoCD's ability to repair it.
+Cilium is managed outside ArgoCD so network recovery does not depend on GitOps.
 
-## Private Application Access
+## Private application access
 
-Canonical application URLs use private DNS:
-
-| Application | Private URL |
+| Application | URL |
 | --- | --- |
 | ArgoCD | `https://argocd.thecavespace.com` |
 | n8n editor | `https://n8n.thecavespace.com` |
 | n8n webhooks | `https://n8n-webhook.thecavespace.com/` |
 
-Resolve these names to a private HTTPS entry point with routes to the matching
-cluster Services. ArgoCD's OAuth callback and certificate use its canonical
-hostname; ArgoCD server pods must also resolve and reach that hostname for SSO.
-Clients must trust the certificate issuer. n8n's editor and webhook URLs are
-configured in its Deployment.
+ArgoCD and n8n use `ClusterIP` Services. Private DNS must resolve these names to
+a LAN HTTPS entry point with routes to those Services. DNS, TLS, and the LAN
+entry point are configured outside the application manifests. Clients must
+trust the issuer, and ArgoCD server pods must resolve and reach the ArgoCD URL
+for SSO. Keep Kubernetes API access available for recovery.
 
-The current ArgoCD and n8n Services are `ClusterIP`. A private LAN entry point,
-its DNS records, TLS configuration, and reviewed ingress rules are required
-before hostname access works. These are separate from application deployment.
-Keep working Kubernetes API access available while configuring private access.
-
-Verify private DNS resolution, HTTPS, GitHub login, n8n login, and a disposable
-webhook from an authorized LAN client. Record live results in the dated
-verification record. Restore the matching private DNS and HTTPS route when
-access fails, using Kubernetes API access for recovery.
+Verify DNS, HTTPS, GitHub login, n8n login, and a disposable webhook from an
+authorized LAN client. For access failures, check private DNS and HTTPS routes.
 
 ## GitHub SSO
 
-The GitHub OAuth application uses:
+GitHub OAuth uses homepage `https://argocd.thecavespace.com` and callback
+`https://argocd.thecavespace.com/api/dex/callback`. Dex and RBAC configuration
+live in `system/argocd/`. The SSO SealedSecret patches OAuth keys into the
+Helm-managed `argocd-secret` without replacing its other credentials.
 
-- Homepage: `https://argocd.thecavespace.com`
-- Callback: `https://argocd.thecavespace.com/api/dex/callback`
-
-ArgoCD Dex configuration is tracked in `system/argocd/argocd-cm.yaml`. The
-OAuth credentials are stored only as ciphertext in the patching SealedSecret at
-`system/argocd/argocd-sso-sealed-secret.yaml`. The Helm bootstrap annotates the
-existing `argocd-secret` for patching so the controller adds only the OAuth keys
-without replacing Helm-managed credentials.
-
-To rotate the OAuth credentials, export the replacement values and regenerate
-the SealedSecret:
+Rotate credentials with:
 
 ```bash
 export GITHUB_OAUTH_CLIENT_ID=...
@@ -79,47 +53,29 @@ export GITHUB_OAUTH_CLIENT_SECRET=...
 ./scripts/generate-argocd-sso-secret.sh
 ```
 
-After ArgoCD syncs the SSO configuration, verify:
+Commit the ciphertext, sync ArgoCD, and verify that `bart-kochanowicz` can use
+the UI/CLI while a second GitHub identity receives no permissions. The private
+HTTPS route must serve Dex's OIDC discovery document and signing keys.
 
-1. `bart-kochanowicz` can log in through GitHub and use the UI and CLI.
-2. A second GitHub identity receives no ArgoCD permissions.
-3. The private endpoint is reachable only through the approved LAN entry point.
-4. Cluster-admin access can temporarily restore the local account for recovery.
-
-The private HTTPS route must serve Dex's OIDC discovery document and signing
-keys so that `argocd-server` can verify GitHub login tokens. GitHub SSO and
-ArgoCD RBAC control access to the UI and API.
-
-Local admin is disabled after the SSO and RBAC tests. Recovery requires
-temporary cluster-admin access to set `admin.enabled: "true"` in `argocd-cm`
-and restart `argocd-server`. Restore `admin.enabled: "false"` after recovery.
-
-Commit only the regenerated SealedSecret ciphertext. Never commit OAuth
-plaintext.
+For local-admin recovery, use cluster-admin access to set `admin.enabled: "true"`
+in `argocd-cm` and restart `argocd-server`. Restore `admin.enabled: "false"`
+after recovery.
 
 ## Internal CA
 
-The offline CA private key is stored under `.secrets/` with mode `0600`; only its
-sealed form is tracked. Back up the private key separately from the repository.
-The `argocd-server-tls` certificate renews automatically through cert-manager.
-Private clients must trust the public CA to verify the ArgoCD server certificate.
+Keep the offline CA key under `.secrets/` with mode `0600` and a separate backup.
+Only its sealed form is tracked. Cert-manager renews `argocd-server-tls`;
+private clients must trust the public CA.
 
-To rotate the CA:
+To rotate the CA, generate a new key/certificate, seal the TLS secret for
+`cert-manager`, distribute the public CA, and commit the SealedSecret. Verify
+certificate issuance before removing the old trust.
 
-1. Generate a new offline key and certificate.
-2. Seal the TLS secret for the `cert-manager` namespace.
-3. Distribute the new public CA to private clients.
-4. Commit the sealed secret and verify certificate issuance before removing old trust.
+## PVC backup and restore
 
-## PVC Backup And Restore
-
-Application namespaces and protected PVCs use ArgoCD
-`Prune=false,Delete=false`. Generated Applications also preserve resources when
-their source directory is removed. Do not remove these safeguards during
-ApplicationSet or namespace ownership changes; deleting a Namespace cascades to
-its PVCs and workloads.
-
-Configure an encrypted workstation restic repository:
+Namespaces and PVCs use ArgoCD `Prune=false,Delete=false`; generated
+Applications preserve resources when their source directory is removed.
+Preserve these safeguards: Namespace deletion cascades to PVCs and workloads.
 
 ```bash
 export RESTIC_REPOSITORY="/Volumes/SanDisk/Backups/homelab-restic"
@@ -128,31 +84,22 @@ export RESTORE_TEST_DIR="/Volumes/SanDisk/Backups/homelab-restore-tests"
 ./scripts/backup-pvcs.sh
 ```
 
-The local repository path must be absolute. In particular, keep the leading
-slash in `/Volumes`; `Volumes/...` creates a repository inside the Git checkout.
-The script scales down Crafty, Home Assistant, and n8n one at a time, mounts each
-PVC read-only in a temporary pod, retries transient stream failures, confirms
-that each snapshot was finalized, runs `restic check`, restores replicas, and
-writes `.backups/last-successful-backup`. It also updates the
-`workstation-pvc-backup-success` or `workstation-pvc-backup-failure` Lease in
-the `monitoring` namespace. Prometheus alerts when the latest attempt failed,
-no success has been recorded, or the latest success is over seven days old.
-The previous successful local marker is retained when a later backup fails.
-Prometheus data is intentionally disposable.
-
-Run this backup at least weekly. After the first run, verify the timestamp:
+Local restic paths must be absolute. Backup stops each application in turn,
+streams its PVC read-only, verifies snapshots with `restic check`, and restores
+replicas. Prometheus data is disposable. The script records the last success in
+`.backups/last-successful-backup` and updates monitoring Leases:
 
 ```bash
 kubectl -n monitoring get leases \
   workstation-pvc-backup-success workstation-pvc-backup-failure
 ```
 
-The failure Lease may be absent until the first failed attempt. If Kubernetes
-is unreachable, the script cannot update the failure Lease and prints a
-warning; the stale-backup alert remains the fallback signal.
+Alerts cover failed attempts, missing success, and successes older than seven
+days. The failure Lease exists only after a failed attempt. If Kubernetes is
+unreachable, Lease updates fail and the stale-backup alert remains the fallback.
+A failed backup preserves the previous local success marker.
 
-Test restoring every PVC to the workstation or external disk without changing
-Kubernetes:
+Test restores without changing Kubernetes:
 
 ```bash
 ./scripts/restore-pvc.sh crafty-controller crafty-controller crafty-data
@@ -160,150 +107,64 @@ Kubernetes:
 ./scripts/restore-pvc.sh n8n n8n n8n-data
 ```
 
-Inspect a known test file under each printed restore directory. The global
-`.backups/last-successful-restore-test` marker is written only after all three
-restore tests succeed. The migration refuses to run without both backup and
-restore-test markers.
+Inspect a known file in each restore directory.
 
-An actual disaster recovery overwrite is deliberately separate:
+To overwrite a live PVC during recovery:
 
 ```bash
 CONFIRM_IN_PLACE_RESTORE=yes ./scripts/restore-pvc.sh --in-place \
   n8n n8n n8n-data
 ```
 
-The script verifies the snapshot and archive path before scaling the deployment.
+The script verifies the snapshot and archive path before stopping the workload.
 
-## Cilium Migration
+## Network policies
 
-The migration completed on June 14, 2026. The tracked configuration now uses
-`policyEnforcementMode: default`, and `network-policies.yaml` is registered in
-the ArgoCD bootstrap. The steps below are retained for rebuilding or repeating
-the migration, not as current-state instructions.
+Manually sync `network-policies` after rule changes and test required access
+and denied cross-namespace traffic. Home Assistant host-network traffic is
+controlled by the Cilium host firewall.
 
-First run the non-destructive preflight:
+Before changing the host policy, enable `PolicyAuditMode` on each Cilium host
+endpoint and review Hubble flows. Audit mode resets on agent restart; finish
+the review and enforce the policy, or remove the live policy before restarting.
+The allowlist preserves:
 
-```bash
-make -C system cilium-preflight
-```
-
-During an approved maintenance window:
-
-1. Run and restore-test `./scripts/backup-pvcs.sh`.
-2. Pre-pull Cilium images on both nodes.
-3. Confirm out-of-band Talos access to both nodes.
-4. Run `make -C system cilium-migrate`.
-5. Verify `cilium status`, `cilium connectivity test`, DNS, ClusterIP, NodePort,
-   Hubble Relay, ArgoCD, and all applications.
-6. The migration script uses temporary Helm overrides to disable policy
-   enforcement and the host firewall. Keep them for 24-48 hours while reviewing
-   flows; they are not the steady-state configuration.
-7. Confirm `network-policies.yaml` is registered in
-   `system/argocd/kustomization.yaml`, then manually sync the
-   `network-policies` Application.
-8. Confirm all policies are present before applying the tracked Cilium values
-   with `make -C system bootstrap-cilium`; this enables default policy
-   enforcement and the host firewall.
-
-The migration deliberately keeps kube-proxy and the existing pod/service CIDRs.
-It is a maintenance cutover, not a dual-overlay live migration.
-
-Rollback:
-
-```bash
-make -C system cilium-rollback
-```
-
-This command is destructive and requires `CONFIRM_CILIUM_ROLLBACK=yes`. Before
-an actual rollback, run the non-destructive checks below:
-
-```bash
-make -C system cilium-preflight
-helm template cilium system/cilium --namespace kube-system >/dev/null
-talosctl -n 192.168.100.56 version
-talosctl -n 192.168.100.86 version
-kubectl get nodes -o wide
-```
-
-Also confirm that `talos/patches/flannel.yaml`, the latest backup success Lease,
-and the workstation restic repository are available. A tabletop review is not a
-substitute for an approved maintenance window with out-of-band node access.
-
-Then reboot nodes one at a time, wait for Flannel, recycle workloads, verify
-services, and use the restic restore command only if data verification fails.
-
-## Network Enforcement
-
-`system/argocd/network-policies.yaml` intentionally has no automated sync.
-After changing its rules, manually sync it before applying Cilium configuration
-with `policyEnforcementMode: default`. Run negative tests for cross-namespace
-traffic and unauthorized ingress immediately after enforcement.
-
-Home Assistant uses host networking. Its private LAN access and discovery
-traffic are controlled by the Cilium host firewall rather than pod ingress
-rules alone.
-
-The Cilium host policy at `system/network-policies/host-firewall.yaml` is
-managed by the manually synced `network-policies` Application. Before changing
-it, enable `PolicyAuditMode` on each Cilium host endpoint, review Hubble host
-flows, and verify required traffic. Audit mode is not persistent across Cilium
-agent restarts, so either finish the review and enforce the policy or remove the
-live policy before restarting an agent.
-
-The current allowlist was reviewed on June 14, 2026. It preserves node-internal
-traffic, cluster workload access to the Kubernetes API on TCP `6443`, CoreDNS
-access to the node-local resolver, Hubble Relay access to agent peers,
-monitoring scrapes, management LAN access,
-Home Assistant discovery, and public Minecraft TCP `30000`.
-
-Required preserved paths:
-
-- Kubernetes API access for private application administration.
-- Public Minecraft TCP `30000`.
+- Node-internal traffic, pod access to the API on TCP `6443`, and CoreDNS upstream DNS.
+- Hubble peer traffic and monitoring scrapes.
+- Kubernetes/Talos access from the management LAN.
 - Home Assistant LAN discovery and TCP `8123`.
-- Kubernetes and Talos management from the management LAN.
+- Public Minecraft TCP `30000`.
 
-## Retained Volumes
+## Retained volumes
 
-The local-path StorageClass uses `Retain`. Deleting a PVC leaves its PV and data
-directory intact. To permanently remove one:
+Deleting a PVC leaves its PV and node data intact. To remove retained data,
+confirm a successful backup, delete the PVC, inspect the PV's node/path,
+delete the PV, then remove the directory through Talos maintenance access.
+New directories use mode `0770`; n8n uses `1000:1000`, and root-running
+workloads use `0:0`.
 
-1. Confirm a successful backup.
-2. Delete the PVC.
-3. Inspect the retained PV and its node/path.
-4. Delete the PV object.
-5. Remove the directory on that node through an approved Talos maintenance path.
+## Credentials and branch protection
 
-New directories are mode `0770`; n8n receives UID/GID `1000:1000`, while the
-documented root-running workloads receive `0:0`.
+Keep credential/state files mode `0600` in private `0700` directories. Rotate
+Cloudflare, OAuth, n8n, Sealed Secrets, and CA credentials independently.
+Regenerate SealedSecrets and run `gitleaks git --log-opts=--all` after rotation.
+Treat Terraform state as secret even when outputs are marked sensitive.
 
-## Secret And Credential Rotation
-
-- Keep credential and state files mode `0600` in private `0700` directories.
-- Rotate Cloudflare, GitHub OAuth, n8n, Sealed Secrets, and CA credentials
-  independently.
-- Regenerate SealedSecrets; never edit ciphertext manually.
-- Run `gitleaks git --log-opts=--all` after every rotation.
-- Treat Terraform state as secret even when outputs are marked sensitive.
-
-## GitHub Branch Protection
-
-After the `Validate` workflow has succeeded on `main`, enable the required check
-and pull-request protection:
+Configure branch protection after a successful `Validate` run on `main`:
 
 ```bash
 CONFIRM_BRANCH_PROTECTION=yes ./scripts/configure-branch-protection.sh
 ```
 
-This requires pull requests with zero approvals, resolved conversations, an
-up-to-date successful `validate` check, linear history, and blocks force pushes
-and branch deletion.
+Protection requires PRs, resolved conversations, an up-to-date `validate` check,
+and linear history. Required approvals are zero; force pushes and branch
+deletion are blocked.
 
-## Maintenance Cadence
+## Maintenance
 
 | Frequency | Task |
 | --- | --- |
-| Weekly | Run the PVC backup, inspect the success Lease, and review firing alerts. |
-| Monthly | Review the Crafty TLS exception, certificate expiry, image scan, and Renovate PRs. |
-| Quarterly | Review every security exception, test all three PVC restores, and rehearse SSO recovery and CNI rollback as tabletop exercises. |
-| After security changes | Run `make validate`, inspect ArgoCD health, and perform relevant positive and negative connectivity tests. |
+| Weekly | Back up PVCs, inspect the success Lease, and review alerts. |
+| Monthly | Review Crafty TLS compatibility, certificate expiry, image scans, and Renovate PRs. |
+| Quarterly | Review security exceptions, test every PVC restore, and rehearse SSO recovery. |
+| After security changes | Run `make validate`, check ArgoCD health, and test allowed/denied connectivity. |
