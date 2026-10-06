@@ -65,11 +65,14 @@ uses **Workers R2 Storage Write** and is separate from both S3 key pairs.
 
 ## Production snapshot
 
-Initialize each root through [Cloudflare backend operations](BACKEND.md#verify-the-production-root)
-or [UniFi operations](unifi/README.md), then run:
+Manual snapshots require an initialized checkout and the Garage/R2 credentials
+above. Use [Cloudflare backend operations](BACKEND.md#verify-the-production-root)
+for the Cloudflare root. For UniFi, initialize its backend before pulling state:
 
 ```bash
 ./scripts/backup-terraform-state.sh terraform prod/homelab
+/usr/local/bin/terraform -chdir=terraform/unifi init -input=false -lockfile=readonly \
+  -backend-config=../garage.s3.tfbackend
 ./scripts/backup-terraform-state.sh terraform/unifi prod/unifi
 ```
 
@@ -175,7 +178,9 @@ A successful **Validate** push run on `homelab/main` triggers production apply
 in the private [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
 That workflow verifies the commit and production backend, saves a Terraform
 plan, verifies a pre-apply snapshot, applies, then attempts a post-apply
-snapshot. Production receipts use `backups/prod/homelab/`.
+snapshot. Manual dispatch selects `terraform_root=unifi` and `operation=plan`
+or `apply` for UniFi. Apply receipts use `backups/prod/homelab/` or
+`backups/prod/unifi/`, according to the selected root.
 
 Public CI and dispatch use GitHub-hosted runners. Trusted operations run on
 Houston without sudo and use the shared Terraform wrapper. Workflow concurrency
