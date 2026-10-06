@@ -59,4 +59,21 @@ variable "networks" {
   }))
   default  = {}
   nullable = false
+
+  validation {
+    condition = alltrue([
+      for key, network in var.networks : key != "default" && network.name != "Default"
+    ])
+    error_message = "The built-in Default LAN is read-only; reserve its name and logical key."
+  }
+
+  validation {
+    condition = alltrue([
+      for network in values(var.networks) : try(
+        cidrhost("${cidrhost(network.subnet, 0)}/${split("/", data.unifi_network.default.subnet)[1]}", 0) != cidrhost(data.unifi_network.default.subnet, 0) &&
+        cidrhost("${cidrhost(data.unifi_network.default.subnet, 0)}/${split("/", network.subnet)[1]}", 0) != cidrhost(network.subnet, 0), false
+      )
+    ])
+    error_message = "Managed LAN subnets must not overlap the built-in Default LAN."
+  }
 }
