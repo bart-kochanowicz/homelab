@@ -1,4 +1,9 @@
 output "network_ids" {
-  description = "UniFi LAN network IDs keyed by logical identifier."
+  description = "Managed UniFi LAN network IDs keyed by logical identifier."
   value       = module.unifi.network_ids
+}
+
+output "default_network_id" {
+  description = "ID of the read-only built-in Default LAN."
+  value       = data.unifi_network.default.id
 }
