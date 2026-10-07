@@ -12,7 +12,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes \
-	validate-security validate-terraform-tests
+	validate-security validate-terraform-tests validate-terraform-layout
 
 default: system
 
@@ -28,11 +28,16 @@ validate-tools:
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
-validate-format:
+validate-terraform-layout:
+	@for file in terraform/*.tf terraform/*.tf.json; do \
+		[[ ! -f "$$file" ]] || { echo "Terraform roots must live in terraform/<name>/: $$file"; exit 1; }; \
+	done
+
+validate-format: validate-terraform-layout
 	terraform fmt -check -recursive terraform
 	terraform fmt -check - < terraform/garage.s3.tfbackend
-	terraform -chdir=terraform init -backend=false -input=false -lockfile=readonly
-	terraform -chdir=terraform validate -no-color
+	terraform -chdir=terraform/cloudflare init -backend=false -input=false -lockfile=readonly
+	terraform -chdir=terraform/cloudflare validate -no-color
 	terraform -chdir=terraform/unifi init -backend=false -input=false -lockfile=readonly
 	terraform -chdir=terraform/unifi validate -no-color
 	terraform -chdir=terraform/examples/garage-backend init -backend=false -input=false

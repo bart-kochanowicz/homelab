@@ -1,0 +1,151 @@
+---
+- name: Configure read-only Garage access for local Terraform plans
+  hosts: terraform_hosts
+  become: true
+  gather_facts: false
+  vars:
+    garage_reader_name: cavespace-local-plan
+    garage_reader_exists: >-
+      {{ garage_keys.stdout | from_json
+         | selectattr('name', 'equalto', garage_reader_name) | list | length == 1 }}
+
+  pre_tasks:
+    - name: Require the workload SSD
+      ansible.builtin.command: mountpoint --quiet /srv/terraform
+      changed_when: false
+      check_mode: false
+
+  tasks:
+    - name: List Garage keys
+      ansible.builtin.command:
+        argv: [/usr/local/bin/garage, json-api, ListKeys]
+      become_user: garage-svc
+      register: garage_keys
+      changed_when: false
+      check_mode: false
+
+    - name: Require an unambiguous reader identity
+      ansible.builtin.assert:
+        that:
+          - >-
+            garage_keys.stdout | from_json
+            | selectattr('name', 'equalto', garage_reader_name) | list | length <= 1
+
+    - name: Create the reader key
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/garage
+          - json-api
+          - CreateKey
+          - "{{ {'name': garage_reader_name} | to_json }}"
+      become_user: garage-svc
+      when: >-
+        garage_keys.stdout | from_json
+        | selectattr('name', 'equalto', garage_reader_name) | list | length == 0
+      changed_when: true
+      no_log: true
+
+    - name: Read the reader key
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/garage
+          - json-api
+          - GetKeyInfo
+          - "{{ {'search': garage_reader_name, 'showSecretKey': true} | to_json }}"
+      become_user: garage-svc
+      register: garage_reader
+      changed_when: false
+      check_mode: false
+      when: garage_reader_exists or not ansible_check_mode
+      no_log: true
+
+    - name: Read the state bucket
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/garage
+          - json-api
+          - GetBucketInfo
+          - "{{ {'globalAlias': garage_default_bucket} | to_json }}"
+      become_user: garage-svc
+      register: garage_state_bucket
+      changed_when: false
+      check_mode: false
+
+    - name: Configure the existing or newly created reader
+      when: garage_reader_exists or not ansible_check_mode
+      block:
+        - name: Decode the reader configuration
+          ansible.builtin.set_fact:
+            garage_reader_info: "{{ garage_reader.stdout | from_json }}"
+            garage_bucket_info: "{{ garage_state_bucket.stdout | from_json }}"
+          no_log: true
+
+        - name: Require a valid key dedicated to the state bucket
+          ansible.builtin.assert:
+            that:
+              - garage_reader_info.name == garage_reader_name
+              - not garage_reader_info.expired
+              - garage_reader_info.secretAccessKey | length > 0
+              - >-
+                garage_reader_info.buckets
+                | rejectattr('id', 'equalto', garage_bucket_info.id) | list | length == 0
+          no_log: true
+
+        - name: Allow state reads
+          ansible.builtin.command:
+            argv:
+              - /usr/local/bin/garage
+              - bucket
+              - allow
+              - --read
+              - --key
+              - "{{ garage_reader_info.accessKeyId }}"
+              - "{{ garage_default_bucket }}"
+          become_user: garage-svc
+          when: >-
+            garage_reader_info.buckets
+            | selectattr('permissions.read', 'equalto', true) | list | length == 0
+          changed_when: true
+
+        - name: Deny state writes and bucket ownership
+          ansible.builtin.command:
+            argv:
+              - /usr/local/bin/garage
+              - bucket
+              - deny
+              - --write
+              - --owner
+              - --key
+              - "{{ garage_reader_info.accessKeyId }}"
+              - "{{ garage_default_bucket }}"
+          become_user: garage-svc
+          when: >-
+            garage_reader_info.buckets | selectattr('permissions.write', 'equalto', true)
+            | list | length > 0 or
+            garage_reader_info.buckets | selectattr('permissions.owner', 'equalto', true)
+            | list | length > 0
+          changed_when: true
+
+        - name: Deny bucket creation
+          ansible.builtin.command:
+            argv:
+              - /usr/local/bin/garage
+              - key
+              - deny
+              - --create-bucket
+              - "{{ garage_reader_info.accessKeyId }}"
+          become_user: garage-svc
+          when: garage_reader_info.permissions.createBucket
+          changed_when: true
+
+        - name: Save private operator credentials
+          ansible.builtin.copy:
+            dest: /srv/terraform/workspaces/garage-readonly.credentials
+            content: |
+              [cavespace-local-plan]
+              aws_access_key_id = {{ garage_reader_info.accessKeyId }}
+              aws_secret_access_key = {{ garage_reader_info.secretAccessKey }}
+            owner: capcom
+            group: capcom
+            mode: '0600'
+          no_log: true

@@ -39,13 +39,18 @@ Garage runs as `garage-svc` with config at `/etc/garage.toml` and data under
 `127.0.0.1:3901`. The service requires the SSD and starts at boot.
 Ansible generates credentials once in `s3-bootstrap.env` (`0600 root:root`).
 
+`playbooks/local-plan.yml` manages the `cavespace-local-plan` key with read-only
+access to `terraform-state`. Its private AWS profile is stored at
+`/srv/terraform/workspaces/garage-readonly.credentials` (`0600 capcom:capcom`).
+See [local Terraform plans](../../terraform/LOCAL_PLAN.md).
+
 ```bash
 systemctl is-active garage.service
 sudo -u garage-svc garage status
 sudo -u garage-svc garage bucket info terraform-state
 ```
 
-Garage has one local data copy. [Backend operations](../../terraform/BACKEND.md)
+Garage has one local data copy. [Terraform operations](../../terraform/README.md)
 and [verified R2 snapshots](../../terraform/R2_BACKUP.md) cover state access
 and recovery.
 
@@ -58,9 +63,9 @@ lock inode; systemd-tmpfiles recreates it at boot.
 
 Garage lacks the conditional writes required for native S3 locking, so
 `use_lockfile = false`. Use the wrapper for all manual and runner commands;
-the versioned binary or another host bypasses this lock. It covers individual
-commands, not complete workflows. Inspect `lslocks` and processes if a command
-waits; never delete the lock file.
+the versioned binary bypasses this lock. Local plans hold it through SSH.
+It covers individual commands, not complete workflows. Inspect `lslocks` and
+processes if a command waits; never delete the lock file.
 
 Update Terraform's Ansible version/checksums and `aqua.yaml` pin together.
 Garage, Terraform and runner downloads are checksum-verified.
