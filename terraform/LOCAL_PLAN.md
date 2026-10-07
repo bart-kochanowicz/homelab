@@ -1,7 +1,7 @@
 # Local plans on macOS
 
 After setup, open the SSH tunnel and run `terraform plan` inside either root.
-Terraform automatically reads `local.auto.tfvars.json` and the backend settings
+Terraform automatically reads `terraform.tfvars` and the backend settings
 saved by `init`. No wrapper or per-session environment variables are needed.
 
 ## One-time setup
@@ -30,11 +30,11 @@ chmod 600 .secrets/terraform/garage.credentials
 ```
 
 Choose `terraform/unifi` or `terraform/cloudflare`. In that directory, prepare
-and edit the ignored local inputs:
+and edit the ignored local inputs. Keep provider credentials in this file:
 
 ```bash
-cp -n variables.tfvars.json.example local.auto.tfvars.json
-chmod 600 local.auto.tfvars.json
+cp -n terraform.tfvars.example terraform.tfvars
+chmod 600 terraform.tfvars
 ```
 
 | Root | Inputs |
