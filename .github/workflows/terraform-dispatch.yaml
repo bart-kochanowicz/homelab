@@ -1,4 +1,4 @@
-name: Dispatch production Terraform apply
+name: Dispatch Cloudflare apply
 
 on:
   workflow_run:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Start private production workflow for the validated commit
+      - name: Start Cloudflare apply for the validated commit
         env:
           GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -35,11 +35,13 @@ jobs:
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$VALIDATION_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           python3 - <<'PYTHON' | gh api --method POST \
-            repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform-apply.yaml/dispatches \
+            repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
             --input -
           import json
           import os
           print(json.dumps({"ref": "main", "inputs": {
+              "terraform_root": "cloudflare",
+              "operation": "apply",
               "source_sha": os.environ["SOURCE_SHA"],
               "validation_run_id": os.environ["VALIDATION_RUN_ID"],
           }}))
