@@ -46,9 +46,10 @@ Cilium is managed separately so network recovery does not depend on GitOps.
 
 Production Terraform runs on Houston through the private
 [homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
-Public CI validates configuration and dispatches automation; each production
-apply verifies an R2 backup before applying its saved plan and attempts another
-verified backup afterward.
+Public CI validates configuration and starts private plans. The public
+Terraform workflow links the plans and requires deployment approval before
+private execution applies them. Each apply verifies an R2 backup before
+applying its saved plan and attempts another verified backup afterward.
 
 Commit Kubernetes secrets only as SealedSecrets. Credentials, device backups,
 Terraform state, and generated Talos configuration stay outside Git.

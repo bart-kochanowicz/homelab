@@ -7,10 +7,11 @@ The built-in `Default` LAN is read-only; `default_network_id` exposes its ID.
 Managed LANs come from `networks`; names and subnets must not conflict with `Default`.
 See [provider constraints](../../infra/unifi/docs/provider-exceptions.md).
 
-The private [Terraform plan / apply workflow](https://github.com/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml)
-runs on Houston through its locked `/usr/local/bin/terraform`.
-Select `terraform_root=unifi` and `operation=plan` or `apply`. Empty source fields
-select current `homelab/main` and verify its successful Validate push run.
+The public [Terraform plan / approve / apply workflow](https://github.com/bart-kochanowicz/homelab/actions/workflows/terraform-dispatch.yaml)
+creates private plans on Houston after main validation. Review the linked plan
+and approve deployment to apply that saved plan. Manual runs can select `unifi`;
+source revisions and plan IDs are passed automatically. Houston uses its locked
+`/usr/local/bin/terraform` for execution.
 
 `UNIFI_AUTH` is an Actions secret containing local credentials or an API key.
 The job supplies it as ephemeral `TF_VAR_unifi_auth`. `UNIFI_CONTROLLER` and

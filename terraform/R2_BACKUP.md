@@ -127,11 +127,12 @@ and retains files for inspection. In bucket settings, verify the enabled
 
 ## GitHub Actions workflows
 
-A successful **Validate** push on `homelab/main` triggers production apply in
-private [homelab-automation](https://github.com/bart-kochanowicz/homelab-automation).
-It verifies the commit/backend, saves a plan, verifies a pre-apply snapshot,
-applies, and attempts a post-apply snapshot. Manual UniFi dispatch selects
-`terraform_root=unifi` and `operation=plan` or `apply`.
+A successful **Validate** push on `homelab/main` starts Cloudflare and UniFi
+plans in private [homelab-automation](https://github.com/bart-kochanowicz/homelab-automation).
+The public **Terraform plan / approve / apply** workflow links the private
+plans and requires approval of `terraform-production` before dispatching apply.
+Private execution checks the approval and applies the exact saved plans with
+verified pre/post-apply snapshots. Manual public runs can select either root.
 
 Private jobs run on Houston without sudo and use the shared wrapper.
 Workflow concurrency serializes jobs; the host lock covers each Terraform
