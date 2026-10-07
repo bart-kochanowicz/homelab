@@ -1,6 +1,6 @@
 output "network_ids" {
   description = "Managed UniFi LAN network IDs keyed by logical identifier."
-  value       = module.unifi.network_ids
+  value       = module.networks.network_ids
 }
 
 output "default_network_id" {
@@ -10,5 +10,5 @@ output "default_network_id" {
 
 output "port_profile_ids" {
   description = "Managed UniFi port profile IDs keyed by logical identifier."
-  value       = module.unifi.port_profile_ids
+  value       = module.port_profiles.port_profile_ids
 }

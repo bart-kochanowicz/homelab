@@ -46,9 +46,9 @@ variable "networks" {
   validation {
     condition = alltrue(flatten([
       for network in values(var.networks) : [
-        for reserved in values(var.reserved_networks) : try(
-          cidrhost("${cidrhost(network.subnet, 0)}/${split("/", reserved.subnet)[1]}", 0) != cidrhost(reserved.subnet, 0) &&
-          cidrhost("${cidrhost(reserved.subnet, 0)}/${split("/", network.subnet)[1]}", 0) != cidrhost(network.subnet, 0), false
+        for reserved in var.reserved_subnets : try(
+          cidrhost("${cidrhost(network.subnet, 0)}/${split("/", reserved)[1]}", 0) != cidrhost(reserved, 0) &&
+          cidrhost("${cidrhost(reserved, 0)}/${split("/", network.subnet)[1]}", 0) != cidrhost(network.subnet, 0), false
         )
       ]
     ]))
@@ -143,14 +143,14 @@ variable "networks" {
   }
 }
 
-variable "reserved_networks" {
-  description = "Read-only LAN IDs and subnets used for overlap protection and port exclusions."
-  type        = map(object({ id = string, subnet = string }))
-  default     = {}
+variable "reserved_subnets" {
+  description = "Read-only IPv4 LAN subnets excluded from managed addressing."
+  type        = set(string)
+  default     = []
   nullable    = false
 
   validation {
-    condition     = alltrue([for network in values(var.reserved_networks) : can(cidrnetmask(network.subnet))])
+    condition     = alltrue([for subnet in var.reserved_subnets : can(cidrnetmask(subnet))])
     error_message = "Reserved LANs must have valid IPv4 subnets."
   }
 }
@@ -170,26 +170,5 @@ variable "vlan_only_networks" {
       !contains([for network in values(var.networks) : network.vlan], vlan)
     ]) && length(distinct(values(var.vlan_only_networks))) == length(var.vlan_only_networks)
     error_message = "Unrouted LAN keys and VLANs must be unique and must not conflict with routed LANs or WAN VLAN 35."
-  }
-}
-
-variable "port_profiles" {
-  description = "Port profiles referencing managed logical network keys; an empty tag set defines an access port."
-  type = map(object({
-    native_network  = string
-    tagged_networks = optional(set(string), [])
-  }))
-  default  = {}
-  nullable = false
-
-  validation {
-    condition = alltrue([
-      for key, profile in var.port_profiles :
-      can(regex("^[a-z][a-z0-9_-]*$", key)) &&
-      contains(concat(keys(var.networks), keys(var.vlan_only_networks)), profile.native_network) &&
-      alltrue([for network in profile.tagged_networks : contains(concat(keys(var.networks), keys(var.vlan_only_networks)), network)]) &&
-      !contains(profile.tagged_networks, profile.native_network)
-    ])
-    error_message = "Profiles must reference existing managed networks and cannot tag their native network."
   }
 }
