@@ -50,7 +50,7 @@ sudo -u garage-svc garage status
 sudo -u garage-svc garage bucket info terraform-state
 ```
 
-Garage has one local data copy. [Backend operations](../../terraform/BACKEND.md)
+Garage has one local data copy. [Terraform operations](../../terraform/README.md)
 and [verified R2 snapshots](../../terraform/R2_BACKUP.md) cover state access
 and recovery.
 

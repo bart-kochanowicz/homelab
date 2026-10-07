@@ -41,15 +41,8 @@ Cilium is managed separately so network recovery does not depend on GitOps.
 - [Private access, SSO, certificates, PVC backup/restore, and network policies](docs/security-runbook.md)
 - [Security exceptions](docs/exception-register.md)
 - [Houston configuration](infra/ansible/README.md)
-- [Terraform backend](terraform/BACKEND.md), [local plans](terraform/LOCAL_PLAN.md), and [R2 backup/restore](terraform/R2_BACKUP.md)
+- [Terraform: plans, approval, backend and recovery](terraform/README.md)
 - [UniFi Terraform](terraform/unifi/README.md) and [network/WAN configuration](infra/unifi/README.md)
-
-Production Terraform runs on Houston through the private
-[homelab-automation repository](https://github.com/bart-kochanowicz/homelab-automation).
-Public CI validates configuration and starts private plans. The public
-Terraform workflow links the plans and requires deployment approval before
-private execution applies them. Each apply verifies an R2 backup before
-applying its saved plan and attempts another verified backup afterward.
 
 Commit Kubernetes secrets only as SealedSecrets. Credentials, device backups,
 Terraform state, and generated Talos configuration stay outside Git.

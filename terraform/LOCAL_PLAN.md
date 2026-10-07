@@ -1,24 +1,14 @@
-# Local Terraform plans
+# Local plans on macOS
 
-Cloudflare and UniFi plans run natively on macOS against Houston's Garage state.
-Use the Terraform version pinned in `aqua.yaml` and the committed provider locks.
-Apply runs on Houston through the approved
-[Actions workflow](https://github.com/bart-kochanowicz/homelab/actions/workflows/terraform-dispatch.yaml).
-Run all commands below from the repository root, not `terraform/` or a root module.
+Run commands from the repository root. Install the tools in `aqua.yaml` with
+[aqua](https://aquaproj.github.io/docs/install), plus Ansible. Houston needs its
+[host configuration](../infra/ansible/README.md); a rebuilt host also needs
+[state recovery](R2_BACKUP.md#recovery).
 
-## Prerequisites
+## One-time setup
 
-Install aqua and Ansible; OpenSSH must be available. Run `aqua install` and add
-its tool directory to `PATH` as described in the
-[installation guide](https://aquaproj.github.io/docs/install).
-UniFi certificate enrollment also uses GitHub CLI, OpenSSL and Python 3;
-authenticate `gh auth login` with access to the private automation repository.
-
-Houston needs its [host configuration](../infra/ansible/README.md).
-For a rebuilt host, recover existing deployment state through
-[state recovery](R2_BACKUP.md#recovery) before planning.
-Restore or authorize the operator SSH key and configure `~/.ssh/config`,
-replacing `<houston-ip>` with Houston's address:
+Configure `~/.ssh/config` with Houston's address and your authorized key.
+Verify its host key through a trusted record or local console.
 
 ```sshconfig
 Host houston-01
@@ -28,12 +18,7 @@ Host houston-01
   IdentitiesOnly yes
 ```
 
-Verify Houston's SSH host key through a trusted record or local console,
-then check `ssh houston-01 true`.
-
-## Garage credentials
-
-Provision the shared `cavespace-local-plan` reader and copy its private profile:
+Provision the shared read-only Garage profile:
 
 ```bash
 (cd infra/ansible && ansible-playbook playbooks/local-plan.yml --ask-become-pass)
@@ -43,49 +28,29 @@ scp houston-01:/srv/terraform/workspaces/garage-readonly.credentials .secrets/te
 chmod 600 .secrets/terraform/garage.credentials
 ```
 
-The key reads the entire `terraform-state` bucket, including both roots,
-without write, ownership or bucket-creation permissions. Provider API credentials
-are separate. GitHub cannot return stored Actions secrets. Private input files
-and credentials under `.secrets/` are ignored by Git.
-
-## Provider inputs
-
-Prepare the root you intend to plan. Edit private files in a local editor;
-never put tokens or passwords in command arguments.
-
-### Cloudflare
+Choose `unifi` or `cloudflare`, copy its example and edit the private JSON file.
+These files are ignored by Git; GitHub cannot return stored Actions secrets.
 
 ```bash
+terraform_root=unifi
 umask 077
-mkdir -p .secrets/cloudflare
-cp -n terraform/cloudflare/variables.tfvars.json.example .secrets/cloudflare/variables.tfvars.json
-chmod 600 .secrets/cloudflare/variables.tfvars.json
+mkdir -p ".secrets/$terraform_root"
+cp -n "terraform/$terraform_root/variables.tfvars.json.example" ".secrets/$terraform_root/variables.tfvars.json"
+chmod 600 ".secrets/$terraform_root/variables.tfvars.json"
 ```
 
-Set `cloudflare_account_id` and `cloudflare_api_token` using your password manager
-or a dedicated Cloudflare management API token that can read the R2 configuration.
-Garage and R2 S3 access keys are not Cloudflare management API tokens.
+| Root | Private inputs |
+| --- | --- |
+| `cloudflare` | Account ID and management API token with R2 read access; S3 keys are separate. |
+| `unifi` | Local credentials or API key; keep `controller.url=https://localhost:18443` and select your site. |
 
-### UniFi
+For UniFi, Houston must reach `192.168.1.1`; enroll its
+[certificate in Keychain](unifi/CERTIFICATE.md) before planning.
 
-```bash
-umask 077
-mkdir -p .secrets/unifi
-cp -n terraform/unifi/variables.tfvars.json.example .secrets/unifi/variables.tfvars.json
-chmod 600 .secrets/unifi/variables.tfvars.json
-```
+## Terminal 1: keep the SSH session open
 
-Set `unifi_auth` to the dedicated local UniFi credentials or API key.
-A cloud-only UI login is not a local API credential. Keep `controller.url`
-as `https://localhost:18443` and `controller.site` as the target Network site.
-Houston must reach the controller at `192.168.1.1`.
-Enroll and verify its [certificate in Keychain](unifi/CERTIFICATE.md)
-before planning. Cloudflare does not require this certificate.
-
-## SSH session
-
-Keep this command running in the first terminal. Wait for `Local plan session
-ready` before running Terraform; press Enter to close when finished.
+Wait for `Local plan session ready`. This holds Houston's shared lock and
+forwards Garage (`13900`) and UniFi (`18443`) to loopback; Cloudflare uses only Garage.
 
 ```bash
 ssh -T -o ExitOnForwardFailure=yes \
@@ -95,18 +60,14 @@ ssh -T -o ExitOnForwardFailure=yes \
   houston-01 'flock --exclusive /run/houston-terraform/operation.lock bash -c "echo Local plan session ready; read -r"'
 ```
 
-This holds Houston's shared Terraform lock. Port `13900` forwards Garage for
-both roots; `18443` is used only by UniFi. Forwarded ports bind to loopback.
-Stop the plan if SSH disconnects. UniFi TLS verification stays enabled.
+## Terminal 2: init and plan
 
-## Init and plan
-
-In the second terminal, from the repository root, choose `unifi` or `cloudflare`:
+From the repository root, set `terraform_root` to `unifi` or `cloudflare`:
 
 ```bash
 set +x
 umask 077
-terraform_root=unifi # or cloudflare
+terraform_root=unifi
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_SECURITY_TOKEN
 unset AWS_DEFAULT_PROFILE TF_LOG TF_LOG_PATH TF_LOG_PROVIDER
 unset UNIFI_USERNAME UNIFI_PASSWORD UNIFI_API_KEY UNIFI_API UNIFI_INSECURE UNIFI_SITE
@@ -120,29 +81,21 @@ chmod 700 "$TF_DATA_DIR"
 
 terraform -chdir="terraform/$terraform_root" init -reconfigure -input=false -lockfile=readonly \
   -backend-config=../garage.s3.tfbackend \
-  -backend-config='endpoints={s3="http://127.0.0.1:13900"}'
+  -backend-config='endpoints={s3="http://127.0.0.1:13900"}' && \
 terraform -chdir="terraform/$terraform_root" plan -input=false -detailed-exitcode \
   -var-file="../../.secrets/$terraform_root/variables.tfvars.json"
 ```
 
-Each root uses its own metadata directory and state key:
+Each root has separate local metadata and its own [state key](README.md).
+The backend file supplies the bucket; the endpoint override selects the SSH tunnel.
+A bare `init` without these settings asks for the missing S3 bucket.
+Exit codes: `0` no changes, `2` changes, `1` failure.
 
-| Root | Garage state key |
-| --- | --- |
-| `cloudflare` | `prod/homelab/terraform.tfstate` |
-| `unifi` | `prod/unifi/terraform.tfstate` |
+Stop Terraform if SSH disconnects. Use this read-only Garage key only for plans;
+apply runs through Actions using its own reviewed plan. Keep TLS verification
+enabled and avoid saving plans containing secrets.
 
-`init` does not discover `.tfbackend` files automatically. The first
-`-backend-config` supplies the bucket and shared settings; the second selects
-the local tunnel instead of Houston's port. Input `.tfvars` files configure
-providers and resources, not the backend. A bare `init` in a fresh metadata
-directory asks for the missing S3 bucket.
-
-Plan exit codes: `0` means no changes, `2` means changes, `1` means failure.
-Local plans reflect your checkout and live state; Actions creates its own
-reviewed plan from validated `main`. Keep the default workspace and do not run
-local apply, import, refresh or state mutations. Avoid saving plans containing
-secrets. Close SSH after planning and clear the terminal configuration:
+When finished, press Enter in terminal 1 and clear terminal 2:
 
 ```bash
 unset AWS_SHARED_CREDENTIALS_FILE AWS_PROFILE TF_DATA_DIR TF_WORKSPACE terraform_root
