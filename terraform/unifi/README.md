@@ -21,5 +21,5 @@ See [automation configuration](https://github.com/bart-kochanowicz/homelab-autom
 
 Public CI uses backend-disabled validation and mock providers without credentials.
 
-[Local plans on macOS](LOCAL_PLAN.md) use the same backend through SSH with a
+[Local plans on macOS](../LOCAL_PLAN.md) use the same backend through SSH with a
 read-only Garage key and Houston's shared lock. Apply runs through Actions.

@@ -42,7 +42,7 @@ Ansible generates credentials once in `s3-bootstrap.env` (`0600 root:root`).
 `playbooks/local-plan.yml` manages the `cavespace-local-plan` key with read-only
 access to `terraform-state`. Its private AWS profile is stored at
 `/srv/terraform/workspaces/garage-readonly.credentials` (`0600 capcom:capcom`).
-See [local UniFi plans](../../terraform/unifi/LOCAL_PLAN.md).
+See [local Terraform plans](../../terraform/LOCAL_PLAN.md).
 
 ```bash
 systemctl is-active garage.service

@@ -41,7 +41,7 @@ Cilium is managed separately so network recovery does not depend on GitOps.
 - [Private access, SSO, certificates, PVC backup/restore, and network policies](docs/security-runbook.md)
 - [Security exceptions](docs/exception-register.md)
 - [Houston configuration](infra/ansible/README.md)
-- [Terraform backend](terraform/BACKEND.md) and [R2 backup/restore](terraform/R2_BACKUP.md)
+- [Terraform backend](terraform/BACKEND.md), [local plans](terraform/LOCAL_PLAN.md), and [R2 backup/restore](terraform/R2_BACKUP.md)
 - [UniFi Terraform](terraform/unifi/README.md) and [network/WAN configuration](infra/unifi/README.md)
 
 Production Terraform runs on Houston through the private

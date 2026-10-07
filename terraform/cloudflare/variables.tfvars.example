@@ -1,4 +1,0 @@
-# Copy to variables.tfvars and provide private values. Never commit that file.
-# The management token needs Workers R2 Storage Write permission.
-cloudflare_api_token  = "your-cloudflare-api-token-here"
-cloudflare_account_id = "your-account-id-here"

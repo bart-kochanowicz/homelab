@@ -15,7 +15,7 @@ Run write operations on Houston through `/usr/local/bin/terraform`. Garage 2.4.1
 [lacks native S3 locking](https://github.com/deuxfleurs-org/garage/blob/v2.4.1/doc/book/reference-manual/known-issues.md),
 so the wrapper serializes commands with a shared host lock. See
 [host configuration](../infra/ansible/README.md#terraform-and-locking).
-Read-only [local UniFi plans](unifi/LOCAL_PLAN.md) hold this same lock over SSH.
+Read-only [local plans](LOCAL_PLAN.md) hold this same lock over SSH.
 
 Keep checkouts in `/srv/terraform/workspaces` (`0700 capcom:capcom`). Supply
 Garage credentials through `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
@@ -25,8 +25,8 @@ them in local metadata.
 
 ## Verify the production root
 
-Cloudflare inputs come from `TF_VAR_*` or a private `variables.tfvars` based
-on [`variables.tfvars.example`](cloudflare/variables.tfvars.example).
+Cloudflare inputs come from `TF_VAR_*` or a private `variables.tfvars.json` based
+on [`variables.tfvars.json.example`](cloudflare/variables.tfvars.json.example).
 The management token is separate from Garage and R2 S3 credentials.
 
 From the repository root on Houston, with Garage credentials loaded:
@@ -44,7 +44,7 @@ export TF_VAR_cloudflare_api_token
 /usr/local/bin/terraform -chdir=terraform/cloudflare plan -input=false -detailed-exitcode
 ```
 
-For file inputs, add `-var-file=variables.tfvars` to `plan`. An existing
+For file inputs, add `-var-file=variables.tfvars.json` to `plan`. An existing
 deployment must have its matching `module.cloudflare.*` state; unexpected
 recreation requires checking the backend. Plan exit codes are `0` for no
 changes, `2` for changes, and `1` for an error. Production apply and backup
