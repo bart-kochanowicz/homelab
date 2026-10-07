@@ -57,53 +57,6 @@ run "reject_mixed_authentication" {
   expect_failures = [var.unifi_auth]
 }
 
-run "reject_default_network_key" {
-  command = plan
-  variables {
-    networks = { default = { vlan = 40, subnet = "10.0.40.1/24" } }
-  }
-  expect_failures = [var.networks]
-}
-
-run "reject_default_network_name" {
-  command = plan
-  variables {
-    networks = { orbit = { name = "Default", vlan = 40, subnet = "10.0.40.1/24" } }
-  }
-  expect_failures = [var.networks]
-}
-
-run "accept_non_overlapping_lan" {
-  command = plan
-  variables {
-    networks = { orbit = { vlan = 40, subnet = "10.0.40.1/24" } }
-  }
-}
-
-run "reject_default_subnet_overlap" {
-  command = plan
-  variables {
-    networks = { orbit = { vlan = 40, subnet = "192.168.1.2/24" } }
-  }
-  expect_failures = [var.networks]
-}
-
-run "reject_subnet_containing_default" {
-  command = plan
-  variables {
-    networks = { orbit = { vlan = 40, subnet = "192.168.0.1/16" } }
-  }
-  expect_failures = [var.networks]
-}
-
-run "reject_subnet_inside_default" {
-  command = plan
-  variables {
-    networks = { orbit = { vlan = 40, subnet = "192.168.1.129/25" } }
-  }
-  expect_failures = [var.networks]
-}
-
 run "reject_wan_named_default" {
   command = plan
   override_data {

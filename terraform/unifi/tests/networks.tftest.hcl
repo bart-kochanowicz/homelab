@@ -1,7 +1,8 @@
 mock_provider "unifi" {}
 
 variables {
-  site = "default"
+  site              = "default"
+  reserved_networks = { default = { id = "test-default", subnet = "192.168.1.1/24" } }
 }
 
 run "valid_lan_networks" {
@@ -132,6 +133,71 @@ run "reject_gateway_in_dhcp_pool" {
         dhcp   = { start = "10.0.40.100", stop = "10.0.40.199" }
       }
     }
+  }
+  expect_failures = [var.networks]
+}
+
+run "reject_default_network_key" {
+  command = plan
+  module {
+    source = "../modules/unifi"
+  }
+  variables {
+    networks = { default = { vlan = 40, subnet = "10.0.40.1/24" } }
+  }
+  expect_failures = [var.networks]
+}
+
+run "reject_default_network_name" {
+  command = plan
+  module {
+    source = "../modules/unifi"
+  }
+  variables {
+    networks = { orbit = { name = "Default", vlan = 40, subnet = "10.0.40.1/24" } }
+  }
+  expect_failures = [var.networks]
+}
+
+run "accept_non_overlapping_lan" {
+  command = plan
+  module {
+    source = "../modules/unifi"
+  }
+  variables {
+    networks = { orbit = { vlan = 40, subnet = "10.0.40.1/24" } }
+  }
+}
+
+run "reject_default_subnet_overlap" {
+  command = plan
+  module {
+    source = "../modules/unifi"
+  }
+  variables {
+    networks = { orbit = { vlan = 40, subnet = "192.168.1.2/24" } }
+  }
+  expect_failures = [var.networks]
+}
+
+run "reject_subnet_containing_default" {
+  command = plan
+  module {
+    source = "../modules/unifi"
+  }
+  variables {
+    networks = { orbit = { vlan = 40, subnet = "192.168.0.1/16" } }
+  }
+  expect_failures = [var.networks]
+}
+
+run "reject_subnet_inside_default" {
+  command = plan
+  module {
+    source = "../modules/unifi"
+  }
+  variables {
+    networks = { orbit = { vlan = 40, subnet = "192.168.1.129/25" } }
   }
   expect_failures = [var.networks]
 }

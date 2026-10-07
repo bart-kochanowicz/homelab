@@ -7,3 +7,8 @@ output "default_network_id" {
   description = "ID of the read-only built-in Default LAN."
   value       = data.unifi_network.default.id
 }
+
+output "port_profile_ids" {
+  description = "Managed UniFi port profile IDs keyed by logical identifier."
+  value       = module.unifi.port_profile_ids
+}

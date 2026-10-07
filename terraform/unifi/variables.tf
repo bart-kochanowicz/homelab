@@ -44,36 +44,3 @@ variable "name_prefix" {
   default     = "cavespace-"
   nullable    = false
 }
-
-variable "networks" {
-  description = "LAN networks keyed by stable logical identifiers; subnet contains the gateway address."
-  type = map(object({
-    name   = optional(string)
-    vlan   = optional(number)
-    subnet = string
-    dhcp = optional(object({
-      start     = string
-      stop      = string
-      leasetime = optional(string, "24h")
-    }))
-  }))
-  default  = {}
-  nullable = false
-
-  validation {
-    condition = alltrue([
-      for key, network in var.networks : key != "default" && network.name != "Default"
-    ])
-    error_message = "The built-in Default LAN is read-only; reserve its name and logical key."
-  }
-
-  validation {
-    condition = alltrue([
-      for network in values(var.networks) : try(
-        cidrhost("${cidrhost(network.subnet, 0)}/${split("/", data.unifi_network.default.subnet)[1]}", 0) != cidrhost(data.unifi_network.default.subnet, 0) &&
-        cidrhost("${cidrhost(data.unifi_network.default.subnet, 0)}/${split("/", network.subnet)[1]}", 0) != cidrhost(network.subnet, 0), false
-      )
-    ])
-    error_message = "Managed LAN subnets must not overlap the built-in Default LAN."
-  }
-}

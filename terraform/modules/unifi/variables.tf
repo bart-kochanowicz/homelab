@@ -38,6 +38,25 @@ variable "networks" {
 
   validation {
     condition = alltrue([
+      for key, network in var.networks : key != "default" && network.name != "Default"
+    ])
+    error_message = "The built-in Default LAN is read-only; reserve its name and logical key."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for network in values(var.networks) : [
+        for reserved in values(var.reserved_networks) : try(
+          cidrhost("${cidrhost(network.subnet, 0)}/${split("/", reserved.subnet)[1]}", 0) != cidrhost(reserved.subnet, 0) &&
+          cidrhost("${cidrhost(reserved.subnet, 0)}/${split("/", network.subnet)[1]}", 0) != cidrhost(network.subnet, 0), false
+        )
+      ]
+    ]))
+    error_message = "Managed LAN subnets must not overlap reserved LANs."
+  }
+
+  validation {
+    condition = alltrue([
       for key, network in var.networks :
       can(regex("^[a-z][a-z0-9_-]*$", key)) &&
       (network.name == null ? true : length(trimspace(network.name)) > 0)
@@ -121,5 +140,56 @@ variable "networks" {
       )
     ])
     error_message = "DHCP pools must be ordered and exclude the gateway address."
+  }
+}
+
+variable "reserved_networks" {
+  description = "Read-only LAN IDs and subnets used for overlap protection and port exclusions."
+  type        = map(object({ id = string, subnet = string }))
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for network in values(var.reserved_networks) : can(cidrnetmask(network.subnet))])
+    error_message = "Reserved LANs must have valid IPv4 subnets."
+  }
+}
+
+variable "vlan_only_networks" {
+  description = "Unrouted networks keyed by logical identifier, with no gateway or DHCP."
+  type        = map(number)
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for key, vlan in var.vlan_only_networks :
+      can(regex("^[a-z][a-z0-9_-]*$", key)) && key != "default" &&
+      !contains(keys(var.networks), key) &&
+      vlan >= 1 && vlan <= 4094 && floor(vlan) == vlan && vlan != 35 &&
+      !contains([for network in values(var.networks) : network.vlan], vlan)
+    ]) && length(distinct(values(var.vlan_only_networks))) == length(var.vlan_only_networks)
+    error_message = "Unrouted LAN keys and VLANs must be unique and must not conflict with routed LANs or WAN VLAN 35."
+  }
+}
+
+variable "port_profiles" {
+  description = "Port profiles referencing managed logical network keys; an empty tag set defines an access port."
+  type = map(object({
+    native_network  = string
+    tagged_networks = optional(set(string), [])
+  }))
+  default  = {}
+  nullable = false
+
+  validation {
+    condition = alltrue([
+      for key, profile in var.port_profiles :
+      can(regex("^[a-z][a-z0-9_-]*$", key)) &&
+      contains(concat(keys(var.networks), keys(var.vlan_only_networks)), profile.native_network) &&
+      alltrue([for network in profile.tagged_networks : contains(concat(keys(var.networks), keys(var.vlan_only_networks)), network)]) &&
+      !contains(profile.tagged_networks, profile.native_network)
+    ])
+    error_message = "Profiles must reference existing managed networks and cannot tag their native network."
   }
 }
