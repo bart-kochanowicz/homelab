@@ -1,0 +1,161 @@
+name: Terraform plan / approve / apply
+
+on:
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      terraform_root:
+        description: Infrastructure to plan and review
+        type: choice
+        options: [all, cloudflare, unifi]
+        default: all
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  plan:
+    if: >-
+      github.repository == 'bart-kochanowicz/homelab' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == 'bart-kochanowicz/homelab' &&
+      github.event.workflow_run.conclusion == 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+      validation_run_id: ${{ steps.plan.outputs.validation_run_id }}
+      cloudflare: ${{ steps.plan.outputs.cloudflare }}
+      unifi: ${{ steps.plan.outputs.unifi }}
+    steps:
+      - name: Create private plans and link their review logs
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          VALIDATION_RUN_ID: ${{ github.event.workflow_run.id }}
+          ROOT: ${{ inputs.terraform_root || 'all' }}
+        run: |
+          set +x
+          set -euo pipefail
+          wait_for_run() {
+            local result
+            while true; do
+              result=$(gh api "repos/bart-kochanowicz/homelab-automation/actions/runs/$1" \
+                --jq 'if .status == "completed" then .conclusion else "pending" end')
+              case "$result" in
+                success) return 0 ;;
+                pending) sleep 10 ;;
+                *) printf 'Private Terraform run %s ended with %s.\n' "$1" "$result" >&2; return 1 ;;
+              esac
+            done
+          }
+          : "${GH_TOKEN:?Set AUTOMATION_DISPATCH_TOKEN}"
+          if [[ -z "$SOURCE_SHA" ]]; then
+            SOURCE_SHA=$(gh api repos/bart-kochanowicz/homelab/git/ref/heads/main --jq .object.sha)
+            VALIDATION_RUN_ID=$(gh api \
+              "repos/bart-kochanowicz/homelab/actions/workflows/validate.yaml/runs?branch=main&event=push&head_sha=$SOURCE_SHA&per_page=1" \
+              --jq '.workflow_runs[0].id // empty')
+          fi
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ && "$VALIDATION_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$(gh api repos/bart-kochanowicz/homelab/git/ref/heads/main --jq .object.sha)" == "$SOURCE_SHA" ]]
+          export SOURCE_SHA VALIDATION_RUN_ID
+          printf 'source_sha=%s\nvalidation_run_id=%s\n' "$SOURCE_SHA" "$VALIDATION_RUN_ID" >> "$GITHUB_OUTPUT"
+          case "$ROOT" in
+            all) roots=(cloudflare unifi) ;;
+            cloudflare|unifi) roots=("$ROOT") ;;
+            *) exit 1 ;;
+          esac
+          runs=()
+          for TERRAFORM_ROOT in "${roots[@]}"; do
+            export TERRAFORM_ROOT
+            run_id=$(python3 - <<'PYTHON' | gh api --method POST \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
+              --input - --jq .workflow_run_id
+          import json
+          import os
+          print(json.dumps({"ref": "main", "return_run_details": True, "inputs": {
+              "terraform_root": os.environ["TERRAFORM_ROOT"], "operation": "plan",
+              "source_sha": os.environ["SOURCE_SHA"],
+              "validation_run_id": os.environ["VALIDATION_RUN_ID"],
+              "approval_run_id": os.environ["GITHUB_RUN_ID"],
+          }}))
+          PYTHON
+            )
+            [[ "$run_id" =~ ^[1-9][0-9]*$ ]]
+            runs+=("$run_id")
+            printf '%s=%s\n' "$TERRAFORM_ROOT" "$run_id" >> "$GITHUB_OUTPUT"
+            printf -- '- Review [%s plan](https://github.com/bart-kochanowicz/homelab-automation/actions/runs/%s).\n' \
+              "$TERRAFORM_ROOT" "$run_id" >> "$GITHUB_STEP_SUMMARY"
+          done
+          for run_id in "${runs[@]}"; do
+            wait_for_run "$run_id"
+          done
+          printf '\nReview the selected plans, then use **Review deployments → Approve and deploy**.\n' >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: Approve and apply saved plans
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: terraform-production
+    timeout-minutes: 45
+    steps:
+      - name: "Apply saved plans (cloudflare:${{ needs.plan.outputs.cloudflare }}, unifi:${{ needs.plan.outputs.unifi }})"
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          VALIDATION_RUN_ID: ${{ needs.plan.outputs.validation_run_id }}
+          CLOUDFLARE_PLAN: ${{ needs.plan.outputs.cloudflare }}
+          UNIFI_PLAN: ${{ needs.plan.outputs.unifi }}
+        run: |
+          set +x
+          set -euo pipefail
+          wait_for_run() {
+            local result
+            while true; do
+              result=$(gh api "repos/bart-kochanowicz/homelab-automation/actions/runs/$1" \
+                --jq 'if .status == "completed" then .conclusion else "pending" end')
+              case "$result" in
+                success) return 0 ;;
+                pending) sleep 10 ;;
+                *) printf 'Private Terraform run %s ended with %s.\n' "$1" "$result" >&2; return 1 ;;
+              esac
+            done
+          }
+          [[ "$(gh api repos/bart-kochanowicz/homelab/git/ref/heads/main --jq .object.sha)" == "$SOURCE_SHA" ]] || {
+            printf '%s\n' 'Source main changed. Start a new review workflow.' >&2
+            exit 1
+          }
+          for TERRAFORM_ROOT in cloudflare unifi; do
+            if [[ "$TERRAFORM_ROOT" == cloudflare ]]; then PLAN_RUN_ID=$CLOUDFLARE_PLAN; else PLAN_RUN_ID=$UNIFI_PLAN; fi
+            [[ -n "$PLAN_RUN_ID" ]] || continue
+            [[ "$PLAN_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            export TERRAFORM_ROOT PLAN_RUN_ID
+            run_id=$(python3 - <<'PYTHON' | gh api --method POST \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
+              --input - --jq .workflow_run_id
+          import json
+          import os
+          print(json.dumps({"ref": "main", "return_run_details": True, "inputs": {
+              "terraform_root": os.environ["TERRAFORM_ROOT"], "operation": "apply",
+              "source_sha": os.environ["SOURCE_SHA"],
+              "validation_run_id": os.environ["VALIDATION_RUN_ID"],
+              "plan_run_id": os.environ["PLAN_RUN_ID"],
+              "approval_run_id": os.environ["GITHUB_RUN_ID"],
+          }}))
+          PYTHON
+            )
+            [[ "$run_id" =~ ^[1-9][0-9]*$ ]]
+            printf -- '- [%s apply](https://github.com/bart-kochanowicz/homelab-automation/actions/runs/%s).\n' \
+              "$TERRAFORM_ROOT" "$run_id" >> "$GITHUB_STEP_SUMMARY"
+            wait_for_run "$run_id"
+          done
