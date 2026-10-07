@@ -36,6 +36,7 @@ validate-terraform-layout:
 validate-format: validate-terraform-layout
 	terraform fmt -check -recursive terraform
 	terraform fmt -check - < terraform/garage.s3.tfbackend
+	terraform fmt -check - < terraform/garage.local.s3.tfbackend
 	terraform -chdir=terraform/cloudflare init -backend=false -input=false -lockfile=readonly
 	terraform -chdir=terraform/cloudflare validate -no-color
 	terraform -chdir=terraform/unifi init -backend=false -input=false -lockfile=readonly
