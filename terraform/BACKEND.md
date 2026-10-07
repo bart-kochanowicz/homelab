@@ -6,7 +6,7 @@ Houston stores state in the `terraform-state` bucket on Garage at
 
 | Root | State key |
 | --- | --- |
-| Cloudflare (`terraform/`) | `prod/homelab/terraform.tfstate` |
+| Cloudflare (`terraform/cloudflare/`) | `prod/homelab/terraform.tfstate` |
 | UniFi (`terraform/unifi/`) | `prod/unifi/terraform.tfstate` |
 | Backend diagnostic (`examples/garage-backend`) | `checks/garage-backend/terraform.tfstate` |
 | Restore diagnostic (`examples/garage-restore`) | `checks/garage-restore/<uuid>/terraform.tfstate` |
@@ -26,8 +26,8 @@ them in local metadata.
 ## Verify the production root
 
 Cloudflare inputs come from `TF_VAR_*` or a private `variables.tfvars` based
-on [`variables.tfvars.example`](variables.tfvars.example). The management
-token is separate from Garage and R2 S3 credentials.
+on [`variables.tfvars.example`](cloudflare/variables.tfvars.example).
+The management token is separate from Garage and R2 S3 credentials.
 
 From the repository root on Houston, with Garage credentials loaded:
 
@@ -38,10 +38,10 @@ read -r -s -p 'Cloudflare management API token: ' TF_VAR_cloudflare_api_token
 printf '\n'
 export TF_VAR_cloudflare_api_token
 
-/usr/local/bin/terraform -chdir=terraform init -input=false -backend-config=garage.s3.tfbackend
-/usr/local/bin/terraform -chdir=terraform validate
-/usr/local/bin/terraform -chdir=terraform state list
-/usr/local/bin/terraform -chdir=terraform plan -input=false -detailed-exitcode
+/usr/local/bin/terraform -chdir=terraform/cloudflare init -input=false -backend-config=../garage.s3.tfbackend
+/usr/local/bin/terraform -chdir=terraform/cloudflare validate
+/usr/local/bin/terraform -chdir=terraform/cloudflare state list
+/usr/local/bin/terraform -chdir=terraform/cloudflare plan -input=false -detailed-exitcode
 ```
 
 For file inputs, add `-var-file=variables.tfvars` to `plan`. An existing

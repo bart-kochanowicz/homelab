@@ -9,7 +9,9 @@ and documentation. Document operational commands and non-obvious constraints.
 - `apps/`: Kubernetes applications registered through the ArgoCD ApplicationSet.
 - `system/`: platform manifests, Helm charts, and local ArgoCD bootstrap.
 - `talos/patches/`: Talos CNI configuration; generated machine configs are ignored.
-- `terraform/`: Cloudflare R2; `terraform/unifi/`: UniFi LAN configuration.
+- `terraform/cloudflare/`: Cloudflare R2; `terraform/unifi/`: UniFi LAN configuration.
+- `terraform/modules/`: reusable Terraform modules; shared backend settings and
+  operational guides live directly in `terraform/`.
 - `infra/ansible/`: Houston's Garage backend, Terraform CLI, and private runner.
 - `infra/unifi/`: network architecture and WAN operations.
 
@@ -27,6 +29,9 @@ These commands change the cluster; validation does not deploy resources.
 - Kubernetes: stable APIs, lowercase hyphenated names, `kustomization.yaml`.
 - Terraform: run `terraform fmt -recursive`; use lowercase underscore names
   and descriptions for variables and outputs; mark secrets sensitive.
+  Put deployable roots in `terraform/<name>/`, each with its own backend/state,
+  and reusable modules in `terraform/modules/<name>/` without backend blocks.
+  Do not put root configuration directly in `terraform/`.
 - Ansible: idempotent tasks and handlers; preserve explicit failure handling.
 - Update relevant operational documentation when changing a component.
 

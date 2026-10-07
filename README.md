@@ -11,10 +11,13 @@ Home Assistant uses host networking for LAN discovery.
 | `apps/` | Home Assistant, Crafty Controller, and n8n |
 | `system/` | ArgoCD, Cilium, certificates, storage, monitoring, and network policies |
 | `talos/patches/cilium.yaml` | Talos CNI configuration |
-| `terraform/` | Cloudflare R2 backup storage; Garage state at `prod/homelab/terraform.tfstate` |
+| `terraform/cloudflare/` | Cloudflare R2 backup storage; Garage state at `prod/homelab/terraform.tfstate` |
 | `terraform/unifi/` | UniFi LAN configuration; Garage state at `prod/unifi/terraform.tfstate` |
 | `infra/ansible/` | Houston: Garage, Terraform CLI, and private Actions runner |
 | `infra/unifi/` | Network architecture and Netia/LEOX WAN configuration |
+
+Terraform roots live in `terraform/<name>/`; reusable modules live in
+`terraform/modules/<name>/`. Each root has its own backend and state.
 
 Hardware: Lenovo ThinkCentre m720q (i3-8100T, 8 GB, 256 GB), m920q
 (i5-8500T, 32 GB, 512 GB), and Dell Wyse 3040 (`houston-01`).

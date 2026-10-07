@@ -51,7 +51,7 @@ needs **Workers R2 Storage Write**. Store keys in a password manager.
 With credentials loaded and [the Cloudflare root initialized](BACKEND.md#verify-the-production-root):
 
 ```bash
-./scripts/backup-terraform-state.sh terraform prod/homelab
+./scripts/backup-terraform-state.sh terraform/cloudflare prod/homelab
 /usr/local/bin/terraform -chdir=terraform/unifi init -input=false -lockfile=readonly \
   -backend-config=../garage.s3.tfbackend
 ./scripts/backup-terraform-state.sh terraform/unifi prod/unifi
