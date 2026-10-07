@@ -4,6 +4,31 @@ Use the Terraform version pinned in `aqua.yaml` and the committed provider lock
 file. Local plans read production state and query UniFi; apply runs on Houston
 through [Actions](README.md).
 
+## Prerequisites
+
+Run commands from a checkout of this repository on macOS. Install aqua, Ansible
+and GitHub CLI; OpenSSH, OpenSSL and Python 3 must be available. Run `aqua install`
+and add aqua's tool directory to `PATH` as described in its
+[installation guide](https://aquaproj.github.io/docs/install).
+Authenticate `gh auth login` with access to the private automation repository.
+
+Houston must have its [host configuration](../../infra/ansible/README.md) applied.
+Keep the production state for existing deployments; if Houston was rebuilt,
+follow [state recovery](../R2_BACKUP.md#recovery) before planning.
+Restore the operator SSH key or authorize a new key through an existing admin
+connection. Configure `~/.ssh/config`, replacing `<houston-ip>` with its address:
+
+```sshconfig
+Host houston-01
+  HostName <houston-ip>
+  User capcom
+  IdentityFile ~/.ssh/id_ed25519_homelab
+  IdentitiesOnly yes
+```
+
+Verify Houston's SSH host key through a trusted record or local console, then
+check `ssh houston-01 true`. Houston must reach the controller at `192.168.1.1`.
+
 ## Credentials
 
 Provision Garage's `cavespace-local-plan` key from the repository root:
@@ -18,20 +43,70 @@ chmod 600 .secrets/unifi/garage.credentials
 
 The key has bucket-wide read access to `terraform-state`, without write,
 ownership or bucket-creation permissions. UniFi API permissions come from
-`unifi_auth`. Keep `.secrets/unifi/variables.tfvars.json` private, with
-`unifi_auth` in the format described by `variables.tf`.
-Store the verified controller certificate as
-`.secrets/unifi/controller-certificate.pem`. `.secrets/` is ignored by Git.
+`unifi_auth`. Restore the dedicated local UniFi account from a password manager,
+or create a local-only account with access to read Network configuration through
+the console's administrator settings. A cloud-only UI login is not a local API
+credential. GitHub cannot return the stored `UNIFI_AUTH` secret.
 
-On macOS, the provider uses Keychain for certificate trust. Verify the certificate
-fingerprint against the controller, then trust it for SSL to `localhost`:
+Create the private input file without overwriting an existing one:
 
 ```bash
-openssl x509 -in .secrets/unifi/controller-certificate.pem -noout -fingerprint -sha256
+cp -n terraform/unifi/variables.tfvars.json.example .secrets/unifi/variables.tfvars.json
+chmod 600 .secrets/unifi/variables.tfvars.json
+```
+
+Edit its username and password in a local editor. `.secrets/` is ignored by Git.
+
+## Controller certificate
+
+The gateway generates its certificate; the Mac needs only the public certificate,
+not a new certificate or the gateway's private key. For an enrolled controller,
+download the approved certificate from the private automation repository:
+
+```bash
+gh api repos/bart-kochanowicz/homelab-automation/actions/variables/UNIFI_CA_CERT_PEM \
+  --jq '.value' > .secrets/unifi/controller-certificate.pem
+openssl x509 -in .secrets/unifi/controller-certificate.pem -noout -fingerprint -sha256 -dates
+openssl x509 -in .secrets/unifi/controller-certificate.pem -noout -text
+```
+
+The repository variable is the approved certificate record. Check validity dates
+and the `localhost` subject alternative name required by the tunnel below.
+
+For first enrollment or a certificate replacement, obtain a candidate from the
+controller through Houston:
+
+```bash
+mkdir -p .cache
+ssh houston-01 'openssl s_client -connect 192.168.1.1:443 -servername unifi.local </dev/null 2>/dev/null' \
+  | openssl x509 -outform PEM -out .cache/unifi-controller-candidate.pem
+openssl x509 -in .cache/unifi-controller-candidate.pem -noout -fingerprint -sha256 -dates
+openssl x509 -in .cache/unifi-controller-candidate.pem -noout -text
+```
+
+Verify its SHA-256 fingerprint through the console certificate viewer over a
+trusted administration connection or a trusted certificate backup. Check dates
+and the `localhost` SAN; successful download alone does not establish trust.
+After verification, register this public certificate for Actions and the Mac:
+
+```bash
+gh variable set UNIFI_CA_CERT_PEM --repo bart-kochanowicz/homelab-automation \
+  < .cache/unifi-controller-candidate.pem
+cp .cache/unifi-controller-candidate.pem .secrets/unifi/controller-certificate.pem
+```
+
+On macOS, the provider uses Keychain for certificate trust. Add the approved
+certificate for SSL to `localhost`, authorizing the macOS prompt if requested:
+
+```bash
 security add-trusted-cert -r trustRoot -p ssl -s localhost \
   -k "$HOME/Library/Keychains/login.keychain-db" \
   .secrets/unifi/controller-certificate.pem
+security verify-cert -c .secrets/unifi/controller-certificate.pem -p ssl -s localhost
 ```
+
+Verification must succeed before planning. Repeat enrollment and update Actions
+and Keychain trust when the gateway certificate changes or expires.
 
 ## SSH session
 

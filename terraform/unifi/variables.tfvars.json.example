@@ -1,0 +1,6 @@
+{
+  "unifi_auth": {
+    "username": "cavespace-houston",
+    "password": "REPLACE_WITH_LOCAL_PASSWORD"
+  }
+}
