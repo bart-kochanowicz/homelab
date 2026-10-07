@@ -7,6 +7,7 @@ repository access. The gateway generates the certificate; never copy its private
 ## Download the approved certificate
 
 ```bash
+mkdir -p .secrets/unifi
 gh api repos/bart-kochanowicz/homelab-automation/actions/variables/UNIFI_CA_CERT_PEM \
   --jq '.value' > .secrets/unifi/controller-certificate.pem
 openssl x509 -in .secrets/unifi/controller-certificate.pem -noout -fingerprint -sha256 -dates
@@ -18,7 +19,7 @@ Check validity dates and the `localhost` SAN used by the tunnel.
 ## First enrollment or replacement
 
 ```bash
-mkdir -p .cache
+mkdir -p .cache .secrets/unifi
 ssh houston-01 'openssl s_client -connect 192.168.1.1:443 -servername unifi.local </dev/null 2>/dev/null' \
   | openssl x509 -outform PEM -out .cache/unifi-controller-candidate.pem
 openssl x509 -in .cache/unifi-controller-candidate.pem -noout -fingerprint -sha256 -dates

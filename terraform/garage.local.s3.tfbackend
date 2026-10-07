@@ -1,0 +1,6 @@
+endpoints = {
+  s3 = "http://127.0.0.1:13900"
+}
+
+profile                  = "cavespace-local-plan"
+shared_credentials_files = ["../../.secrets/terraform/garage.credentials"]
