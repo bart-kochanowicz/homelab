@@ -77,12 +77,12 @@ jobs:
           for TERRAFORM_ROOT in "${roots[@]}"; do
             export TERRAFORM_ROOT
             run_id=$(python3 - <<'PYTHON' | gh api --method POST \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
               repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
               --input - --jq .workflow_run_id
           import json
           import os
-          print(json.dumps({"ref": "main", "return_run_details": True, "inputs": {
+          print(json.dumps({"ref": "main", "inputs": {
               "terraform_root": os.environ["TERRAFORM_ROOT"], "operation": "plan",
               "source_sha": os.environ["SOURCE_SHA"],
               "validation_run_id": os.environ["VALIDATION_RUN_ID"],
@@ -140,12 +140,12 @@ jobs:
             [[ "$PLAN_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             export TERRAFORM_ROOT PLAN_RUN_ID
             run_id=$(python3 - <<'PYTHON' | gh api --method POST \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
               repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
               --input - --jq .workflow_run_id
           import json
           import os
-          print(json.dumps({"ref": "main", "return_run_details": True, "inputs": {
+          print(json.dumps({"ref": "main", "inputs": {
               "terraform_root": os.environ["TERRAFORM_ROOT"], "operation": "apply",
               "source_sha": os.environ["SOURCE_SHA"],
               "validation_run_id": os.environ["VALIDATION_RUN_ID"],
