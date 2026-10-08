@@ -1,18 +1,3 @@
-moved {
-  from = module.unifi.unifi_network.this
-  to   = module.networks.unifi_network.this
-}
-
-moved {
-  from = module.unifi.unifi_network.vlan_only
-  to   = module.networks.unifi_network.vlan_only
-}
-
-moved {
-  from = module.unifi.unifi_port_profile.this
-  to   = module.port_profiles.unifi_port_profile.this
-}
-
 module "networks" {
   source = "../modules/unifi/networks"
 
