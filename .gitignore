@@ -1,5 +1,6 @@
 .DS_Store
 .cache/
+__pycache__/
 
 # Local planning material
 /thoughts/

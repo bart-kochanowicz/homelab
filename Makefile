@@ -12,7 +12,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes \
-	validate-security validate-terraform-tests validate-terraform-layout
+	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
 
 default: system
 
@@ -21,10 +21,10 @@ system:
 
 validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
-	validate-terraform-tests
+	validate-terraform-tests validate-workflows
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -49,6 +49,9 @@ validate-format: validate-terraform-layout
 
 validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
+
+validate-workflows:
+	python3 -m unittest discover -s tests -v
 
 validate-yaml:
 	find . -type f \( -name '*.yaml' -o -name '*.yml' \) \
