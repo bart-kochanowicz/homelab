@@ -20,7 +20,15 @@ spec:
   ingress:
     - from:
         - ipBlock:
-            cidr: 0.0.0.0/0
+            cidr: 10.0.80.0/24
+      ports:
+        - protocol: TCP
+          port: 8443
+    - from:
+        - ipBlock:
+            cidr: 10.0.80.0/24
+        - ipBlock:
+            cidr: 10.0.40.0/24
       ports:
         - protocol: TCP
           port: 30000
@@ -57,22 +65,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-home-assistant
-  namespace: home-assistant
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: home-assistant
-  policyTypes: [Ingress, Egress]
-  ingress: []
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
   name: default-deny
   namespace: n8n
 spec:
@@ -89,7 +81,13 @@ spec:
     matchLabels:
       app.kubernetes.io/name: n8n
   policyTypes: [Ingress, Egress]
-  ingress: []
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.0.80.0/24
+      ports:
+        - protocol: TCP
+          port: 5678
   egress:
     - to:
         - namespaceSelector:
@@ -110,13 +108,3 @@ spec:
               - 10.0.0.0/8
               - 172.16.0.0/12
               - 192.168.0.0/16
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: home-assistant
-      ports:
-        - protocol: TCP
-          port: 8123
-    - to:
-        - ipBlock:
-            cidr: 192.168.100.0/24

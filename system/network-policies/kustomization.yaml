@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - application-policies.yaml
   - host-firewall.yaml
+  - n8n-host-access.yaml

@@ -120,20 +120,30 @@ The script verifies the snapshot and archive path before stopping the workload.
 
 ## Network policies
 
-Manually sync `network-policies` after rule changes and test required access
-and denied cross-namespace traffic. Home Assistant host-network traffic is
-controlled by the Cilium host firewall.
+Sync `network-policies` manually with pruning from a verified Admin connection.
+Test required access and denied traffic using fresh connections and Hubble verdicts.
+
+| Source | Access |
+| --- | --- |
+| Admin `10.0.80.0/24` | Node administration, Crafty TCP `8443`, Minecraft TCP `30000`, n8n TCP `5678` |
+| Home `10.0.40.0/24` | Home Assistant TCP `8123`, Minecraft TCP `30000` |
+| n8n | Home Assistant on local or remote nodes, TCP `8123` |
+
+Home Assistant uses `hostNetwork`; its namespace policies cannot isolate it.
+Host rules apply to every process listening on the allowed node ports. n8n uses
+Cilium host/node identities for this connection; default Cilium CIDR matching and
+namespace selectors do not select host-network workloads. Host egress remains unrestricted.
+
+Minecraft uses `externalTrafficPolicy: Local` to preserve client IPs for pod
+policy enforcement. Connect to a node running the Crafty pod; other nodes do not
+forward this NodePort. UI Services remain `ClusterIP` and require private routing
+or authenticated port-forwarding.
 
 Before changing the host policy, enable `PolicyAuditMode` on each Cilium host
 endpoint and review Hubble flows. Audit mode resets on agent restart; finish
 the review and enforce the policy, or remove the live policy before restarting.
-The allowlist preserves:
-
-- Node-internal traffic, pod access to the API on TCP `6443`, and CoreDNS upstream DNS.
-- Hubble peer traffic and monitoring scrapes.
-- Kubernetes/Talos access from the management LAN.
-- Home Assistant LAN discovery and TCP `8123`.
-- Public Minecraft TCP `30000`.
+The allowlist also preserves node-internal traffic, pod access to the API on TCP
+`6443`, CoreDNS upstream DNS, Hubble peer traffic and monitoring scrapes.
 
 ## Retained volumes
 
