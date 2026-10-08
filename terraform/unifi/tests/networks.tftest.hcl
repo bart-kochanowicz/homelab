@@ -28,7 +28,7 @@ run "valid_lan_networks" {
     condition = (
       unifi_network.vlan_only["parking"].subnet == null &&
       unifi_network.vlan_only["parking"].purpose == "vlan-only" &&
-      unifi_network.vlan_only["parking"].dhcp_server.enabled == false
+      unifi_network.vlan_only["parking"].dhcp_server == null
     )
     error_message = "Parking must have no gateway or DHCP server."
   }

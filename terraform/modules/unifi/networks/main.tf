@@ -33,7 +33,6 @@ resource "unifi_network" "vlan_only" {
   vlan                = each.value
   purpose             = "vlan-only"
   third_party_gateway = true
-  dhcp_server         = { enabled = false }
 
   lifecycle {
     prevent_destroy = true
