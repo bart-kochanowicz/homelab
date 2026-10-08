@@ -46,10 +46,22 @@ jobs:
           set +x
           set -euo pipefail
           wait_for_run() {
-            local result
+            local result failures=0
+            printf 'Monitoring private Terraform run %s.\n' "$1"
             while true; do
-              result=$(gh api "repos/bart-kochanowicz/homelab-automation/actions/runs/$1" \
-                --jq 'if .status == "completed" then .conclusion else "pending" end')
+              if result=$(gh api "repos/bart-kochanowicz/homelab-automation/actions/runs/$1" \
+                --jq 'if .status == "completed" then .conclusion else "pending" end'); then
+                failures=0
+              else
+                failures=$((failures + 1))
+                if (( failures >= 6 )); then
+                  printf 'Cannot read private Terraform run %s after %s attempts.\n' "$1" "$failures" >&2
+                  return 1
+                fi
+                printf 'Retrying status read for run %s (%s/6).\n' "$1" "$failures" >&2
+                sleep 10
+                continue
+              fi
               case "$result" in
                 success) return 0 ;;
                 pending) sleep 10 ;;
@@ -76,6 +88,7 @@ jobs:
           runs=()
           for TERRAFORM_ROOT in "${roots[@]}"; do
             export TERRAFORM_ROOT
+            printf 'Dispatching %s plan.\n' "$TERRAFORM_ROOT"
             run_id=$(python3 - <<'PYTHON' | gh api --method POST \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
               repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
@@ -119,10 +132,22 @@ jobs:
           set +x
           set -euo pipefail
           wait_for_run() {
-            local result
+            local result failures=0
+            printf 'Monitoring private Terraform run %s.\n' "$1"
             while true; do
-              result=$(gh api "repos/bart-kochanowicz/homelab-automation/actions/runs/$1" \
-                --jq 'if .status == "completed" then .conclusion else "pending" end')
+              if result=$(gh api "repos/bart-kochanowicz/homelab-automation/actions/runs/$1" \
+                --jq 'if .status == "completed" then .conclusion else "pending" end'); then
+                failures=0
+              else
+                failures=$((failures + 1))
+                if (( failures >= 6 )); then
+                  printf 'Cannot read private Terraform run %s after %s attempts.\n' "$1" "$failures" >&2
+                  return 1
+                fi
+                printf 'Retrying status read for run %s (%s/6).\n' "$1" "$failures" >&2
+                sleep 10
+                continue
+              fi
               case "$result" in
                 success) return 0 ;;
                 pending) sleep 10 ;;
@@ -139,6 +164,7 @@ jobs:
             [[ -n "$PLAN_RUN_ID" ]] || continue
             [[ "$PLAN_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             export TERRAFORM_ROOT PLAN_RUN_ID
+            printf 'Dispatching %s apply.\n' "$TERRAFORM_ROOT"
             run_id=$(python3 - <<'PYTHON' | gh api --method POST \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
               repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
