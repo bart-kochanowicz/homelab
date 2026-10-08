@@ -38,6 +38,25 @@ variable "networks" {
 
   validation {
     condition = alltrue([
+      for key, network in var.networks : key != "default" && network.name != "Default"
+    ])
+    error_message = "The built-in Default LAN is read-only; reserve its name and logical key."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for network in values(var.networks) : [
+        for reserved in var.reserved_subnets : try(
+          cidrhost("${cidrhost(network.subnet, 0)}/${split("/", reserved)[1]}", 0) != cidrhost(reserved, 0) &&
+          cidrhost("${cidrhost(reserved, 0)}/${split("/", network.subnet)[1]}", 0) != cidrhost(network.subnet, 0), false
+        )
+      ]
+    ]))
+    error_message = "Managed LAN subnets must not overlap reserved LANs."
+  }
+
+  validation {
+    condition = alltrue([
       for key, network in var.networks :
       can(regex("^[a-z][a-z0-9_-]*$", key)) &&
       (network.name == null ? true : length(trimspace(network.name)) > 0)
@@ -121,5 +140,35 @@ variable "networks" {
       )
     ])
     error_message = "DHCP pools must be ordered and exclude the gateway address."
+  }
+}
+
+variable "reserved_subnets" {
+  description = "Read-only IPv4 LAN subnets excluded from managed addressing."
+  type        = set(string)
+  default     = []
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for subnet in var.reserved_subnets : can(cidrnetmask(subnet))])
+    error_message = "Reserved LANs must have valid IPv4 subnets."
+  }
+}
+
+variable "vlan_only_networks" {
+  description = "Unrouted networks keyed by logical identifier, with no gateway or DHCP."
+  type        = map(number)
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for key, vlan in var.vlan_only_networks :
+      can(regex("^[a-z][a-z0-9_-]*$", key)) && key != "default" &&
+      !contains(keys(var.networks), key) &&
+      vlan >= 1 && vlan <= 4094 && floor(vlan) == vlan && vlan != 35 &&
+      !contains([for network in values(var.networks) : network.vlan], vlan)
+    ]) && length(distinct(values(var.vlan_only_networks))) == length(var.vlan_only_networks)
+    error_message = "Unrouted LAN keys and VLANs must be unique and must not conflict with routed LANs or WAN VLAN 35."
   }
 }

@@ -18,6 +18,21 @@ Each network uses the `cavespace-` prefix and gateway `10.0.<VLAN>.1`.
 | 80 | apollo | 10.0.80.0/24 | Administrator devices |
 | 90 | mission-control | 10.0.90.0/24 | Network infrastructure management |
 
+DHCP uses `.100`–`.199`, a 24-hour lease and the VLAN gateway for DNS.
+Servers addresses: Houston `10.0.70.10`, control plane `10.0.70.11`, worker
+`10.0.70.12`; `.200`–`.219` is reserved for service LoadBalancer addresses.
+
+Port profiles use the `cavespace-` prefix:
+
+| Profile | Native network | Tagged VLANs |
+| --- | --- | --- |
+| `access-<network>` | Named LAN | None |
+| `ap` | Management 90 | 30, 40, 50, 60, 80 |
+| `servers-trunk` | Parking 999 | 70, 90 |
+
+`cavespace-parking` (999) has no gateway, DHCP or SSID. Switch management uses
+tagged VLAN 90; AP management uses native VLAN 90 without a Network Override.
+
 Three SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30), and
 `cavespace-orbit` (WPA2 PPSK: HOME → 40, IOT → 50, GUEST → 60).
 
