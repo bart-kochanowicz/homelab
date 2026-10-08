@@ -1,7 +1,7 @@
 # Homelab
 
 Infrastructure managed with Talos, Kubernetes, ArgoCD, Terraform, and Ansible.
-Application endpoints are private; Minecraft is exposed on TCP `30000`.
+Application endpoints are private; Admin and Home can reach Minecraft on TCP `30000`.
 Home Assistant uses host networking for LAN discovery.
 
 ## Configuration
