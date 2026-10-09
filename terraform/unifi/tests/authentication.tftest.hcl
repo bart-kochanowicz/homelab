@@ -9,9 +9,25 @@ override_data {
   }
 }
 
+override_resource {
+  target = module.devices.unifi_device.this["flex-5"]
+  values = {
+    id  = "74:f9:2c:96:c2:cc"
+    mac = "74:f9:2c:96:c2:cc"
+  }
+}
+
+override_module {
+  target = module.port_profiles
+  outputs = {
+    port_profile_ids = { access-apollo = "test-admin-profile" }
+  }
+}
+
 variables {
-  controller = { url = "https://unifi.example.internal" }
-  unifi_auth = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
+  controller       = { url = "https://unifi.example.internal" }
+  unifi_auth       = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
+  wifi_passphrases = { apollo = "test-only-passphrase" }
 }
 
 run "local_authentication" {
