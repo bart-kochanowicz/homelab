@@ -3,10 +3,10 @@
 | Root | Manages | Garage state key |
 | --- | --- | --- |
 | [cloudflare](cloudflare/) | Private R2 state backups | `prod/homelab/terraform.tfstate` |
-| [unifi](unifi/) | UniFi LANs | `prod/unifi/terraform.tfstate` |
+| [unifi](unifi/) | UniFi LANs, Wi-Fi and switch ports | `prod/unifi/terraform.tfstate` |
 
 Deployable roots live in `terraform/<name>/`; reusable modules in `modules/<name>/`.
-UniFi modules separate `networks` and `port-profiles`; Cloudflare uses `r2`.
+UniFi modules separate networks, port profiles, devices and Wi-Fi; Cloudflare uses R2.
 Use the Terraform version in `aqua.yaml` and committed provider locks.
 
 ## Plan and apply

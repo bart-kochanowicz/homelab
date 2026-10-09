@@ -44,3 +44,11 @@ variable "name_prefix" {
   default     = "cavespace-"
   nullable    = false
 }
+
+variable "wifi_passphrases" {
+  description = "Write-only Wi-Fi passphrases keyed by managed WLAN name."
+  type        = map(string)
+  sensitive   = true
+  ephemeral   = true
+  nullable    = false
+}

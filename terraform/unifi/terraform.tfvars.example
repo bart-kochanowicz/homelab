@@ -7,3 +7,7 @@ unifi_auth = {
   username = "cavespace-houston"
   password = "REPLACE_WITH_LOCAL_PASSWORD"
 }
+
+wifi_passphrases = {
+  apollo = "REPLACE_WITH_WIFI_PASSPHRASE"
+}
