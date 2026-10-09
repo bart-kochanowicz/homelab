@@ -52,3 +52,10 @@ variable "wifi_passphrases" {
   ephemeral   = true
   nullable    = false
 }
+
+variable "wifi_ppsks" {
+  description = "Sensitive PPSK passwords keyed by WLAN/role; stored in Terraform plans and state."
+  type        = map(string)
+  sensitive   = true
+  nullable    = false
+}

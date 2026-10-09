@@ -11,10 +11,18 @@ Custom profiles exclude every LAN outside their native/tagged set. Declare all
 LAN IDs in `network_ids` or `reserved_network_ids` and re-plan when adding one.
 Port profile creation does not assign profiles to physical ports.
 
-`cavespace-apollo` uses WPA3 on 5 GHz and VLAN 80. The wired Admin port is
-USW Flex 2.5G 5 port 1. AP groups and QoS defaults are read-only references.
-Supply `wifi_passphrases.apollo` in local `terraform.tfvars`; Actions uses the
-private `UNIFI_WIFI_PASSPHRASES` secret. Passphrases are ephemeral and write-only.
+| SSID | Security | Bands | VLAN |
+| --- | --- | --- | --- |
+| `cavespace-apollo` | WPA3 | 5 GHz | Admin 80 |
+| `cavespace-endeavour` | WPA3 | 2.4/5 GHz | Work 30 |
+| `cavespace-orbit` | WPA2 PPSK | 2.4/5 GHz | HOME 40, IOT 50, GUEST 60 |
+
+The wired Admin port is USW Flex 2.5G 5 port 1. AP/QoS defaults are read-only.
+Local `terraform.tfvars` supplies `wifi_passphrases` (Apollo/Endeavour) and
+`wifi_ppsks` (`orbit/home`, `orbit/iot`, `orbit/guest`). Actions uses private
+`UNIFI_WIFI_PASSPHRASES` and `UNIFI_WIFI_PPSKS` secrets respectively.
+WPA3 passphrases are ephemeral/write-only; PPSKs persist in private plans,
+state and backups. Orbit defaults to Guest and has client isolation disabled.
 
 - [Plan and apply](../README.md#plan-and-apply)
 - [Local plans](../LOCAL_PLAN.md) and [controller certificate](CERTIFICATE.md)
