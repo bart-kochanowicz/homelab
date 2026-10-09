@@ -9,5 +9,12 @@ unifi_auth = {
 }
 
 wifi_passphrases = {
-  apollo = "REPLACE_WITH_WIFI_PASSPHRASE"
+  apollo    = "REPLACE_WITH_ADMIN_PASSPHRASE"
+  endeavour = "REPLACE_WITH_WORK_PASSPHRASE"
+}
+
+wifi_ppsks = {
+  "orbit/home"  = "REPLACE_WITH_HOME_PASSPHRASE"
+  "orbit/iot"   = "REPLACE_WITH_IOT_PASSPHRASE"
+  "orbit/guest" = "REPLACE_WITH_GUEST_PASSPHRASE"
 }
