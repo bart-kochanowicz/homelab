@@ -22,7 +22,8 @@ Local `terraform.tfvars` supplies `wifi_passphrases` (Apollo/Endeavour) and
 `wifi_ppsks` (`orbit/home`, `orbit/iot`, `orbit/guest`). Actions uses private
 `UNIFI_WIFI_PASSPHRASES` and `UNIFI_WIFI_PPSKS` secrets respectively.
 WPA3 passphrases are ephemeral/write-only; PPSKs persist in private plans,
-state and backups. Orbit defaults to Guest and has client isolation disabled.
+state and backups. Orbit uses explicit per-key VLANs and has client isolation
+disabled; the controller stores Default as its base network metadata.
 
 - [Plan and apply](../README.md#plan-and-apply)
 - [Local plans](../LOCAL_PLAN.md) and [controller certificate](CERTIFICATE.md)

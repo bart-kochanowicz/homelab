@@ -1,9 +1,10 @@
 mock_provider "unifi" {}
 
 variables {
-  site          = "default"
-  ap_group_id   = "test-default-ap-group"
-  user_group_id = "test-default-qos-group"
+  site                 = "default"
+  ap_group_id          = "test-default-ap-group"
+  user_group_id        = "test-default-qos-group"
+  ppsk_base_network_id = "test-default-network"
   network_ids = {
     endeavour = "test-work-network"
     orbit     = "test-home-network"
@@ -16,9 +17,8 @@ variables {
   passphrases = { endeavour = "test-work-passphrase" }
   ppsk_wlans = {
     orbit = {
-      bands       = ["2g", "5g"]
-      default_key = "guest"
-      keys        = { home = "orbit", iot = "stardust", guest = "comet" }
+      bands = ["2g", "5g"]
+      keys  = { home = "orbit", iot = "stardust", guest = "comet" }
     }
   }
   ppsk_passphrases = {
@@ -49,7 +49,7 @@ run "work_and_ppsk_boundaries" {
   assert {
     condition = (
       unifi_wlan.ppsk["orbit"].name == "cavespace-orbit" &&
-      unifi_wlan.ppsk["orbit"].network_id == "test-guest-network" &&
+      unifi_wlan.ppsk["orbit"].network_id == "test-default-network" &&
       unifi_wlan.ppsk["orbit"].security == "wpapsk" &&
       unifi_wlan.ppsk["orbit"].private_preshared_keys_enabled &&
       !unifi_wlan.ppsk["orbit"].wpa3_support &&
@@ -60,7 +60,7 @@ run "work_and_ppsk_boundaries" {
       unifi_wlan.ppsk["orbit"].wlan_band == "both" &&
       unifi_wlan.ppsk["orbit"].wlan_bands == toset(["2g", "5g"])
     )
-    error_message = "Orbit must use WPA2 PPSK on 2.4/5 GHz, default to Guest and permit local Home device communication."
+    error_message = "Orbit must use WPA2 PPSK on 2.4/5 GHz, use controller Default metadata with explicit per-key VLANs and permit local Home device communication."
   }
 
   assert {
@@ -107,20 +107,20 @@ run "reject_ppsk_6ghz" {
     source = "../modules/unifi/wifi"
   }
   variables {
-    ppsk_wlans = { orbit = { bands = ["6g"], default_key = "guest", keys = { home = "orbit", iot = "stardust", guest = "comet" } } }
+    ppsk_wlans = { orbit = { bands = ["6g"], keys = { home = "orbit", iot = "stardust", guest = "comet" } } }
   }
   expect_failures = [var.ppsk_wlans]
 }
 
-run "reject_missing_default_role" {
+run "reject_missing_base_network" {
   command = plan
   module {
     source = "../modules/unifi/wifi"
   }
   variables {
-    ppsk_wlans = { orbit = { bands = ["2g", "5g"], default_key = "missing", keys = { home = "orbit", iot = "stardust", guest = "comet" } } }
+    ppsk_base_network_id = null
   }
-  expect_failures = [var.ppsk_wlans]
+  expect_failures = [var.ppsk_base_network_id]
 }
 
 run "reject_unknown_ppsk_network" {
@@ -129,7 +129,7 @@ run "reject_unknown_ppsk_network" {
     source = "../modules/unifi/wifi"
   }
   variables {
-    ppsk_wlans = { orbit = { bands = ["2g", "5g"], default_key = "guest", keys = { home = "missing", iot = "stardust", guest = "comet" } } }
+    ppsk_wlans = { orbit = { bands = ["2g", "5g"], keys = { home = "missing", iot = "stardust", guest = "comet" } } }
   }
   expect_failures = [var.ppsk_wlans]
 }

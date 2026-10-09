@@ -28,7 +28,7 @@ resource "unifi_wlan" "ppsk" {
 
   site          = var.site
   name          = "${var.name_prefix}${each.key}"
-  network_id    = var.network_ids[each.value.keys[each.value.default_key]]
+  network_id    = var.ppsk_base_network_id
   ap_group_mode = "all"
   ap_group_ids  = [var.ap_group_id]
   user_group_id = var.user_group_id
@@ -40,7 +40,6 @@ resource "unifi_wlan" "ppsk" {
   enhanced_iot    = false
   l2_isolation    = false
   is_guest        = false
-  passphrase_wo   = lookup(var.ppsk_passphrases, "${each.key}/${each.value.default_key}", null)
 
   private_preshared_keys_enabled = true
   private_preshared_keys = [
