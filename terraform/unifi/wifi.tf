@@ -11,13 +11,14 @@ data "unifi_client_qos_rate" "default" {
 module "wifi" {
   source = "../modules/unifi/wifi"
 
-  site             = var.controller.site
-  name_prefix      = var.name_prefix
-  network_ids      = module.networks.network_ids
-  ap_group_id      = data.unifi_ap_group.all.id
-  user_group_id    = data.unifi_client_qos_rate.default.id
-  passphrases      = var.wifi_passphrases
-  ppsk_passphrases = var.wifi_ppsks
+  site                 = var.controller.site
+  name_prefix          = var.name_prefix
+  network_ids          = module.networks.network_ids
+  ap_group_id          = data.unifi_ap_group.all.id
+  user_group_id        = data.unifi_client_qos_rate.default.id
+  passphrases          = var.wifi_passphrases
+  ppsk_passphrases     = var.wifi_ppsks
+  ppsk_base_network_id = data.unifi_network.default.id
   wlans = {
     apollo = {
       network = "apollo"
@@ -30,8 +31,7 @@ module "wifi" {
   }
   ppsk_wlans = {
     orbit = {
-      bands       = ["2g", "5g"]
-      default_key = "guest"
+      bands = ["2g", "5g"]
       keys = {
         home  = "orbit"
         iot   = "stardust"

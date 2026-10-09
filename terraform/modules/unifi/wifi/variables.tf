@@ -84,12 +84,22 @@ variable "passphrases" {
   }
 }
 
+variable "ppsk_base_network_id" {
+  description = "Read-only Default LAN ID required by the controller for PPSK WLAN metadata; every PPSK selects an explicit managed network."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = length(var.ppsk_wlans) == 0 || try(length(trimspace(var.ppsk_base_network_id)) > 0, false)
+    error_message = "PPSK WLANs require the existing Default LAN ID as their base network."
+  }
+}
+
 variable "ppsk_wlans" {
-  description = "WPA2 PPSK WLANs with role-to-network bindings and a default role for the WLAN network."
+  description = "WPA2 PPSK WLANs with explicit role-to-network bindings."
   type = map(object({
-    bands       = set(string)
-    keys        = map(string)
-    default_key = string
+    bands = set(string)
+    keys  = map(string)
   }))
   default  = {}
   nullable = false
@@ -100,12 +110,12 @@ variable "ppsk_wlans" {
       can(regex("^[a-z][a-z0-9_-]*$", key)) &&
       length("${var.name_prefix}${key}") <= 32 &&
       !contains(keys(var.wlans), key) &&
-      length(wlan.keys) > 0 && contains(keys(wlan.keys), wlan.default_key) &&
+      length(wlan.keys) > 0 &&
       alltrue([for role, network in wlan.keys :
         can(regex("^[a-z][a-z0-9_-]*$", role)) && contains(keys(var.network_ids), network)
       ])
     ])
-    error_message = "PPSK WLANs must have unique valid names of at most 32 characters, valid roles bound to managed networks and a default role present in their keys."
+    error_message = "PPSK WLANs must have unique valid names of at most 32 characters, non-empty roles bound to managed networks."
   }
 
   validation {
