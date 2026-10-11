@@ -115,6 +115,18 @@ run "server_rule_follows_membership" {
   }
 }
 
+run "icmp_errors_require_related_state" {
+  command = plan
+  assert {
+    condition = alltrue([
+      for name, rule in local.firewall_rules :
+      rule.states == ["RELATED"] && !rule.reply && !can(rule.destination.ports)
+      if endswith(name, "-icmp-errors") || endswith(name, "-icmpv6-errors")
+    ])
+    error_message = "ICMP errors must match RELATED state without relying on TCP/UDP port filters."
+  }
+}
+
 run "reject_server_on_client_vlan" {
   command = plan
   override_data {

@@ -3,6 +3,8 @@
 Custom zones own network membership. `rules` declares permitted initiation;
 the module creates explicit stateful replies and dual-family denies for every
 zone pair involving a managed zone. Traffic within a VLAN is not filtered.
+Use separate ICMP/ICMPv6 `RELATED` allowances for connection errors; TCP/UDP
+reply port filters cannot match these packets.
 
 Allowances/replies must precede denies. Creation dependencies order the first
 apply; provider 0.57.0 cannot reorder existing policies. Newly created allowances

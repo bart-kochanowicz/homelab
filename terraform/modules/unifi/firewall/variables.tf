@@ -61,6 +61,7 @@ variable "rules" {
     ip_version  = optional(string, "BOTH")
     reply       = optional(bool, true)
     track_state = optional(bool, true)
+    states      = optional(list(string), ["NEW", "ESTABLISHED", "RELATED"])
     source = object({
       zone       = string
       clients    = optional(set(string), [])
@@ -86,7 +87,9 @@ variable "rules" {
       rule.source.zone != rule.destination.zone &&
       contains(["all", "tcp", "udp", "tcp_udp", "icmp", "icmpv6"], rule.protocol) &&
       contains(["BOTH", "IPV4", "IPV6"], rule.ip_version) &&
-      (rule.protocol != "icmpv6" || rule.ip_version == "IPV6")
+      (rule.protocol != "icmpv6" || rule.ip_version == "IPV6") &&
+      length(rule.states) > 0 &&
+      alltrue([for state in rule.states : contains(["NEW", "ESTABLISHED", "RELATED"], state)])
     ])
     error_message = "Rules must use known, different zones and supported protocols/IP versions."
   }

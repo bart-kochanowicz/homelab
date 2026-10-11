@@ -47,7 +47,7 @@ resource "unifi_firewall_policy" "allow" {
   ip_version            = each.value.ip_version
   protocol              = each.value.protocol
   connection_state_type = each.value.track_state ? "CUSTOM" : "ALL"
-  connection_states     = each.value.track_state ? ["NEW", "ESTABLISHED", "RELATED"] : null
+  connection_states     = each.value.track_state ? each.value.states : null
   create_allow_respond  = false
   source                = local.endpoints[each.key].source
   destination           = local.endpoints[each.key].destination

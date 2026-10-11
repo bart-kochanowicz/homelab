@@ -195,6 +195,50 @@ locals {
         source      = { zone = "gateway" }
         destination = { zone = zone }
       }
+    },
+    {
+      for zone in keys(local.vlan_ids) : "${zone}-gateway-icmp-errors" => {
+        description = "Gateway ICMP errors related to tracked ${zone} connections."
+        protocol    = "icmp"
+        ip_version  = "IPV4"
+        reply       = false
+        states      = ["RELATED"]
+        source      = { zone = "gateway" }
+        destination = { zone = zone }
+      }
+    },
+    {
+      for zone in keys(local.vlan_ids) : "${zone}-internet-icmp-errors" => {
+        description = "Internet ICMP errors related to tracked ${zone} connections."
+        protocol    = "icmp"
+        ip_version  = "IPV4"
+        reply       = false
+        states      = ["RELATED"]
+        source      = { zone = "external" }
+        destination = { zone = zone }
+      }
+    },
+    {
+      for zone in keys(local.vlan_ids) : "${zone}-internet-icmpv6-errors" => {
+        description = "Internet ICMPv6 errors related to tracked ${zone} connections."
+        protocol    = "icmpv6"
+        ip_version  = "IPV6"
+        reply       = false
+        states      = ["RELATED"]
+        source      = { zone = "external" }
+        destination = { zone = zone }
+      }
+    },
+    {
+      for key in ["control-plane", "worker"] : "home-${key}-icmp-errors" => {
+        description = "Registered server ICMP errors related to tracked Home connections."
+        protocol    = "icmp"
+        ip_version  = "IPV4"
+        reply       = false
+        states      = ["RELATED"]
+        source      = { zone = local.server_zones[key], clients = [local.server_macs[key]] }
+        destination = { zone = "orbit" }
+      }
     }
   )
 }
