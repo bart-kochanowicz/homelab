@@ -92,8 +92,8 @@ run "least_privilege_access_matrix" {
       contains(local.non_public_destinations, "fe80::/10") &&
       local.firewall_rules.admin-ont.source.zone == "apollo" &&
       local.firewall_rules.admin-ont.destination.ips == ["192.168.100.1"] &&
-      local.firewall_rules.houston-controller.source.clients == [local.server_macs.houston] &&
-      local.firewall_rules.houston-controller.destination.ports == "443"
+      local.firewall_rules["houston-01-controller"].source.clients == [local.server_macs["houston-01"]] &&
+      local.firewall_rules["houston-01-controller"].destination.ports == "443"
     )
     error_message = "Internet rules must exclude private/ONT destinations and controller access must identify Houston."
   }
@@ -102,14 +102,14 @@ run "least_privilege_access_matrix" {
 run "server_rule_follows_membership" {
   command = plan
   override_data {
-    target = data.unifi_client_info.server["worker"]
+    target = data.unifi_client_info.server["worker-01"]
     values = { network_id = "test-servers" }
   }
   assert {
     condition = (
       local.firewall_rules.home-ha.destination.zone == "launchpad" &&
-      local.firewall_rules.admin-worker.destination.zone == "launchpad" &&
-      local.firewall_rules.admin-control-plane.destination.zone == "internal"
+      local.firewall_rules["admin-worker-01"].destination.zone == "launchpad" &&
+      local.firewall_rules["admin-control-plane-01"].destination.zone == "internal"
     )
     error_message = "Registered client rules must follow independently reported network memberships."
   }
@@ -130,8 +130,8 @@ run "icmp_errors_require_related_state" {
 run "reject_server_on_client_vlan" {
   command = plan
   override_data {
-    target = data.unifi_client_info.server["worker"]
+    target = data.unifi_client_info.server["worker-01"]
     values = { network_id = "test-home" }
   }
-  expect_failures = [data.unifi_client_info.server["worker"]]
+  expect_failures = [data.unifi_client_info.server["worker-01"]]
 }

@@ -31,9 +31,9 @@ data "unifi_client_info" "server" {
 
 locals {
   server_macs = {
-    houston       = "54:48:10:d3:4f:4b"
-    control-plane = "98:fa:9b:50:9a:3a"
-    worker        = "e8:6a:64:d2:e4:0c"
+    houston-01       = "54:48:10:d3:4f:4b"
+    control-plane-01 = "98:fa:9b:50:9a:3a"
+    worker-01        = "e8:6a:64:d2:e4:0c"
   }
 
   server_zones = {
@@ -94,10 +94,10 @@ locals {
         source      = { zone = "launchpad" }
         destination = { zone = "mission-control" }
       }
-      houston-controller = {
+      houston-01-controller = {
         description = "Houston Terraform access to the UniFi HTTPS API."
         protocol    = "tcp"
-        source      = { zone = local.server_zones.houston, clients = [local.server_macs.houston] }
+        source      = { zone = local.server_zones["houston-01"], clients = [local.server_macs["houston-01"]] }
         destination = { zone = "gateway", ports = "443" }
       }
       home-ha = {
@@ -105,7 +105,7 @@ locals {
         protocol    = "tcp"
         ip_version  = "IPV4"
         source      = { zone = "orbit" }
-        destination = { zone = local.server_zones.worker, clients = [local.server_macs.worker], ports = "8123" }
+        destination = { zone = local.server_zones["worker-01"], clients = [local.server_macs["worker-01"]], ports = "8123" }
       }
       management-inform = {
         description = "Infrastructure inform traffic to the Network controller."
@@ -128,7 +128,7 @@ locals {
       }
     },
     {
-      for key in ["control-plane", "worker"] : "home-minecraft-${key}" => {
+      for key in ["control-plane-01", "worker-01"] : "home-minecraft-${key}" => {
         description = "Home access to the Minecraft NodePort."
         protocol    = "tcp"
         ip_version  = "IPV4"
@@ -230,7 +230,7 @@ locals {
       }
     },
     {
-      for key in ["control-plane", "worker"] : "home-${key}-icmp-errors" => {
+      for key in ["control-plane-01", "worker-01"] : "home-${key}-icmp-errors" => {
         description = "Registered server ICMP errors related to tracked Home connections."
         protocol    = "icmp"
         ip_version  = "IPV4"
