@@ -22,3 +22,13 @@ output "device_ids" {
   description = "Managed UniFi device IDs keyed by logical identifier."
   value       = module.devices.device_ids
 }
+
+output "firewall_zone_ids" {
+  description = "Managed firewall zone IDs keyed by logical name."
+  value       = module.firewall.zone_ids
+}
+
+output "firewall_policy_order" {
+  description = "Controller-assigned firewall policy indices."
+  value       = module.firewall.policy_order
+}
