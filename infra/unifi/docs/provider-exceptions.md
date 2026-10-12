@@ -10,6 +10,7 @@
 | WLAN PPSKs | Provider 0.57.0 has no write-only PPSK passwords. Sensitive PPSK values persist in private plans, state and backups. | Terraform |
 | Device ports | Provider 0.57.0 preserves undeclared port entries but replaces each declared entry and sends the full override array. Use dedicated ports and compare other port settings after apply. | Terraform |
 | Firewall order | Provider 0.57.0 exposes a read-only policy index. Keep custom allow/reply policies above their zone-pair denies; `firewall_policy_order` enforces this condition. Newly created policies can require UI reordering. Recheck API ordering support after upgrades. | Network administrator |
+| Firewall client targets | Network 10.6.106 rejects `CLIENT` destinations despite provider 0.57.0 accepting them. Preserve `CLIENT` sources and resolve destination MACs to explicit IPv4 targets, including reversed replies. Recheck after provider/controller upgrades. | Terraform |
 | Site mDNS | Provider 0.57.0 does not expose site Custom mDNS scope. Use only Home/Guest networks and `_airplay._tcp` / `_raop._tcp`; routed receiver access also requires explicit policies. Do not use global relay. Recheck support and effective scope after upgrades. | Network administrator |
 | WAN exposure | WAN settings are outside root ownership: UPnP/NAT-PMP disabled, no public application forwarding, PPPoE and LEOX route/SNAT preserved. Recheck after WAN configuration changes and provisioning. | Network administrator |
 
