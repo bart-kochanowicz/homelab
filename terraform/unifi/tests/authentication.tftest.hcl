@@ -1,6 +1,6 @@
 mock_provider "unifi" {
   mock_data "unifi_client_info" {
-    defaults = { network_id = "test-default-lan" }
+    defaults = { network_id = "test-default-lan", ip = "192.168.1.200" }
   }
 }
 

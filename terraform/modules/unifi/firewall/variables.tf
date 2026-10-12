@@ -53,6 +53,21 @@ variable "builtin_policy_index" {
   }
 }
 
+variable "client_ipv4_addresses" {
+  description = "Controller-reported IPv4 addresses keyed by registered client MAC for destination selectors."
+  type        = map(string)
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for mac, ip in var.client_ipv4_addresses :
+      can(regex("^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac)) && can(cidrnetmask("${ip}/32"))
+    ])
+    error_message = "Client address mappings must use valid MAC keys and IPv4 host addresses."
+  }
+}
+
 variable "rules" {
   description = "Allowed initiation; replies swap endpoints and match established/related traffic only."
   type = map(object({
@@ -78,6 +93,16 @@ variable "rules" {
     })
   }))
   nullable = false
+
+  validation {
+    condition = alltrue([
+      for rule in values(var.rules) :
+      alltrue([for mac in concat(tolist(rule.destination.clients), rule.reply ? tolist(rule.source.clients) : []) :
+        contains(keys(var.client_ipv4_addresses), mac) && rule.ip_version != "IPV6"
+      ])
+    ])
+    error_message = "Client destinations, including replies, require registered IPv4 mappings and IPV4/BOTH rules."
+  }
 
   validation {
     condition = alltrue([

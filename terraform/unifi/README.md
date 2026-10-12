@@ -28,7 +28,8 @@ disabled; the controller stores Default as its base network metadata.
 [firewall.tf](firewall.tf) declares one trust zone per routed LAN, gateway services
 and the access matrix. Unlisted traffic between zones is denied for IPv4/IPv6;
 same-VLAN traffic requires endpoint protection. Server rules follow registered
-client MACs and controller-reported network membership. WAN exposure settings
+client MACs, resolving their IPv4 addresses and network membership from UniFi.
+Use stable leases/reservations and re-plan after address or membership changes. WAN exposure settings
 and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exceptions.md).
 Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).

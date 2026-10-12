@@ -1,6 +1,6 @@
 mock_provider "unifi" {
   mock_data "unifi_client_info" {
-    defaults = { network_id = "test-default-lan" }
+    defaults = { network_id = "test-default-lan", ip = "192.168.1.200" }
   }
 }
 
@@ -99,19 +99,21 @@ run "least_privilege_access_matrix" {
   }
 }
 
-run "server_rule_follows_membership" {
+run "server_rule_follows_address_and_membership" {
   command = plan
   override_data {
     target = data.unifi_client_info.server["worker-01"]
-    values = { network_id = "test-servers" }
+    values = { network_id = "test-servers", ip = "10.0.70.12" }
   }
   assert {
     condition = (
       local.firewall_rules.home-ha.destination.zone == "launchpad" &&
       local.firewall_rules["admin-worker-01"].destination.zone == "launchpad" &&
-      local.firewall_rules["admin-control-plane-01"].destination.zone == "internal"
+      local.firewall_rules["admin-control-plane-01"].destination.zone == "internal" &&
+      local.server_ipv4_addresses[local.server_macs["worker-01"]] == "10.0.70.12" &&
+      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "192.168.1.200"
     )
-    error_message = "Registered client rules must follow independently reported network memberships."
+    error_message = "Registered client rules must follow independently reported IPv4 addresses and network memberships."
   }
 }
 
@@ -132,6 +134,15 @@ run "reject_server_on_client_vlan" {
   override_data {
     target = data.unifi_client_info.server["worker-01"]
     values = { network_id = "test-home" }
+  }
+  expect_failures = [data.unifi_client_info.server["worker-01"]]
+}
+
+run "reject_server_without_ipv4" {
+  command = plan
+  override_data {
+    target = data.unifi_client_info.server["worker-01"]
+    values = { ip = "" }
   }
   expect_failures = [data.unifi_client_info.server["worker-01"]]
 }
