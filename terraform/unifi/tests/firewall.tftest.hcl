@@ -5,9 +5,10 @@ mock_provider "unifi" {
 }
 
 variables {
-  site             = "default"
-  zone_network_ids = { orbit = ["test-home"], launchpad = ["test-servers"] }
-  builtin_zone_ids = { gateway = "test-gateway", external = "test-wan", internal = "test-default" }
+  site                  = "default"
+  zone_network_ids      = { orbit = ["test-home"], launchpad = ["test-servers"] }
+  builtin_zone_ids      = { gateway = "test-gateway", external = "test-wan", internal = "test-default" }
+  client_ipv4_addresses = { "e8:6a:64:d2:e4:0c" = "10.0.70.12" }
   rules = {
     ha = {
       description = "Home Assistant access."
@@ -39,7 +40,8 @@ run "stateful_services_and_boundaries" {
       unifi_firewall_policy.reply["ha"].source.port == "8123" &&
       unifi_firewall_policy.reply["ha"].destination.port_matching_type == "ANY" &&
       unifi_firewall_policy.reply["ha"].source.client_macs == tolist(["e8:6a:64:d2:e4:0c"]) &&
-      unifi_firewall_policy.allow["ha"].destination.matching_target == "CLIENT"
+      unifi_firewall_policy.allow["ha"].destination.matching_target == "IP" &&
+      unifi_firewall_policy.allow["ha"].destination.ips == tolist(["10.0.70.12"])
     )
     error_message = "Replies must match the server and service source port, not the client destination port."
   }
@@ -55,6 +57,44 @@ run "stateful_services_and_boundaries" {
     )
     error_message = "Deny both families around managed zones without taking over built-in pairs or same-VLAN traffic."
   }
+}
+
+run "client_source_reply_uses_ip_destination" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    rules = {
+      controller = {
+        description = "Registered client to controller."
+        protocol    = "tcp"
+        source      = { zone = "launchpad", clients = ["e8:6a:64:d2:e4:0c"] }
+        destination = { zone = "gateway", ports = "443" }
+      }
+    }
+  }
+  assert {
+    condition = (
+      unifi_firewall_policy.allow["controller"].source.matching_target == "CLIENT" &&
+      unifi_firewall_policy.reply["controller"].destination.matching_target == "IP" &&
+      unifi_firewall_policy.reply["controller"].destination.ips == tolist(["10.0.70.12"]) &&
+      unifi_firewall_policy.reply["controller"].source.port == "443" &&
+      unifi_firewall_policy.reply["controller"].connection_state_type == "RESPOND_ONLY"
+    )
+    error_message = "Client source identity must be preserved while its reply destination uses a supported IP selector."
+  }
+}
+
+run "reject_unresolved_client_destination" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    client_ipv4_addresses = {}
+  }
+  expect_failures = [var.rules]
 }
 
 run "dhcp_requires_untracked_return" {

@@ -34,6 +34,19 @@ locals {
       }
     }
   }
+
+  destination_endpoints = {
+    for key, rule in var.rules : key => {
+      for direction, endpoint in { source = rule.source, destination = rule.destination } : direction => merge(
+        local.endpoints[key][direction],
+        {
+          matching_target = length(endpoint.clients) > 0 ? "IP" : local.endpoints[key][direction].matching_target
+          client_macs     = null
+          ips             = length(endpoint.clients) > 0 ? sort([for mac in endpoint.clients : lookup(var.client_ipv4_addresses, mac, "")]) : local.endpoints[key][direction].ips
+        }
+      )
+    }
+  }
 }
 
 resource "unifi_firewall_policy" "allow" {
@@ -50,7 +63,7 @@ resource "unifi_firewall_policy" "allow" {
   connection_states     = each.value.track_state ? each.value.states : null
   create_allow_respond  = false
   source                = local.endpoints[each.key].source
-  destination           = local.endpoints[each.key].destination
+  destination           = local.destination_endpoints[each.key].destination
 }
 
 resource "unifi_firewall_policy" "reply" {
@@ -66,7 +79,7 @@ resource "unifi_firewall_policy" "reply" {
   connection_state_type = "RESPOND_ONLY"
   create_allow_respond  = false
   source                = local.endpoints[each.key].destination
-  destination           = local.endpoints[each.key].source
+  destination           = local.destination_endpoints[each.key].source
 }
 
 resource "unifi_firewall_policy" "deny" {
