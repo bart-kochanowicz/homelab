@@ -1,4 +1,8 @@
-mock_provider "unifi" {}
+mock_provider "unifi" {
+  mock_data "unifi_client_info" {
+    defaults = { network_id = "test-default-lan" }
+  }
+}
 
 override_data {
   target = data.unifi_network.default
