@@ -9,6 +9,11 @@ override_data {
   values = { id = "test-default-lan", purpose = "corporate", subnet = "192.168.1.1/24" }
 }
 
+override_data {
+  target = data.unifi_client_info.server["worker-01"]
+  values = { network_id = "test-default-lan", ip = "192.168.1.217" }
+}
+
 override_module {
   target = module.networks
   outputs = {
@@ -34,6 +39,15 @@ override_module {
   target = module.port_profiles
   outputs = {
     port_profile_ids = { access-apollo = "test-admin-profile" }
+  }
+}
+
+override_module {
+  target = module.vpn
+  outputs = {
+    network_id        = "test-vpn"
+    server_public_key = "test-server-public-key"
+    endpoint          = "87.205.15.64:51820"
   }
 }
 
@@ -111,9 +125,36 @@ run "server_rule_follows_address_and_membership" {
       local.firewall_rules["admin-worker-01"].destination.zone == "launchpad" &&
       local.firewall_rules["admin-control-plane-01"].destination.zone == "internal" &&
       local.server_ipv4_addresses[local.server_macs["worker-01"]] == "10.0.70.12" &&
-      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "192.168.1.200"
+      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "192.168.1.200" &&
+      !contains(local.vpn_client_routes, "192.168.1.217/32") &&
+      !contains(local.vpn_client_routes, "10.0.70.12/32") &&
+      contains(local.vpn_client_routes, "10.0.70.0/24")
     )
     error_message = "Registered client rules must follow independently reported IPv4 addresses and network memberships."
+  }
+}
+
+run "vpn_shares_admin_zone_and_split_routes" {
+  command = plan
+  assert {
+    condition = (
+      toset(local.firewall_zone_network_ids.apollo) == toset(["test-admin", "test-vpn"]) &&
+      alltrue([for key, ids in local.firewall_zone_network_ids : length(ids) == 1 if key != "apollo"])
+    )
+    error_message = "Only Apollo must contain both its LAN and the administrative VPN network."
+  }
+  assert {
+    condition = (
+      local.vpn_client_routes == sort([
+        "10.0.70.0/24", "10.0.80.0/24", "10.0.90.0/24", "10.0.100.1/32", "192.168.1.1/32", "192.168.1.200/32", "192.168.1.217/32", "192.168.100.1/32"
+      ]) &&
+      local.firewall_rules.wireguard-handshake.source.zone == "external" &&
+      local.firewall_rules.wireguard-handshake.destination.zone == "gateway" &&
+      local.firewall_rules.wireguard-handshake.destination.ports == "51820" &&
+      local.firewall_rules.wireguard-handshake.protocol == "udp" &&
+      local.firewall_rules.wireguard-handshake.ip_version == "IPV4"
+    )
+    error_message = "Split routes must exclude the default/client routes; WAN exposure must be limited to the WireGuard UDP port."
   }
 }
 
