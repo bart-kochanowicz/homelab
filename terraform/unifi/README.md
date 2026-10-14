@@ -34,6 +34,23 @@ and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exce
 Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).
 
+[vpn.tf](vpn.tf) declares `cavespace-wormhole`: WireGuard on WAN1 UDP 51820,
+`10.0.100.0/24`, sharing Apollo's trust zone. Clients use split routes to
+administrative destinations; routes do not grant firewall permissions.
+Server private keys persist in protected state/backups; device private keys stay
+on their devices. Add/revoke peers through `vpn_peers` and reviewed apply.
+
+Retrieve public settings and merge them into the device's WireGuard tunnel,
+retaining its existing `PrivateKey`:
+
+```bash
+terraform output -json wireguard_clients | jq -r '."macbook-01"'
+```
+
+Network policies require manual ArgoCD sync. Test VPN access from an external
+network, with other VPNs disabled; validate coexistence separately. Re-read client
+settings after registered server address changes.
+
 - [Plan and apply](../README.md#plan-and-apply)
 - [Local plans](../LOCAL_PLAN.md) and [controller certificate](CERTIFICATE.md)
 - [Provider constraints](../../infra/unifi/docs/provider-exceptions.md)
