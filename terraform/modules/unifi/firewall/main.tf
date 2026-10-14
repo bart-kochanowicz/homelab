@@ -17,7 +17,8 @@ locals {
   guarded_pairs = {
     for pair in setproduct(local.zone_keys, local.zone_keys) : "${pair[0]}/${pair[1]}" => pair
     if pair[0] != pair[1] && (
-      contains(keys(var.zone_network_ids), pair[0]) || contains(keys(var.zone_network_ids), pair[1])
+      contains(keys(var.zone_network_ids), pair[0]) || contains(keys(var.zone_network_ids), pair[1]) ||
+      contains(var.guarded_builtin_zones, pair[0]) || contains(var.guarded_builtin_zones, pair[1])
     )
   }
 

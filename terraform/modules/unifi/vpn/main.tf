@@ -21,6 +21,17 @@ resource "unifi_vpn_server" "this" {
   }
 }
 
+resource "wireguard_asymmetric_key" "server" {
+  private_key = unifi_vpn_server.this.wireguard.private_key
+
+  lifecycle {
+    precondition {
+      condition     = unifi_vpn_server.this.wireguard.private_key != null
+      error_message = "UniFi must retain the server private key for public key derivation."
+    }
+  }
+}
+
 resource "unifi_wireguard_peer" "this" {
   for_each = var.peers
 

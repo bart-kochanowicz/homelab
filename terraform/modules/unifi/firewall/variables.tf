@@ -135,3 +135,15 @@ variable "rules" {
     error_message = "Endpoints must use valid MACs or IPs, with IP inversion only for IP targets and ports only for TCP/UDP."
   }
 }
+
+variable "guarded_builtin_zones" {
+  description = "Read-only built-in zones whose inter-zone traffic also requires explicit allowances."
+  type        = set(string)
+  default     = []
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for zone in var.guarded_builtin_zones : contains(keys(var.builtin_zone_ids), zone)])
+    error_message = "Guarded built-in zones must exist in builtin_zone_ids."
+  }
+}

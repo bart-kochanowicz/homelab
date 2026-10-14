@@ -2,7 +2,8 @@
 
 Custom zones own network membership. `rules` declares permitted initiation;
 the module creates explicit stateful replies and dual-family denies for every
-zone pair involving a managed zone. Traffic within a VLAN is not filtered.
+zone pair involving a managed zone or `guarded_builtin_zones`. Traffic within
+a VLAN is not filtered. Guard the built-in VPN zone to override its broad defaults.
 `client_ipv4_addresses` resolves client destinations (including replies) to IPs;
 UniFi accepts `CLIENT` only on sources. Address mappings must stay current.
 Use separate ICMP/ICMPv6 `RELATED` allowances for connection errors; TCP/UDP
