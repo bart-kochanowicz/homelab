@@ -32,3 +32,21 @@ output "firewall_policy_order" {
   description = "Controller-assigned firewall policy indices."
   value       = module.firewall.policy_order
 }
+
+output "wireguard_clients" {
+  description = "Public client configuration; retain each device's existing PrivateKey."
+  value = {
+    for key, peer in local.vpn_peers : key => <<-EOT
+      [Interface]
+      # Retain this device's existing PrivateKey.
+      Address = ${peer.interface_ip}/32
+      DNS = ${split("/", local.networks.apollo.subnet)[0]}
+
+      [Peer]
+      PublicKey = ${module.vpn.server_public_key}
+      Endpoint = ${module.vpn.endpoint}
+      AllowedIPs = ${join(", ", local.vpn_client_routes)}
+      PersistentKeepalive = 25
+    EOT
+  }
+}

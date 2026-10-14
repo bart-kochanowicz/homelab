@@ -35,6 +35,12 @@ data "unifi_client_info" "server" {
 }
 
 locals {
+  firewall_zone_network_ids = {
+    for key in keys(local.vlan_ids) : key => concat(
+      [module.networks.network_ids[key]], key == "apollo" ? [module.vpn.network_id] : []
+    )
+  }
+
   server_macs = {
     houston-01       = "54:48:10:d3:4f:4b"
     control-plane-01 = "98:fa:9b:50:9a:3a"
@@ -65,6 +71,13 @@ locals {
       }
     },
     {
+      wireguard-handshake = {
+        description = "Public WireGuard handshake to the gateway."
+        protocol    = "udp"
+        ip_version  = "IPV4"
+        source      = { zone = "external" }
+        destination = { zone = "gateway", ports = tostring(local.vpn_port) }
+      }
       management-web = {
         description = "Infrastructure web updates and vendor services."
         protocol    = "tcp"
@@ -257,7 +270,7 @@ module "firewall" {
 
   site                  = var.controller.site
   name_prefix           = var.name_prefix
-  zone_network_ids      = { for key in keys(local.vlan_ids) : key => [module.networks.network_ids[key]] }
+  zone_network_ids      = local.firewall_zone_network_ids
   builtin_zone_ids      = { for key, zone in data.unifi_firewall_zone.builtin : key => zone.id }
   client_ipv4_addresses = local.server_ipv4_addresses
   rules                 = local.firewall_rules
