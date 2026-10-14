@@ -137,6 +137,37 @@ run "reject_unknown_zone" {
   expect_failures = [var.rules]
 }
 
+run "guard_builtin_vpn_pairs" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    builtin_zone_ids      = { gateway = "test-gateway", external = "test-wan", internal = "test-default", vpn = "test-vpn-zone" }
+    guarded_builtin_zones = ["vpn"]
+  }
+  assert {
+    condition = (
+      length(unifi_firewall_policy.deny) == 24 &&
+      alltrue([for pair in ["vpn/internal", "internal/vpn", "vpn/gateway", "gateway/vpn", "vpn/external", "external/vpn"] :
+        unifi_firewall_policy.deny[pair].ip_version == "BOTH" && unifi_firewall_policy.deny[pair].action == "BLOCK"
+      ]) && !contains(keys(unifi_firewall_policy.deny), "internal/gateway")
+    )
+    error_message = "VPN guards must override broad built-in permissions in both directions and IP families without changing unrelated built-in pairs."
+  }
+}
+
+run "reject_unknown_guarded_builtin_zone" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    guarded_builtin_zones = ["missing"]
+  }
+  expect_failures = [var.guarded_builtin_zones]
+}
+
 run "reject_dual_membership" {
   command = plan
   module {

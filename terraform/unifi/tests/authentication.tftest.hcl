@@ -1,4 +1,7 @@
 mock_provider "unifi" {
+  mock_resource "unifi_firewall_policy" {
+    defaults = { index = 10000 }
+  }
   mock_data "unifi_client_info" {
     defaults = { network_id = "test-default-lan", ip = "192.168.1.200" }
   }
@@ -41,6 +44,36 @@ variables {
 
 run "local_authentication" {
   command = plan
+}
+
+run "client_output_when_controller_omits_public_key" {
+  command   = apply
+  state_key = "client-output"
+  override_resource {
+    target = module.vpn.unifi_vpn_server.this
+    values = {
+      wireguard = {
+        # RFC 7748 section 6.1 Alice test vector; not a deployed key.
+        private_key = "dwdtCnMYpX08FsFyUbJmRd9ML4frwJkqsXf7pR25LCo=" # gitleaks:allow
+        public_key  = null
+        port        = 51820
+      }
+    }
+  }
+  override_resource {
+    target = module.firewall.unifi_firewall_policy.deny
+    values = { index = 20000 }
+  }
+  assert {
+    condition = (
+      strcontains(output.wireguard_clients["macbook-01"], "PublicKey = hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo=") &&
+      !strcontains(output.wireguard_clients["macbook-01"], "PrivateKey =") &&
+      alltrue([for pair in ["vpn/internal", "internal/vpn", "vpn/gateway", "gateway/vpn", "vpn/external", "external/vpn"] :
+        contains(keys(module.firewall.policy_order.deny), pair)
+      ])
+    )
+    error_message = "Client settings require the derived public key without private key assignments; the root must also enable VPN guards."
+  }
 }
 
 run "api_key_authentication" {

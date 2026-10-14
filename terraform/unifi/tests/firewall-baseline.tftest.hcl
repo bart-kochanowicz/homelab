@@ -134,27 +134,46 @@ run "server_rule_follows_address_and_membership" {
   }
 }
 
-run "vpn_shares_admin_zone_and_split_routes" {
+run "vpn_keeps_builtin_membership_and_split_routes" {
   command = plan
   assert {
     condition = (
-      toset(local.firewall_zone_network_ids.apollo) == toset(["test-admin", "test-vpn"]) &&
-      alltrue([for key, ids in local.firewall_zone_network_ids : length(ids) == 1 if key != "apollo"])
+      local.firewall_zone_network_ids.apollo == ["test-admin"] &&
+      alltrue([for ids in values(local.firewall_zone_network_ids) : length(ids) == 1 && !contains(ids, "test-vpn")])
     )
-    error_message = "Only Apollo must contain both its LAN and the administrative VPN network."
+    error_message = "Custom zones must own only their LANs; UniFi owns the VPN network membership."
   }
   assert {
     condition = (
       local.vpn_client_routes == sort([
         "10.0.70.0/24", "10.0.80.0/24", "10.0.90.0/24", "10.0.100.1/32", "192.168.1.1/32", "192.168.1.200/32", "192.168.1.217/32", "192.168.100.1/32"
-      ]) &&
-      local.firewall_rules.wireguard-handshake.source.zone == "external" &&
-      local.firewall_rules.wireguard-handshake.destination.zone == "gateway" &&
-      local.firewall_rules.wireguard-handshake.destination.ports == "51820" &&
-      local.firewall_rules.wireguard-handshake.protocol == "udp" &&
-      local.firewall_rules.wireguard-handshake.ip_version == "IPV4"
+      ]) && !contains(keys(local.firewall_rules), "wireguard-handshake")
     )
-    error_message = "Split routes must exclude the default/client routes; WAN exposure must be limited to the WireGuard UDP port."
+    error_message = "Split routes must exclude default/client routes; controller-owned WireGuard handshake rules must not be duplicated."
+  }
+}
+
+run "vpn_permissions_require_admin_pool" {
+  command = plan
+  assert {
+    condition = (
+      length(local.vpn_firewall_rules) == 10 &&
+      alltrue([for rule in values(local.vpn_firewall_rules) :
+        rule.source.zone == "vpn" && rule.source.ips == ["10.0.100.0/24"] && rule.ip_version == "IPV4" &&
+        contains(["apollo", "launchpad", "mission-control", "gateway", "external", "internal"], rule.destination.zone)
+        if rule.source.zone == "vpn"
+      ]) &&
+      local.vpn_firewall_rules.vpn-servers.destination.zone == "launchpad" &&
+      local.vpn_firewall_rules.vpn-management.destination.zone == "mission-control" &&
+      local.vpn_firewall_rules.vpn-gateway.destination.zone == "gateway" &&
+      local.vpn_firewall_rules["vpn-worker-01"].destination.clients == [local.server_macs["worker-01"]] &&
+      local.vpn_firewall_rules.vpn-internet.destination.invert_ips &&
+      contains(local.vpn_firewall_rules.vpn-internet.destination.ips, "192.168.0.0/16") &&
+      local.vpn_firewall_rules.vpn-internet-icmp-errors.destination.ips == ["10.0.100.0/24"] &&
+      local.vpn_firewall_rules.vpn-internet-icmp-errors.states == ["RELATED"] &&
+      !local.vpn_firewall_rules.vpn-internet-icmp-errors.reply
+    )
+    error_message = "Only the administrative VPN pool may reach Admin destinations; other private client networks remain excluded."
   }
 }
 

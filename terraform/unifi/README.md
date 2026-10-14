@@ -35,8 +35,10 @@ Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).
 
 [vpn.tf](vpn.tf) declares `cavespace-wormhole`: WireGuard on WAN1 UDP 51820,
-`10.0.100.0/24`, sharing Apollo's trust zone. Clients use split routes to
-administrative destinations; routes do not grant firewall permissions.
+`10.0.100.0/24`, in UniFi's built-in VPN zone. Explicit rules grant this pool
+Admin permissions; clients use split routes to administrative destinations.
+UniFi owns VPN membership and its WAN handshake rule. The WireGuard provider
+derives the server public key from its existing private key.
 Server private keys persist in protected state/backups; device private keys stay
 on their devices. Add/revoke peers through `vpn_peers` and reviewed apply.
 

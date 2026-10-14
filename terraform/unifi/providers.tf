@@ -4,6 +4,10 @@ terraform {
       source  = "ubiquiti-community/unifi"
       version = "0.57.0"
     }
+    wireguard = {
+      source  = "OJFord/wireguard"
+      version = "0.4.1"
+    }
   }
 }
 

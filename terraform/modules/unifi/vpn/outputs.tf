@@ -1,11 +1,11 @@
 output "network_id" {
-  description = "VPN network ID for the firewall zone membership owner."
+  description = "VPN network ID; UniFi owns its built-in VPN zone membership."
   value       = unifi_vpn_server.this.id
 }
 
 output "server_public_key" {
   description = "WireGuard server public key; excludes the private key stored in state."
-  value       = unifi_vpn_server.this.wireguard.public_key
+  value       = wireguard_asymmetric_key.server.public_key
 }
 
 output "endpoint" {

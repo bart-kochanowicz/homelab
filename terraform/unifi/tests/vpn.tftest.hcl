@@ -1,4 +1,14 @@
-mock_provider "unifi" {}
+mock_provider "unifi" {
+  mock_resource "unifi_vpn_server" {
+    defaults = {
+      wireguard = {
+        # RFC 7748 section 6.1 Alice test vector; not a deployed key.
+        private_key = "dwdtCnMYpX08FsFyUbJmRd9ML4frwJkqsXf7pR25LCo=" # gitleaks:allow
+        public_key  = null
+      }
+    }
+  }
+}
 
 variables {
   site             = "default"
@@ -154,6 +164,26 @@ run "revoke_peer_without_replacing_server" {
   module {
     source = "../modules/unifi/vpn"
   }
+  assert {
+    condition = (
+      unifi_vpn_server.this.wireguard.public_key == null &&
+      output.server_public_key == "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo="
+    )
+    error_message = "The real WireGuard provider must derive the RFC public key when UniFi omits it."
+  }
+}
+
+run "reject_missing_server_private_key" {
+  command   = apply
+  state_key = "missing-server-key"
+  module {
+    source = "../modules/unifi/vpn"
+  }
+  override_resource {
+    target = unifi_vpn_server.this
+    values = { wireguard = { private_key = null, public_key = null, port = 51820 } }
+  }
+  expect_failures = [wireguard_asymmetric_key.server]
 }
 
 run "revoke_macbook" {

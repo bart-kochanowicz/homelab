@@ -39,7 +39,8 @@ Three SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30), and
 Inter-zone access is denied by default, with stateful replies and explicit service
 exceptions. Admin has access to Servers, Management and gateway administration;
 remote administration uses `cavespace-wormhole` WireGuard (`10.0.100.0/24`),
-sharing Apollo's zone with split routing. Guest AirPlay is limited to selected Home
+in the built-in VPN zone with scoped Admin permissions and split routing.
+Guest AirPlay is limited to selected Home
 receivers, with AirPlay mDNS scoped to Home and Guest. Home Assistant runs in
 Servers with explicit IoT integration rules. Application endpoints are private.
 
