@@ -9,6 +9,7 @@ output "server_public_key" {
 }
 
 output "endpoint" {
-  description = "Public IPv4 endpoint with its UDP port."
+  description = "WAN IPv4 endpoint with its UDP port."
+  sensitive   = true
   value       = "${var.public_ip}:${var.port}"
 }

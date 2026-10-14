@@ -59,3 +59,10 @@ variable "wifi_ppsks" {
   sensitive   = true
   nullable    = false
 }
+
+variable "vpn_public_ip" {
+  description = "Private input for the fixed WAN IPv4 address used by WireGuard."
+  type        = string
+  sensitive   = true
+  nullable    = false
+}

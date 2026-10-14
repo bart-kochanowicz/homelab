@@ -42,8 +42,9 @@ derives the server public key from its existing private key.
 Server private keys persist in protected state/backups; device private keys stay
 on their devices. Add/revoke peers through `vpn_peers` and reviewed apply.
 
-Retrieve public settings and merge them into the device's WireGuard tunnel,
-retaining its existing `PrivateKey`:
+Supply `vpn_public_ip` through ignored `terraform.tfvars` locally and the
+private Actions secret `UNIFI_VPN_PUBLIC_IP` on Houston. Client settings include
+the WAN endpoint; retrieve them locally and retain the device's existing `PrivateKey`:
 
 ```bash
 terraform output -json wireguard_clients | jq -r '."macbook-01"'

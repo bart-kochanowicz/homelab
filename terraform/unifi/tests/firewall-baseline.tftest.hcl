@@ -52,6 +52,7 @@ override_module {
 }
 
 variables {
+  vpn_public_ip    = "198.51.100.10"
   controller       = { url = "https://unifi.example.internal" }
   unifi_auth       = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
   wifi_passphrases = { apollo = "test-only-passphrase", endeavour = "test-work-passphrase" }

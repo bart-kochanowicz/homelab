@@ -60,7 +60,7 @@ module "vpn" {
   site        = var.controller.site
   name        = "${var.name_prefix}wormhole"
   subnet      = local.vpn_subnet
-  public_ip   = "198.51.100.10"
+  public_ip   = var.vpn_public_ip
   port        = local.vpn_port
   peers       = local.vpn_peers
   dns_servers = [split("/", local.networks.apollo.subnet)[0]]

@@ -52,6 +52,7 @@ variable "reserved_subnets" {
 variable "public_ip" {
   description = "Fixed public IPv4 address on WAN1 and the client endpoint."
   type        = string
+  sensitive   = true
   nullable    = false
 
   validation {

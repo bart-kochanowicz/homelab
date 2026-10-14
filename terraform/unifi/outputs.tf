@@ -34,7 +34,8 @@ output "firewall_policy_order" {
 }
 
 output "wireguard_clients" {
-  description = "Public client configuration; retain each device's existing PrivateKey."
+  description = "Client configuration with the WAN endpoint; retain each device's existing PrivateKey."
+  sensitive   = true
   value = {
     for key, peer in local.vpn_peers : key => <<-EOT
       [Interface]
