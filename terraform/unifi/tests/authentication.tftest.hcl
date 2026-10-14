@@ -32,7 +32,10 @@ override_module {
 }
 
 variables {
-  vpn_public_ip    = "198.51.100.10"
+  vpn_public_ip = "198.51.100.10"
+  vpn_peer_public_keys = {
+    macbook-01 = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo="
+  }
   controller       = { url = "https://unifi.example.internal" }
   unifi_auth       = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
   wifi_passphrases = { apollo = "test-only-passphrase", endeavour = "test-work-passphrase" }
@@ -68,6 +71,7 @@ run "client_output_when_controller_omits_public_key" {
   assert {
     condition = (
       issensitive(output.wireguard_clients) &&
+      issensitive(local.vpn_peers["macbook-01"].public_key) &&
       strcontains(output.wireguard_clients["macbook-01"], "PublicKey = hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo=") &&
       !strcontains(output.wireguard_clients["macbook-01"], "PrivateKey =") &&
       alltrue([for pair in ["vpn/internal", "internal/vpn", "vpn/gateway", "gateway/vpn", "vpn/external", "external/vpn"] :

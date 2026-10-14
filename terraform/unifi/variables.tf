@@ -66,3 +66,10 @@ variable "vpn_public_ip" {
   sensitive   = true
   nullable    = false
 }
+
+variable "vpn_peer_public_keys" {
+  description = "WireGuard public keys keyed by declared peer name."
+  type        = map(string)
+  sensitive   = true
+  nullable    = false
+}

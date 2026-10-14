@@ -20,3 +20,7 @@ wifi_ppsks = {
 }
 
 vpn_public_ip = "198.51.100.10"
+
+vpn_peer_public_keys = {
+  macbook-01 = "REPLACE_WITH_DEVICE_PUBLIC_KEY"
+}

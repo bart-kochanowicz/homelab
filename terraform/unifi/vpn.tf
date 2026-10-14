@@ -4,7 +4,7 @@ locals {
   vpn_peers = {
     macbook-01 = {
       interface_ip = "10.0.100.10"
-      public_key   = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo="
+      public_key   = var.vpn_peer_public_keys["macbook-01"]
     }
   }
 
