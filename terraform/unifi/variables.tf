@@ -53,11 +53,31 @@ variable "infrastructure_macs" {
 
   validation {
     condition = (
-      toset(keys(var.infrastructure_macs)) == toset(["flex-5", "houston-01", "control-plane-01", "worker-01"]) &&
+      toset(keys(var.infrastructure_macs)) == toset(["flex-5", "voyager-01", "houston-01", "control-plane-01", "worker-01"]) &&
       alltrue([for mac in values(var.infrastructure_macs) : can(regex("^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac))]) &&
       length(distinct(values(var.infrastructure_macs))) == length(var.infrastructure_macs)
     )
-    error_message = "Provide distinct lowercase MAC addresses for flex-5, houston-01, control-plane-01 and worker-01."
+    error_message = "Provide distinct lowercase MAC addresses for flex-5, voyager-01, houston-01, control-plane-01 and worker-01."
+  }
+}
+
+variable "airplay_receivers" {
+  description = "Private MAC and Home IPv4 inventory keyed by declared AirPlay receiver name."
+  type = map(object({
+    mac = string
+    ip  = string
+  }))
+  sensitive = true
+  nullable  = false
+
+  validation {
+    condition     = toset(keys(var.airplay_receivers)) == toset(["apple-tv-01", "homepod-01", "homepod-02"])
+    error_message = "Provide apple-tv-01, homepod-01 and homepod-02; use only logical names as keys."
+  }
+
+  validation {
+    condition     = alltrue([for receiver in values(var.airplay_receivers) : !contains(values(var.infrastructure_macs), lower(receiver.mac))])
+    error_message = "AirPlay receivers must not reuse infrastructure MAC addresses."
   }
 }
 

@@ -24,16 +24,42 @@ override_resource {
   }
 }
 
+override_resource {
+  target = module.devices.unifi_device.this["voyager-01"]
+  values = { id = "02:00:00:00:00:06", mac = "02:00:00:00:00:06" }
+}
+
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile" }
   }
 }
 
+override_resource {
+  target = module.airplay_reservations.unifi_client.this["apple-tv-01"]
+  values = { id = "test-apple-tv-01", mac = "02:00:00:00:00:30" }
+}
+
+override_resource {
+  target = module.airplay_reservations.unifi_client.this["homepod-01"]
+  values = { id = "test-homepod-01", mac = "02:00:00:00:00:31" }
+}
+
+override_resource {
+  target = module.airplay_reservations.unifi_client.this["homepod-02"]
+  values = { id = "test-homepod-02", mac = "02:00:00:00:00:32" }
+}
+
 variables {
+  airplay_receivers = {
+    apple-tv-01 = { mac = "02:00:00:00:00:30", ip = "10.0.40.10" }
+    homepod-01  = { mac = "02:00:00:00:00:31", ip = "10.0.40.11" }
+    homepod-02  = { mac = "02:00:00:00:00:32", ip = "10.0.40.12" }
+  }
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
+    voyager-01       = "02:00:00:00:00:06"
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
     worker-01        = "02:00:00:00:00:12"
@@ -59,6 +85,8 @@ run "local_authentication" {
     condition = (
       issensitive(local.devices["flex-5"].mac) &&
       issensitive(local.server_macs["worker-01"]) &&
+      issensitive(local.airplay_reservations["apple-tv-01"].mac) &&
+      issensitive(module.airplay_reservations.ipv4_addresses) &&
       issensitive(output.device_ids) &&
       local.devices["flex-5"].mac == var.infrastructure_macs["flex-5"] &&
       data.unifi_client_info.server["worker-01"].mac == var.infrastructure_macs["worker-01"]
@@ -72,6 +100,7 @@ run "reject_duplicate_infrastructure_mac" {
   variables {
     infrastructure_macs = {
       flex-5           = "02:00:00:00:00:05"
+      voyager-01       = "02:00:00:00:00:06"
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
       worker-01        = "02:00:00:00:00:11"
@@ -85,6 +114,7 @@ run "reject_invalid_infrastructure_mac" {
   variables {
     infrastructure_macs = {
       flex-5           = "02:00:00:00:00:05"
+      voyager-01       = "02:00:00:00:00:06"
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
       worker-01        = "not-a-mac"

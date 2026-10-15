@@ -8,6 +8,8 @@ a VLAN is not filtered. Guard the built-in VPN zone to override its broad defaul
 UniFi accepts `CLIENT` only on sources. Address mappings must stay current.
 Use separate ICMP/ICMPv6 `RELATED` allowances for connection errors; TCP/UDP
 reply port filters cannot match these packets.
+`address_groups` declares reusable IPv4 sets; endpoint `ip_group` references
+their logical names. Group membership also applies to stateful replies.
 
 Allowances/replies must precede denies. Creation dependencies order the first
 apply; provider 0.57.0 cannot reorder existing policies. Newly created allowances

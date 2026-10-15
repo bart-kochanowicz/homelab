@@ -68,6 +68,22 @@ variable "client_ipv4_addresses" {
   }
 }
 
+variable "address_groups" {
+  description = "Reusable IPv4 address groups keyed by logical name."
+  type        = map(set(string))
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for name, members in var.address_groups :
+      can(regex("^[a-z][a-z0-9-]*$", name)) && length(members) > 0 &&
+      alltrue([for ip in members : can(cidrnetmask(strcontains(ip, "/") ? ip : "${ip}/32"))])
+    ])
+    error_message = "Address groups require logical names and non-empty sets of valid IPv4 hosts or CIDRs."
+  }
+}
+
 variable "rules" {
   description = "Allowed initiation; replies swap endpoints and match established/related traffic only."
   type = map(object({
@@ -81,6 +97,7 @@ variable "rules" {
       zone       = string
       clients    = optional(set(string), [])
       ips        = optional(set(string), [])
+      ip_group   = optional(string)
       invert_ips = optional(bool, false)
       ports      = optional(string)
     })
@@ -88,6 +105,7 @@ variable "rules" {
       zone       = string
       clients    = optional(set(string), [])
       ips        = optional(set(string), [])
+      ip_group   = optional(string)
       invert_ips = optional(bool, false)
       ports      = optional(string)
     })
@@ -123,8 +141,9 @@ variable "rules" {
     condition = alltrue(flatten([
       for rule in values(var.rules) : [
         for endpoint in [rule.source, rule.destination] :
-        !(length(endpoint.clients) > 0 && length(endpoint.ips) > 0) &&
-        (!endpoint.invert_ips || length(endpoint.ips) > 0) &&
+        (length(endpoint.clients) > 0 ? 1 : 0) + (length(endpoint.ips) > 0 ? 1 : 0) + (endpoint.ip_group != null ? 1 : 0) <= 1 &&
+        (endpoint.ip_group == null ? true : contains(keys(var.address_groups), endpoint.ip_group) && rule.ip_version != "IPV6") &&
+        (!endpoint.invert_ips || length(endpoint.ips) > 0 || endpoint.ip_group != null) &&
         (endpoint.ports == null || contains(["tcp", "udp", "tcp_udp"], rule.protocol)) &&
         alltrue([for mac in endpoint.clients : can(regex("^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac))]) &&
         alltrue([for ip in endpoint.ips : can(cidrhost(
@@ -132,7 +151,7 @@ variable "rules" {
         )) && (rule.ip_version == "BOTH" || (strcontains(ip, ":") == (rule.ip_version == "IPV6")))])
       ]
     ]))
-    error_message = "Endpoints must use valid MACs or IPs, with IP inversion only for IP targets and ports only for TCP/UDP."
+    error_message = "Endpoints require one selector (valid MACs, IPs or a known IPv4 group), IP inversion only for IP targets and ports only for TCP/UDP."
   }
 }
 

@@ -264,3 +264,88 @@ run "reject_builtin_shadowing_deny" {
   }
   expect_failures = [output.policy_order]
 }
+
+run "address_group_is_preserved_in_stateful_reply" {
+  command   = apply
+  state_key = "address-group"
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    address_groups = { receivers = ["10.0.70.20", "10.0.70.21"] }
+    rules = {
+      airplay = {
+        description = "Selected receivers only."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "orbit" }
+        destination = { zone = "launchpad", ip_group = "receivers", ports = "7000" }
+      }
+    }
+  }
+  override_resource {
+    target = unifi_firewall_policy.allow["airplay"]
+    values = { index = 10000 }
+  }
+  override_resource {
+    target = unifi_firewall_policy.reply["airplay"]
+    values = { index = 10000 }
+  }
+  assert {
+    condition = (
+      unifi_firewall_group.address["receivers"].type == "address-group" &&
+      unifi_firewall_policy.allow["airplay"].destination.matching_target == "IP" &&
+      unifi_firewall_policy.allow["airplay"].destination.ip_group_id == unifi_firewall_group.address["receivers"].id &&
+      unifi_firewall_policy.reply["airplay"].source.ip_group_id == unifi_firewall_group.address["receivers"].id &&
+      unifi_firewall_policy.reply["airplay"].source.port == "7000" &&
+      unifi_firewall_policy.reply["airplay"].connection_state_type == "RESPOND_ONLY"
+    )
+    error_message = "Forward/reply policies must preserve the receiver group and restrict reverse traffic to tracked service replies."
+  }
+}
+
+run "reject_unknown_address_group" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    rules = {
+      bad = {
+        description = "Unknown address group."
+        source      = { zone = "orbit" }
+        destination = { zone = "launchpad", ip_group = "missing" }
+      }
+    }
+  }
+  expect_failures = [var.rules]
+}
+
+run "reject_mixed_group_and_ip_selectors" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    address_groups = { receivers = ["10.0.70.20"] }
+    rules = {
+      bad = {
+        description = "Ambiguous address group and IP."
+        source      = { zone = "orbit" }
+        destination = { zone = "launchpad", ip_group = "receivers", ips = ["10.0.70.12"] }
+      }
+    }
+  }
+  expect_failures = [var.rules]
+}
+
+run "reject_empty_address_group" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    address_groups = { receivers = [] }
+  }
+  expect_failures = [var.address_groups]
+}

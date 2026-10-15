@@ -3,6 +3,7 @@
 - [Networks](networks/): routed LANs, DHCP and unrouted VLANs.
 - [Port profiles](port-profiles/): native networks and allowed VLAN tags.
 - [Devices](devices/): profile assignments on declared device ports.
+- [Reservations](reservations/): MAC-to-IPv4 DHCP reservations without network overrides.
 - [WiFi](wifi/): WPA3 SSIDs with write-only passphrases.
 - [Firewall](firewall/): trust zones, service allowances and stateful replies.
 

@@ -10,6 +10,16 @@ locals {
         }
       }
     }
+    voyager-01 = {
+      mac = var.infrastructure_macs["voyager-01"]
+      ports = {
+        home = {
+          index   = 2
+          profile = "access-orbit"
+          name    = "${var.name_prefix}orbit"
+        }
+      }
+    }
   }
 }
 
@@ -26,4 +36,6 @@ module "devices" {
   site             = var.controller.site
   port_profile_ids = module.port_profiles.port_profile_ids
   devices          = local.devices
+
+  depends_on = [module.airplay_reservations]
 }
