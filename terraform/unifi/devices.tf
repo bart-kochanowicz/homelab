@@ -13,10 +13,10 @@ locals {
     voyager-01 = {
       mac = var.infrastructure_macs["voyager-01"]
       ports = {
-        apple-tv = {
+        home = {
           index   = 2
           profile = "access-orbit"
-          name    = "${var.name_prefix}apple-tv-01"
+          name    = "${var.name_prefix}orbit"
         }
       }
     }

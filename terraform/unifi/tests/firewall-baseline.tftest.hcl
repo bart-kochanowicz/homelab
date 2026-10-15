@@ -172,10 +172,10 @@ run "guest_airplay_requires_receiver_group" {
       toset(keys(local.airplay_reservations)) == toset(["apple-tv-01", "homepod-01", "homepod-02"]) &&
       alltrue([for reservation in values(local.airplay_reservations) : reservation.network == "orbit"]) &&
       length(local.devices["voyager-01"].ports) == 1 &&
-      local.devices["voyager-01"].ports.apple-tv.index == 2 &&
-      local.devices["voyager-01"].ports.apple-tv.profile == "access-orbit"
+      local.devices["voyager-01"].ports.home.index == 2 &&
+      local.devices["voyager-01"].ports.home.profile == "access-orbit"
     )
-    error_message = "Guest AirPlay must target selected Home receivers and explicit services; Apple TV needs its Home access port, and reverse traffic must be tracked."
+    error_message = "Guest AirPlay must target selected Home receivers and explicit services; the shared media port needs Home, and reverse traffic must be tracked."
   }
 }
 
