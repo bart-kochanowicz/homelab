@@ -36,6 +36,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.devices.unifi_device.this["flex-8"]
+  values = { id = "02:00:00:00:00:07", mac = "02:00:00:00:00:07" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["voyager-01"]
   values = { id = "02:00:00:00:00:06", mac = "02:00:00:00:00:06" }
 }
@@ -43,7 +48,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", ap = "test-ap-profile" }
   }
 }
 
@@ -59,6 +64,7 @@ override_module {
 variables {
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
+    flex-8           = "02:00:00:00:00:07"
     voyager-01       = "02:00:00:00:00:06"
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
@@ -133,11 +139,31 @@ run "shared_media_port_uses_home" {
   command = plan
   assert {
     condition = (
-      length(local.devices["voyager-01"].ports) == 1 &&
+      length(local.devices["voyager-01"].ports) == 2 &&
       local.devices["voyager-01"].ports.home.index == 2 &&
       local.devices["voyager-01"].ports.home.profile == "access-orbit"
     )
     error_message = "The shared media port must use Home."
+  }
+}
+
+run "management_paths_preserve_other_ports" {
+  command = plan
+  assert {
+    condition = (
+      local.devices["flex-5"].management_network == "mission-control" &&
+      local.devices["flex-8"].management_network == "mission-control" &&
+      length(local.devices["flex-5"].ports) == 1 &&
+      local.devices["flex-5"].ports.admin.index == 1 &&
+      local.devices["flex-5"].ports.admin.profile == "access-apollo" &&
+      !can(local.devices["flex-8"].ports) &&
+      local.devices["voyager-01"].ports.ap.index == 4 &&
+      local.devices["voyager-01"].ports.ap.profile == "ap" &&
+      local.devices["voyager-01"].ports.ap.poe_mode == "auto" &&
+      local.port_profiles.ap.native_network == "mission-control" &&
+      toset(local.port_profiles.ap.tagged_networks) == toset(["endeavour", "orbit", "stardust", "comet", "apollo"])
+    )
+    error_message = "Switch management and the AP uplink must preserve Admin, client tags, power and unrelated switch ports."
   }
 }
 

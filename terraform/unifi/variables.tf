@@ -53,11 +53,11 @@ variable "infrastructure_macs" {
 
   validation {
     condition = (
-      toset(keys(var.infrastructure_macs)) == toset(["flex-5", "voyager-01", "houston-01", "control-plane-01", "worker-01"]) &&
+      toset(keys(var.infrastructure_macs)) == toset(["flex-5", "flex-8", "voyager-01", "houston-01", "control-plane-01", "worker-01"]) &&
       alltrue([for mac in values(var.infrastructure_macs) : can(regex("^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac))]) &&
       length(distinct(values(var.infrastructure_macs))) == length(var.infrastructure_macs)
     )
-    error_message = "Provide distinct lowercase MAC addresses for flex-5, voyager-01, houston-01, control-plane-01 and worker-01."
+    error_message = "Provide distinct lowercase MAC addresses for flex-5, flex-8, voyager-01, houston-01, control-plane-01 and worker-01."
   }
 }
 

@@ -15,15 +15,24 @@ variable "port_profile_ids" {
   nullable    = false
 }
 
+variable "network_ids" {
+  description = "Network IDs keyed by logical name for tagged device management."
+  type        = map(string)
+  default     = {}
+  nullable    = false
+}
+
 variable "devices" {
-  description = "Adopted devices keyed by logical identifier, managing only the declared ports."
+  description = "Adopted devices with declared ports and optional tagged management network."
   type = map(object({
-    mac = string
-    ports = map(object({
-      index   = number
-      profile = string
-      name    = string
-    }))
+    mac                = string
+    management_network = optional(string)
+    ports = optional(map(object({
+      index    = number
+      profile  = string
+      name     = string
+      poe_mode = optional(string)
+    })), {})
   }))
   default  = {}
   nullable = false
@@ -33,13 +42,21 @@ variable "devices" {
       for key, device in var.devices :
       can(regex("^[a-z][a-z0-9_-]*$", key)) &&
       can(regex("^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$", device.mac)) &&
-      length(device.ports) > 0 &&
+      (length(device.ports) > 0 || device.management_network != null) &&
       alltrue([
         for port_key, port in device.ports :
         can(regex("^[a-z][a-z0-9_-]*$", port_key)) && length(trimspace(port.name)) > 0
       ])
     ])
-    error_message = "Devices and ports need non-empty logical keys, colon-separated MAC addresses, explicit port names and at least one port per device."
+    error_message = "Devices need logical keys, valid MACs and at least one declared port or management network; declared ports need names."
+  }
+
+  validation {
+    condition = alltrue([
+      for device in values(var.devices) :
+      device.management_network == null ? true : contains(keys(var.network_ids), device.management_network)
+    ])
+    error_message = "Management networks must reference a declared network ID."
   }
 
   validation {
