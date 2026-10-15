@@ -24,10 +24,15 @@ override_resource {
   }
 }
 
+override_resource {
+  target = module.devices.unifi_device.this["voyager-01"]
+  values = { id = "02:00:00:00:00:06", mac = "02:00:00:00:00:06" }
+}
+
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile" }
   }
 }
 
@@ -54,6 +59,7 @@ variables {
   }
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
+    voyager-01       = "02:00:00:00:00:06"
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
     worker-01        = "02:00:00:00:00:12"
@@ -94,6 +100,7 @@ run "reject_duplicate_infrastructure_mac" {
   variables {
     infrastructure_macs = {
       flex-5           = "02:00:00:00:00:05"
+      voyager-01       = "02:00:00:00:00:06"
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
       worker-01        = "02:00:00:00:00:11"
@@ -107,6 +114,7 @@ run "reject_invalid_infrastructure_mac" {
   variables {
     infrastructure_macs = {
       flex-5           = "02:00:00:00:00:05"
+      voyager-01       = "02:00:00:00:00:06"
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
       worker-01        = "not-a-mac"

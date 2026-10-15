@@ -35,10 +35,15 @@ override_resource {
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
 
+override_resource {
+  target = module.devices.unifi_device.this["voyager-01"]
+  values = { id = "02:00:00:00:00:06", mac = "02:00:00:00:00:06" }
+}
+
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile" }
   }
 }
 
@@ -74,6 +79,7 @@ variables {
   }
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
+    voyager-01       = "02:00:00:00:00:06"
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
     worker-01        = "02:00:00:00:00:12"
@@ -164,9 +170,12 @@ run "guest_airplay_requires_receiver_group" {
         )
       ]) &&
       toset(keys(local.airplay_reservations)) == toset(["apple-tv-01", "homepod-01", "homepod-02"]) &&
-      alltrue([for reservation in values(local.airplay_reservations) : reservation.network == "orbit"])
+      alltrue([for reservation in values(local.airplay_reservations) : reservation.network == "orbit"]) &&
+      length(local.devices["voyager-01"].ports) == 1 &&
+      local.devices["voyager-01"].ports.apple-tv.index == 2 &&
+      local.devices["voyager-01"].ports.apple-tv.profile == "access-orbit"
     )
-    error_message = "Guest AirPlay must target only selected Home receivers and explicit services; receivers may return only tracked replies/errors."
+    error_message = "Guest AirPlay must target selected Home receivers and explicit services; Apple TV needs its Home access port, and reverse traffic must be tracked."
   }
 }
 

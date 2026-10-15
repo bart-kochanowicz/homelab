@@ -18,6 +18,7 @@ Port profile creation does not assign profiles to physical ports.
 | `cavespace-orbit` | WPA2 PPSK | 2.4/5 GHz | HOME 40, IOT 50, GUEST 60 |
 
 The wired Admin port is USW Flex 2.5G 5 port 1. AP/QoS defaults are read-only.
+Apple TV uses Home on UCG-Fiber `voyager-01` port 2.
 Supply `infrastructure_macs` through ignored `terraform.tfvars`; Actions uses
 the JSON map `UNIFI_INFRASTRUCTURE_MACS`. UniFi device IDs equal their MACs and
 remain visible in import diagnostics and protected state.
