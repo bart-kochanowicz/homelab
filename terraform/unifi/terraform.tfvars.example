@@ -32,9 +32,3 @@ vpn_public_ip = "198.51.100.10"
 vpn_peer_public_keys = {
   macbook-01 = "REPLACE_WITH_DEVICE_PUBLIC_KEY"
 }
-
-airplay_receivers = {
-  apple-tv-01 = { mac = "02:00:00:00:00:30", ip = "10.0.40.10" }
-  homepod-01  = { mac = "02:00:00:00:00:31", ip = "10.0.40.11" }
-  homepod-02  = { mac = "02:00:00:00:00:32", ip = "10.0.40.12" }
-}

@@ -40,8 +40,8 @@ Inter-zone access is denied by default, with stateful replies and explicit servi
 exceptions. Admin has access to Servers, Management and gateway administration;
 remote administration uses `cavespace-wormhole` WireGuard (`10.0.100.0/24`),
 in the built-in VPN zone with scoped Admin permissions and split routing.
-Guest AirPlay is limited to selected Home
-receivers, with AirPlay mDNS scoped to Home and Guest. Home Assistant runs in
+Guest has Internet access and required gateway services only; mDNS proxy is disabled.
+Home Assistant runs in
 Servers with explicit IoT integration rules. Application endpoints are private.
 
 The WAN uses Netia GPON through LEOX LXT-010S-H, VLAN 35 and PPPoE.

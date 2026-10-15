@@ -3,7 +3,7 @@ mock_provider "unifi" {
     defaults = { index = 10000 }
   }
   mock_data "unifi_client_info" {
-    defaults = { network_id = "test-default-lan", ip = "192.168.1.200" }
+    defaults = { network_id = "test-default-lan", ip = "192.168.1.200", use_fixedip = false }
   }
 }
 
@@ -36,27 +36,7 @@ override_module {
   }
 }
 
-override_resource {
-  target = module.airplay_reservations.unifi_client.this["apple-tv-01"]
-  values = { id = "test-apple-tv-01", mac = "02:00:00:00:00:30" }
-}
-
-override_resource {
-  target = module.airplay_reservations.unifi_client.this["homepod-01"]
-  values = { id = "test-homepod-01", mac = "02:00:00:00:00:31" }
-}
-
-override_resource {
-  target = module.airplay_reservations.unifi_client.this["homepod-02"]
-  values = { id = "test-homepod-02", mac = "02:00:00:00:00:32" }
-}
-
 variables {
-  airplay_receivers = {
-    apple-tv-01 = { mac = "02:00:00:00:00:30", ip = "10.0.40.10" }
-    homepod-01  = { mac = "02:00:00:00:00:31", ip = "10.0.40.11" }
-    homepod-02  = { mac = "02:00:00:00:00:32", ip = "10.0.40.12" }
-  }
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
     voyager-01       = "02:00:00:00:00:06"
@@ -85,8 +65,6 @@ run "local_authentication" {
     condition = (
       issensitive(local.devices["flex-5"].mac) &&
       issensitive(local.server_macs["worker-01"]) &&
-      issensitive(local.airplay_reservations["apple-tv-01"].mac) &&
-      issensitive(module.airplay_reservations.ipv4_addresses) &&
       issensitive(output.device_ids) &&
       local.devices["flex-5"].mac == var.infrastructure_macs["flex-5"] &&
       data.unifi_client_info.server["worker-01"].mac == var.infrastructure_macs["worker-01"]

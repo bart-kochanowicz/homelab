@@ -1,12 +1,3 @@
-resource "unifi_firewall_group" "address" {
-  for_each = var.address_groups
-
-  site    = var.site
-  name    = "${var.name_prefix}${each.key}"
-  type    = "address-group"
-  members = each.value
-}
-
 resource "unifi_firewall_zone" "this" {
   for_each = var.zone_network_ids
 
@@ -35,10 +26,9 @@ locals {
     for key, rule in var.rules : key => {
       for direction, endpoint in { source = rule.source, destination = rule.destination } : direction => {
         zone_id                           = lookup(local.zone_ids, endpoint.zone, null)
-        matching_target                   = length(endpoint.clients) > 0 ? "CLIENT" : length(endpoint.ips) > 0 || endpoint.ip_group != null ? "IP" : "ANY"
+        matching_target                   = length(endpoint.clients) > 0 ? "CLIENT" : length(endpoint.ips) > 0 ? "IP" : "ANY"
         client_macs                       = length(endpoint.clients) > 0 ? sort(tolist(endpoint.clients)) : null
         ips                               = length(endpoint.ips) > 0 ? sort(tolist(endpoint.ips)) : null
-        ip_group_id                       = endpoint.ip_group == null ? null : unifi_firewall_group.address[endpoint.ip_group].id
         match_opposite_ips                = endpoint.invert_ips
         port                              = endpoint.ports
         port_matching_type                = endpoint.ports == null ? "ANY" : "SPECIFIC"
