@@ -13,7 +13,7 @@ locals {
       "${cidrhost(local.networks[key].subnet, 0)}/${split("/", local.networks[key].subnet)[1]}"
     ],
     ["${cidrhost(local.vpn_subnet, 1)}/32", "${split("/", data.unifi_network.default.subnet)[0]}/32", "192.168.100.1/32"],
-    [for key, server in data.unifi_client_info.server : "${local.server_ipv4_addresses[local.server_macs[key]]}/32" if server.network_id == data.unifi_network.default.id]
+    [for key in keys(local.server_macs) : "${local.server_ipv4_addresses[local.server_macs[key]]}/32" if local.server_zones[key] == "internal"]
   )))
 
   vpn_firewall_rules = merge(

@@ -47,11 +47,16 @@ locals {
 
   server_zones = {
     for key, server in data.unifi_client_info.server : key =>
-    server.network_id == data.unifi_network.default.id ? "internal" : "launchpad"
+    contains(keys(local.server_reservations), key) ? local.server_reservations[key].network : (
+      server.network_id == data.unifi_network.default.id ? "internal" : "launchpad"
+    )
   }
 
   server_ipv4_addresses = {
-    for key, server in data.unifi_client_info.server : local.server_macs[key] => server.use_fixedip ? server.fixed_ip : server.ip
+    for key, server in data.unifi_client_info.server : local.server_macs[key] =>
+    contains(keys(local.server_reservations), key) ? module.reservations.ipv4_addresses[key] : (
+      server.use_fixedip ? server.fixed_ip : server.ip
+    )
   }
 
   non_public_destinations = [
