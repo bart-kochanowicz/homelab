@@ -25,7 +25,9 @@ AWS_SECRET_ACCESS_KEY=$(sudo sed -n 's/^GARAGE_DEFAULT_SECRET_KEY=//p' /srv/terr
 : "${AWS_SECRET_ACCESS_KEY:?Garage secret key was not loaded}"
 export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
-export R2_ACCOUNT_ID=00000000000000000000000000000000
+read -r -s -p 'Cloudflare Account ID: ' R2_ACCOUNT_ID
+printf '\n'
+export R2_ACCOUNT_ID
 read -r -s -p 'R2 Access Key ID: ' R2_ACCESS_KEY_ID
 printf '\n'
 read -r -s -p 'R2 Secret Access Key: ' R2_SECRET_ACCESS_KEY

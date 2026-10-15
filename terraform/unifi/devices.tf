@@ -1,7 +1,7 @@
 locals {
   devices = {
     flex-5 = {
-      mac = "02:00:00:00:00:05"
+      mac = var.infrastructure_macs["flex-5"]
       ports = {
         admin = {
           index   = 1
@@ -13,10 +13,11 @@ locals {
   }
 }
 
+# UniFi import IDs are MAC addresses; Terraform rejects sensitive import IDs.
 import {
   for_each = local.devices
   to       = module.devices.unifi_device.this[each.key]
-  id       = each.value.mac
+  id       = nonsensitive(each.value.mac)
 }
 
 module "devices" {

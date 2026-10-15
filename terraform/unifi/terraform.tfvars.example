@@ -8,6 +8,13 @@ unifi_auth = {
   password = "REPLACE_WITH_LOCAL_PASSWORD"
 }
 
+infrastructure_macs = {
+  flex-5           = "02:00:00:00:00:05"
+  houston-01       = "02:00:00:00:00:10"
+  control-plane-01 = "02:00:00:00:00:11"
+  worker-01        = "02:00:00:00:00:12"
+}
+
 wifi_passphrases = {
   apollo    = "REPLACE_WITH_ADMIN_PASSPHRASE"
   endeavour = "REPLACE_WITH_WORK_PASSPHRASE"

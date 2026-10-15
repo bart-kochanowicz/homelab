@@ -32,6 +32,12 @@ override_module {
 }
 
 variables {
+  infrastructure_macs = {
+    flex-5           = "02:00:00:00:00:05"
+    houston-01       = "02:00:00:00:00:10"
+    control-plane-01 = "02:00:00:00:00:11"
+    worker-01        = "02:00:00:00:00:12"
+  }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
     macbook-01 = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo="
@@ -48,6 +54,43 @@ variables {
 
 run "local_authentication" {
   command = plan
+
+  assert {
+    condition = (
+      issensitive(local.devices["flex-5"].mac) &&
+      issensitive(local.server_macs["worker-01"]) &&
+      issensitive(output.device_ids) &&
+      local.devices["flex-5"].mac == var.infrastructure_macs["flex-5"] &&
+      data.unifi_client_info.server["worker-01"].mac == var.infrastructure_macs["worker-01"]
+    )
+    error_message = "Private MAC inputs must reach device/client selectors and keep MAC-derived device IDs sensitive."
+  }
+}
+
+run "reject_duplicate_infrastructure_mac" {
+  command = plan
+  variables {
+    infrastructure_macs = {
+      flex-5           = "02:00:00:00:00:05"
+      houston-01       = "02:00:00:00:00:10"
+      control-plane-01 = "02:00:00:00:00:11"
+      worker-01        = "02:00:00:00:00:11"
+    }
+  }
+  expect_failures = [var.infrastructure_macs]
+}
+
+run "reject_invalid_infrastructure_mac" {
+  command = plan
+  variables {
+    infrastructure_macs = {
+      flex-5           = "02:00:00:00:00:05"
+      houston-01       = "02:00:00:00:00:10"
+      control-plane-01 = "02:00:00:00:00:11"
+      worker-01        = "not-a-mac"
+    }
+  }
+  expect_failures = [var.infrastructure_macs]
 }
 
 run "client_output_when_controller_omits_public_key" {

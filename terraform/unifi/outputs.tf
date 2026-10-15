@@ -20,6 +20,7 @@ output "wlan_ids" {
 
 output "device_ids" {
   description = "Managed UniFi device IDs keyed by logical identifier."
+  sensitive   = true
   value       = module.devices.device_ids
 }
 

@@ -45,6 +45,22 @@ variable "name_prefix" {
   nullable    = false
 }
 
+variable "infrastructure_macs" {
+  description = "Private MAC inventory keyed by declared infrastructure name."
+  type        = map(string)
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition = (
+      toset(keys(var.infrastructure_macs)) == toset(["flex-5", "houston-01", "control-plane-01", "worker-01"]) &&
+      alltrue([for mac in values(var.infrastructure_macs) : can(regex("^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac))]) &&
+      length(distinct(values(var.infrastructure_macs))) == length(var.infrastructure_macs)
+    )
+    error_message = "Provide distinct lowercase MAC addresses for flex-5, houston-01, control-plane-01 and worker-01."
+  }
+}
+
 variable "wifi_passphrases" {
   description = "Write-only Wi-Fi passphrases keyed by managed WLAN name."
   type        = map(string)

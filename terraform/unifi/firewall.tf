@@ -40,9 +40,9 @@ locals {
   }
 
   server_macs = {
-    houston-01       = "02:00:00:00:00:10"
-    control-plane-01 = "02:00:00:00:00:11"
-    worker-01        = "02:00:00:00:00:12"
+    houston-01       = var.infrastructure_macs["houston-01"]
+    control-plane-01 = var.infrastructure_macs["control-plane-01"]
+    worker-01        = var.infrastructure_macs["worker-01"]
   }
 
   server_zones = {

@@ -5,7 +5,7 @@ variables {
   port_profile_ids = { access-apollo = "test-admin-profile" }
   devices = {
     operator-switch = {
-      mac = "00:11:22:AA:BB:CC"
+      mac = "02:00:00:00:00:AA"
       ports = {
         admin = { index = 4, profile = "access-apollo", name = "cavespace-apollo" }
       }
@@ -22,7 +22,7 @@ run "declared_admin_port" {
   assert {
     condition = (
       length(unifi_device.this) == 1 &&
-      unifi_device.this["operator-switch"].mac == "00:11:22:aa:bb:cc" &&
+      unifi_device.this["operator-switch"].mac == "02:00:00:00:00:aa" &&
       length(unifi_device.this["operator-switch"].port_override) == 1 &&
       one(unifi_device.this["operator-switch"].port_override).index == 4 &&
       one(unifi_device.this["operator-switch"].port_override).name == "cavespace-apollo" &&
@@ -48,7 +48,7 @@ run "reject_unknown_profile" {
   variables {
     devices = {
       switch = {
-        mac   = "00:11:22:aa:bb:cc"
+        mac   = "02:00:00:00:00:aa"
         ports = { admin = { index = 4, profile = "missing", name = "cavespace-apollo" } }
       }
     }
@@ -64,11 +64,11 @@ run "reject_duplicate_mac" {
   variables {
     devices = {
       first = {
-        mac   = "00:11:22:aa:bb:cc"
+        mac   = "02:00:00:00:00:aa"
         ports = { admin = { index = 4, profile = "access-apollo", name = "cavespace-apollo" } }
       }
       second = {
-        mac   = "00:11:22:AA:BB:CC"
+        mac   = "02:00:00:00:00:AA"
         ports = { admin = { index = 5, profile = "access-apollo", name = "cavespace-apollo" } }
       }
     }
@@ -84,7 +84,7 @@ run "reject_duplicate_port_index" {
   variables {
     devices = {
       switch = {
-        mac = "00:11:22:aa:bb:cc"
+        mac = "02:00:00:00:00:aa"
         ports = {
           admin     = { index = 4, profile = "access-apollo", name = "cavespace-apollo" }
           duplicate = { index = 4, profile = "access-apollo", name = "duplicate" }
@@ -103,7 +103,7 @@ run "reject_fractional_port_index" {
   variables {
     devices = {
       switch = {
-        mac   = "00:11:22:aa:bb:cc"
+        mac   = "02:00:00:00:00:aa"
         ports = { admin = { index = 4.5, profile = "access-apollo", name = "cavespace-apollo" } }
       }
     }
@@ -119,7 +119,7 @@ run "reject_nonpositive_port_index" {
   variables {
     devices = {
       switch = {
-        mac   = "00:11:22:aa:bb:cc"
+        mac   = "02:00:00:00:00:aa"
         ports = { admin = { index = 0, profile = "access-apollo", name = "cavespace-apollo" } }
       }
     }
@@ -149,7 +149,7 @@ run "reject_empty_ports" {
     source = "../modules/unifi/devices"
   }
   variables {
-    devices = { switch = { mac = "00:11:22:aa:bb:cc", ports = {} } }
+    devices = { switch = { mac = "02:00:00:00:00:aa", ports = {} } }
   }
   expect_failures = [var.devices]
 }

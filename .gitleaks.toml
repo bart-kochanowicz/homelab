@@ -2,7 +2,14 @@
 useDefault = true
 
 [[allowlists]]
-description = "SealedSecret ciphertext is safe to publish"
+description = "SealedSecret ciphertext and the encryption placeholder are safe to publish"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''(?m)^    [A-Za-z0-9_.-]+: Ag[A-Za-z0-9+/]{600,}={0,2}[ \t]*$''',
+  '''(?m)^    N8N_ENCRYPTION_KEY: REPLACE_WITH_KUBESEAL_ENCRYPTED_N8N_ENCRYPTION_KEY[ \t]*$''',
+]
 paths = [
   '''^apps/n8n/sealed-secret\.yaml$''',
   # Full-history scans include this removed manifest's ciphertext.

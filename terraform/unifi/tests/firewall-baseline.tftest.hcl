@@ -52,6 +52,12 @@ override_module {
 }
 
 variables {
+  infrastructure_macs = {
+    flex-5           = "02:00:00:00:00:05"
+    houston-01       = "02:00:00:00:00:10"
+    control-plane-01 = "02:00:00:00:00:11"
+    worker-01        = "02:00:00:00:00:12"
+  }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
     macbook-01 = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo="
