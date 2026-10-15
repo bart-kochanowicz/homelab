@@ -56,27 +56,7 @@ override_module {
   }
 }
 
-override_resource {
-  target = module.airplay_reservations.unifi_client.this["apple-tv-01"]
-  values = { id = "test-apple-tv-01", mac = "02:00:00:00:00:30" }
-}
-
-override_resource {
-  target = module.airplay_reservations.unifi_client.this["homepod-01"]
-  values = { id = "test-homepod-01", mac = "02:00:00:00:00:31" }
-}
-
-override_resource {
-  target = module.airplay_reservations.unifi_client.this["homepod-02"]
-  values = { id = "test-homepod-02", mac = "02:00:00:00:00:32" }
-}
-
 variables {
-  airplay_receivers = {
-    apple-tv-01 = { mac = "02:00:00:00:00:30", ip = "10.0.40.10" }
-    homepod-01  = { mac = "02:00:00:00:00:31", ip = "10.0.40.11" }
-    homepod-02  = { mac = "02:00:00:00:00:32", ip = "10.0.40.12" }
-  }
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
     voyager-01       = "02:00:00:00:00:06"
@@ -149,17 +129,15 @@ run "least_privilege_access_matrix" {
   }
 }
 
-run "home_receivers_keep_reservations_and_shared_port" {
+run "shared_media_port_uses_home" {
   command = plan
   assert {
     condition = (
-      toset(keys(local.airplay_reservations)) == toset(["apple-tv-01", "homepod-01", "homepod-02"]) &&
-      alltrue([for reservation in values(local.airplay_reservations) : reservation.network == "orbit"]) &&
       length(local.devices["voyager-01"].ports) == 1 &&
       local.devices["voyager-01"].ports.home.index == 2 &&
       local.devices["voyager-01"].ports.home.profile == "access-orbit"
     )
-    error_message = "Home receivers must keep their reservations and the shared media port must use Home."
+    error_message = "The shared media port must use Home."
   }
 }
 

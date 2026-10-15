@@ -39,8 +39,6 @@ and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exce
 Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).
 
-[airplay.tf](airplay.tf) reserves Home receiver addresses. Supply `airplay_receivers`
-(`mac`, `ip`) through private inputs or Actions secret `UNIFI_AIRPLAY_RECEIVERS`.
 Guest has Internet access and required gateway services only; site mDNS proxy is disabled.
 
 [vpn.tf](vpn.tf) declares `cavespace-wormhole`: WireGuard on WAN1 UDP 51820,

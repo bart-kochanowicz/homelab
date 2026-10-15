@@ -36,6 +36,4 @@ module "devices" {
   site             = var.controller.site
   port_profile_ids = module.port_profiles.port_profile_ids
   devices          = local.devices
-
-  depends_on = [module.airplay_reservations]
 }

@@ -61,26 +61,6 @@ variable "infrastructure_macs" {
   }
 }
 
-variable "airplay_receivers" {
-  description = "Private MAC and Home IPv4 inventory keyed by declared AirPlay receiver name."
-  type = map(object({
-    mac = string
-    ip  = string
-  }))
-  sensitive = true
-  nullable  = false
-
-  validation {
-    condition     = toset(keys(var.airplay_receivers)) == toset(["apple-tv-01", "homepod-01", "homepod-02"])
-    error_message = "Provide apple-tv-01, homepod-01 and homepod-02; use only logical names as keys."
-  }
-
-  validation {
-    condition     = alltrue([for receiver in values(var.airplay_receivers) : !contains(values(var.infrastructure_macs), lower(receiver.mac))])
-    error_message = "AirPlay receivers must not reuse infrastructure MAC addresses."
-  }
-}
-
 variable "wifi_passphrases" {
   description = "Write-only Wi-Fi passphrases keyed by managed WLAN name."
   type        = map(string)
