@@ -7,34 +7,6 @@ locals {
       network = "orbit"
     }
   }
-
-  airplay_services = {
-    control = { protocol = "tcp", ports = "7000" }
-    media   = { protocol = "tcp_udp", ports = "49152-65535" }
-  }
-
-  airplay_firewall_rules = merge(
-    {
-      for name, service in local.airplay_services : "guest-airplay-${name}" => {
-        description = "Guest AirPlay ${name} to selected Home receivers."
-        protocol    = service.protocol
-        ip_version  = "IPV4"
-        source      = { zone = "comet" }
-        destination = { zone = "orbit", ip_group = "airplay-devices", ports = service.ports }
-      }
-    },
-    {
-      guest-airplay-icmp-errors = {
-        description = "Receiver ICMP errors related to tracked Guest AirPlay connections."
-        protocol    = "icmp"
-        ip_version  = "IPV4"
-        reply       = false
-        states      = ["RELATED"]
-        source      = { zone = "orbit", ip_group = "airplay-devices" }
-        destination = { zone = "comet" }
-      }
-    }
-  )
 }
 
 # Client imports require a non-sensitive MAC ID; only this field is declassified.

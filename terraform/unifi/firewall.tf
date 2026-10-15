@@ -28,7 +28,7 @@ data "unifi_client_info" "server" {
     }
 
     postcondition {
-      condition     = can(cidrnetmask("${self.ip}/32"))
+      condition     = can(cidrnetmask("${self.use_fixedip ? self.fixed_ip : self.ip}/32"))
       error_message = "Registered servers must report a valid IPv4 address for firewall selectors."
     }
   }
@@ -51,7 +51,7 @@ locals {
   }
 
   server_ipv4_addresses = {
-    for key, server in data.unifi_client_info.server : local.server_macs[key] => server.ip
+    for key, server in data.unifi_client_info.server : local.server_macs[key] => server.use_fixedip ? server.fixed_ip : server.ip
   }
 
   non_public_destinations = [
@@ -253,8 +253,7 @@ locals {
         destination = { zone = "orbit" }
       }
     },
-    local.vpn_firewall_rules,
-    local.airplay_firewall_rules
+    local.vpn_firewall_rules
   )
 }
 
@@ -267,8 +266,5 @@ module "firewall" {
   builtin_zone_ids      = { for key, zone in data.unifi_firewall_zone.builtin : key => zone.id }
   guarded_builtin_zones = ["vpn"]
   client_ipv4_addresses = local.server_ipv4_addresses
-  address_groups = {
-    airplay-devices = toset(values(module.airplay_reservations.ipv4_addresses))
-  }
-  rules = local.firewall_rules
+  rules                 = local.firewall_rules
 }

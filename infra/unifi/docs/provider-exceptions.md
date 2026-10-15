@@ -13,7 +13,7 @@
 | Firewall client targets | Network 10.6.106 rejects `CLIENT` destinations despite provider 0.57.0 accepting them. Preserve `CLIENT` sources and resolve destination MACs to explicit IPv4 targets, including reversed replies. Recheck after provider/controller upgrades. | Terraform |
 | WireGuard zone | Network 10.6.106 rejects moving the server network out of built-in `Vpn`. Leave membership controller-owned; scope Admin rules to the VPN pool and override built-in permissions with explicit guards. Recheck after upgrades. | Terraform / controller |
 | WireGuard server key | Provider 0.57.0 returns a null public key when Network omits `wireguard_public_key`. Derive it from the existing server private key using `OJFord/wireguard`; both private-key copies remain in protected state. UniFi owns the WAN handshake rule. | Terraform / controller |
-| Site mDNS | Provider 0.57.0 does not expose site Custom mDNS scope. Use only Home/Guest networks and `_airplay._tcp` / `_raop._tcp`; routed receiver access also requires explicit policies. Do not use global relay. Recheck support and effective scope after upgrades. | Network administrator |
+| Site mDNS | Provider 0.57.0 does not expose site mDNS proxy settings. Keep the proxy disabled; discovery stays within each VLAN. Recheck support and effective settings after upgrades. | Network administrator |
 | WAN exposure | WAN settings are outside root ownership: UPnP/NAT-PMP disabled, no public application forwarding, PPPoE and LEOX route/SNAT preserved. Recheck after WAN configuration changes and provisioning. | Network administrator |
 
 The provider's read-back `enabled=false` on `Default` does not describe LAN

@@ -1,6 +1,6 @@
 mock_provider "unifi" {
   mock_data "unifi_client_info" {
-    defaults = { network_id = "test-default-lan", ip = "192.168.1.200" }
+    defaults = { network_id = "test-default-lan", ip = "192.168.1.200", use_fixedip = false }
   }
 }
 
@@ -106,18 +106,14 @@ run "least_privilege_access_matrix" {
       for rule in values(local.firewall_rules) :
       !contains(["endeavour", "stardust", "comet"], rule.source.zone) ? true : (
         rule.destination.zone == "external" ? try(rule.destination.invert_ips, false) :
-        (rule.source.zone == "comet" && rule.destination.zone == "orbit" &&
-          try(rule.destination.ip_group == "airplay-devices", false) &&
-          ((rule.protocol == "tcp" && rule.destination.ports == "7000") ||
-          (rule.protocol == "tcp_udp" && rule.destination.ports == "49152-65535"))
-          ) || rule.destination.zone == "gateway" && (
+        rule.destination.zone == "gateway" && (
           try(rule.destination.ports == "53", false) ||
           (try(rule.protocol == "udp", false) && try(contains(["67", "123"], rule.destination.ports), false)) ||
           try(rule.protocol == "icmpv6", false)
         )
       )
     ])
-    error_message = "Work/IoT remain isolated; Guest may reach only public Internet, gateway services and selected AirPlay receivers."
+    error_message = "Work, IoT and Guest may reach only public Internet and required gateway services."
   }
   assert {
     condition = (
@@ -153,29 +149,17 @@ run "least_privilege_access_matrix" {
   }
 }
 
-run "guest_airplay_requires_receiver_group" {
+run "home_receivers_keep_reservations_and_shared_port" {
   command = plan
   assert {
     condition = (
-      alltrue([for rule in values(local.airplay_firewall_rules) :
-        rule.ip_version == "IPV4" && (
-          rule.source.zone == "comet" ? (
-            rule.destination.zone == "orbit" && rule.destination.ip_group == "airplay-devices" &&
-            ((rule.protocol == "tcp" && rule.destination.ports == "7000") ||
-            (rule.protocol == "tcp_udp" && rule.destination.ports == "49152-65535"))
-            ) : (
-            rule.source.zone == "orbit" && rule.source.ip_group == "airplay-devices" &&
-            rule.destination.zone == "comet" && rule.protocol == "icmp" && rule.states == ["RELATED"] && !rule.reply
-          )
-        )
-      ]) &&
       toset(keys(local.airplay_reservations)) == toset(["apple-tv-01", "homepod-01", "homepod-02"]) &&
       alltrue([for reservation in values(local.airplay_reservations) : reservation.network == "orbit"]) &&
       length(local.devices["voyager-01"].ports) == 1 &&
       local.devices["voyager-01"].ports.home.index == 2 &&
       local.devices["voyager-01"].ports.home.profile == "access-orbit"
     )
-    error_message = "Guest AirPlay must target selected Home receivers and explicit services; the shared media port needs Home, and reverse traffic must be tracked."
+    error_message = "Home receivers must keep their reservations and the shared media port must use Home."
   }
 }
 
@@ -198,6 +182,31 @@ run "server_rule_follows_address_and_membership" {
     )
     error_message = "Registered client rules must follow independently reported IPv4 addresses and network memberships."
   }
+}
+
+run "server_reservation_overrides_stale_client_address" {
+  command = plan
+  override_data {
+    target = data.unifi_client_info.server["worker-01"]
+    values = { network_id = "test-default-lan", ip = "192.168.1.216", fixed_ip = "192.168.1.217", use_fixedip = true }
+  }
+  assert {
+    condition = (
+      local.server_ipv4_addresses[local.server_macs["worker-01"]] == "192.168.1.217" &&
+      contains(local.vpn_client_routes, "192.168.1.217/32") &&
+      !contains(local.vpn_client_routes, "192.168.1.216/32")
+    )
+    error_message = "Firewall selectors and VPN routes must use the configured reservation instead of a stale client address."
+  }
+}
+
+run "reject_server_with_invalid_reservation" {
+  command = plan
+  override_data {
+    target = data.unifi_client_info.server["worker-01"]
+    values = { network_id = "test-default-lan", ip = "192.168.1.217", fixed_ip = "", use_fixedip = true }
+  }
+  expect_failures = [data.unifi_client_info.server["worker-01"]]
 }
 
 run "vpn_keeps_builtin_membership_and_split_routes" {
@@ -268,7 +277,7 @@ run "reject_server_without_ipv4" {
   command = plan
   override_data {
     target = data.unifi_client_info.server["worker-01"]
-    values = { ip = "" }
+    values = { network_id = "test-default-lan", ip = "", use_fixedip = false }
   }
   expect_failures = [data.unifi_client_info.server["worker-01"]]
 }
