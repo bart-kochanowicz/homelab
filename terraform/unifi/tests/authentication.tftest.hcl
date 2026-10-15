@@ -16,12 +16,33 @@ override_data {
   }
 }
 
+override_module {
+  target = module.networks
+  outputs = {
+    network_ids = {
+      endeavour       = "test-work"
+      orbit           = "test-home"
+      stardust        = "test-iot"
+      comet           = "test-guest"
+      launchpad       = "test-servers"
+      apollo          = "test-admin"
+      mission-control = "test-management"
+      parking         = "test-parking"
+    }
+  }
+}
+
 override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = {
     id  = "02:00:00:00:00:05"
     mac = "02:00:00:00:00:05"
   }
+}
+
+override_resource {
+  target = module.devices.unifi_device.this["flex-8"]
+  values = { id = "02:00:00:00:00:07", mac = "02:00:00:00:00:07" }
 }
 
 override_resource {
@@ -32,13 +53,14 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", ap = "test-ap-profile" }
   }
 }
 
 variables {
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
+    flex-8           = "02:00:00:00:00:07"
     voyager-01       = "02:00:00:00:00:06"
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
@@ -78,6 +100,7 @@ run "reject_duplicate_infrastructure_mac" {
   variables {
     infrastructure_macs = {
       flex-5           = "02:00:00:00:00:05"
+      flex-8           = "02:00:00:00:00:07"
       voyager-01       = "02:00:00:00:00:06"
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
@@ -92,6 +115,7 @@ run "reject_invalid_infrastructure_mac" {
   variables {
     infrastructure_macs = {
       flex-5           = "02:00:00:00:00:05"
+      flex-8           = "02:00:00:00:00:07"
       voyager-01       = "02:00:00:00:00:06"
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"

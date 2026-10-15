@@ -10,6 +10,7 @@ unifi_auth = {
 
 infrastructure_macs = {
   flex-5           = "02:00:00:00:00:05"
+  flex-8           = "02:00:00:00:00:07"
   voyager-01       = "02:00:00:00:00:06"
   houston-01       = "02:00:00:00:00:10"
   control-plane-01 = "02:00:00:00:00:11"

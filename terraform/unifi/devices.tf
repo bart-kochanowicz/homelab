@@ -1,7 +1,8 @@
 locals {
   devices = {
     flex-5 = {
-      mac = var.infrastructure_macs["flex-5"]
+      mac                = var.infrastructure_macs["flex-5"]
+      management_network = "mission-control"
       ports = {
         admin = {
           index   = 1
@@ -10,9 +11,19 @@ locals {
         }
       }
     }
+    flex-8 = {
+      mac                = var.infrastructure_macs["flex-8"]
+      management_network = "mission-control"
+    }
     voyager-01 = {
       mac = var.infrastructure_macs["voyager-01"]
       ports = {
+        ap = {
+          index    = 4
+          profile  = "ap"
+          name     = "${var.name_prefix}ap"
+          poe_mode = "auto"
+        }
         home = {
           index   = 2
           profile = "access-orbit"
@@ -35,5 +46,6 @@ module "devices" {
 
   site             = var.controller.site
   port_profile_ids = module.port_profiles.port_profile_ids
+  network_ids      = module.networks.network_ids
   devices          = local.devices
 }
