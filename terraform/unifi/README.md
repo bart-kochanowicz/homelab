@@ -37,6 +37,14 @@ and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exce
 Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).
 
+[airplay.tf](airplay.tf) reserves Home addresses and limits Guest AirPlay to
+`cavespace-airplay-devices`. Supply the sensitive `airplay_receivers` map
+(`mac`, `ip`) in local inputs or Actions secret `UNIFI_AIRPLAY_RECEIVERS`.
+mDNS Custom scope is Home/Guest only, with `_airplay._tcp` and `_raop._tcp`.
+Guest access permits TCP 7000 and negotiated TCP/UDP 49152–65535 only to these
+receivers; replies require connection state. mDNS filtering selects service
+types, not individual receivers.
+
 [vpn.tf](vpn.tf) declares `cavespace-wormhole`: WireGuard on WAN1 UDP 51820,
 `10.0.100.0/24`, in UniFi's built-in VPN zone. Explicit rules grant this pool
 Admin permissions; clients use split routes to administrative destinations.

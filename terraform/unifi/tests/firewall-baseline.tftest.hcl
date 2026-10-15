@@ -51,7 +51,27 @@ override_module {
   }
 }
 
+override_resource {
+  target = module.airplay_reservations.unifi_client.this["apple-tv-01"]
+  values = { id = "test-apple-tv-01", mac = "02:00:00:00:00:30" }
+}
+
+override_resource {
+  target = module.airplay_reservations.unifi_client.this["homepod-01"]
+  values = { id = "test-homepod-01", mac = "02:00:00:00:00:31" }
+}
+
+override_resource {
+  target = module.airplay_reservations.unifi_client.this["homepod-02"]
+  values = { id = "test-homepod-02", mac = "02:00:00:00:00:32" }
+}
+
 variables {
+  airplay_receivers = {
+    apple-tv-01 = { mac = "02:00:00:00:00:30", ip = "10.0.40.10" }
+    homepod-01  = { mac = "02:00:00:00:00:31", ip = "10.0.40.11" }
+    homepod-02  = { mac = "02:00:00:00:00:32", ip = "10.0.40.12" }
+  }
   infrastructure_macs = {
     flex-5           = "02:00:00:00:00:05"
     houston-01       = "02:00:00:00:00:10"
@@ -80,14 +100,18 @@ run "least_privilege_access_matrix" {
       for rule in values(local.firewall_rules) :
       !contains(["endeavour", "stardust", "comet"], rule.source.zone) ? true : (
         rule.destination.zone == "external" ? try(rule.destination.invert_ips, false) :
-        rule.destination.zone == "gateway" && (
+        (rule.source.zone == "comet" && rule.destination.zone == "orbit" &&
+          try(rule.destination.ip_group == "airplay-devices", false) &&
+          ((rule.protocol == "tcp" && rule.destination.ports == "7000") ||
+          (rule.protocol == "tcp_udp" && rule.destination.ports == "49152-65535"))
+          ) || rule.destination.zone == "gateway" && (
           try(rule.destination.ports == "53", false) ||
           (try(rule.protocol == "udp", false) && try(contains(["67", "123"], rule.destination.ports), false)) ||
           try(rule.protocol == "icmpv6", false)
         )
       )
     ])
-    error_message = "Work, IoT and Guest must have only public Internet and required gateway services."
+    error_message = "Work/IoT remain isolated; Guest may reach only public Internet, gateway services and selected AirPlay receivers."
   }
   assert {
     condition = (
@@ -120,6 +144,29 @@ run "least_privilege_access_matrix" {
       local.firewall_rules["houston-01-controller"].destination.ports == "443"
     )
     error_message = "Internet rules must exclude private/ONT destinations and controller access must identify Houston."
+  }
+}
+
+run "guest_airplay_requires_receiver_group" {
+  command = plan
+  assert {
+    condition = (
+      alltrue([for rule in values(local.airplay_firewall_rules) :
+        rule.ip_version == "IPV4" && (
+          rule.source.zone == "comet" ? (
+            rule.destination.zone == "orbit" && rule.destination.ip_group == "airplay-devices" &&
+            ((rule.protocol == "tcp" && rule.destination.ports == "7000") ||
+            (rule.protocol == "tcp_udp" && rule.destination.ports == "49152-65535"))
+            ) : (
+            rule.source.zone == "orbit" && rule.source.ip_group == "airplay-devices" &&
+            rule.destination.zone == "comet" && rule.protocol == "icmp" && rule.states == ["RELATED"] && !rule.reply
+          )
+        )
+      ]) &&
+      toset(keys(local.airplay_reservations)) == toset(["apple-tv-01", "homepod-01", "homepod-02"]) &&
+      alltrue([for reservation in values(local.airplay_reservations) : reservation.network == "orbit"])
+    )
+    error_message = "Guest AirPlay must target only selected Home receivers and explicit services; receivers may return only tracked replies/errors."
   }
 }
 

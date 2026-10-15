@@ -253,7 +253,8 @@ locals {
         destination = { zone = "orbit" }
       }
     },
-    local.vpn_firewall_rules
+    local.vpn_firewall_rules,
+    local.airplay_firewall_rules
   )
 }
 
@@ -266,5 +267,8 @@ module "firewall" {
   builtin_zone_ids      = { for key, zone in data.unifi_firewall_zone.builtin : key => zone.id }
   guarded_builtin_zones = ["vpn"]
   client_ipv4_addresses = local.server_ipv4_addresses
-  rules                 = local.firewall_rules
+  address_groups = {
+    airplay-devices = toset(values(module.airplay_reservations.ipv4_addresses))
+  }
+  rules = local.firewall_rules
 }
