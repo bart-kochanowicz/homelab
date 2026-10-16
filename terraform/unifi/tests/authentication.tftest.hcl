@@ -33,6 +33,11 @@ override_module {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["houston-01"]
+  values = { id = "02:00:00:00:00:10", mac = "02:00:00:00:00:10" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = {
     id  = "02:00:00:00:00:05"
@@ -53,7 +58,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", ap = "test-ap-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", ap = "test-ap-profile" }
   }
 }
 

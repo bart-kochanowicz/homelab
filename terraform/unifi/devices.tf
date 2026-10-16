@@ -14,6 +14,13 @@ locals {
     flex-8 = {
       mac                = var.infrastructure_macs["flex-8"]
       management_network = "mission-control"
+      ports = {
+        houston = {
+          index   = 1
+          profile = "access-launchpad"
+          name    = "${var.name_prefix}houston-01"
+        }
+      }
     }
     voyager-01 = {
       mac = var.infrastructure_macs["voyager-01"]
@@ -48,4 +55,6 @@ module "devices" {
   port_profile_ids = module.port_profiles.port_profile_ids
   network_ids      = module.networks.network_ids
   devices          = local.devices
+
+  depends_on = [module.reservations, module.firewall]
 }

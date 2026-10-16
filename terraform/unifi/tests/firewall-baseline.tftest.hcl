@@ -31,6 +31,11 @@ override_module {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["houston-01"]
+  values = { id = "02:00:00:00:00:10", mac = "02:00:00:00:00:10" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -48,7 +53,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", ap = "test-ap-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", ap = "test-ap-profile" }
   }
 }
 
@@ -156,7 +161,9 @@ run "management_paths_preserve_other_ports" {
       length(local.devices["flex-5"].ports) == 1 &&
       local.devices["flex-5"].ports.admin.index == 1 &&
       local.devices["flex-5"].ports.admin.profile == "access-apollo" &&
-      !can(local.devices["flex-8"].ports) &&
+      length(local.devices["flex-8"].ports) == 1 &&
+      local.devices["flex-8"].ports.houston.index == 1 &&
+      local.devices["flex-8"].ports.houston.profile == "access-launchpad" &&
       local.devices["voyager-01"].ports.ap.index == 4 &&
       local.devices["voyager-01"].ports.ap.profile == "ap" &&
       local.devices["voyager-01"].ports.ap.poe_mode == "auto" &&
@@ -185,6 +192,30 @@ run "server_rule_follows_address_and_membership" {
       contains(local.vpn_client_routes, "10.0.70.0/24")
     )
     error_message = "Registered client rules must follow independently reported IPv4 addresses and network memberships."
+  }
+}
+
+run "houston_permissions_use_declared_placement" {
+  command = plan
+  override_data {
+    target = data.unifi_client_info.server["houston-01"]
+    values = { network_id = "test-default-lan", ip = "192.168.1.201", fixed_ip = "192.168.1.202", use_fixedip = true }
+  }
+  assert {
+    condition = (
+      local.server_zones["houston-01"] == "launchpad" &&
+      local.server_ipv4_addresses[local.server_macs["houston-01"]] == "10.0.70.10" &&
+      local.firewall_rules["houston-01-controller"].source.zone == "launchpad" &&
+      local.firewall_rules["houston-01-controller"].source.clients == [local.server_macs["houston-01"]] &&
+      local.firewall_rules["houston-01-controller"].destination.ports == "443" &&
+      local.firewall_rules["admin-houston-01"].destination.zone == "launchpad" &&
+      local.vpn_firewall_rules["vpn-houston-01"].destination.zone == "launchpad" &&
+      !contains(local.vpn_client_routes, "192.168.1.201/32") &&
+      !contains(local.vpn_client_routes, "192.168.1.202/32") &&
+      !contains(local.vpn_client_routes, "10.0.70.10/32") &&
+      contains(local.vpn_client_routes, "10.0.70.0/24")
+    )
+    error_message = "Houston permissions and VPN routes must use its declared reservation and zone despite stale client observations."
   }
 }
 
