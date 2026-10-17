@@ -4,3 +4,4 @@ resources:
   - application-policies.yaml
   - host-firewall.yaml
   - n8n-host-access.yaml
+  - talos-worker-bootstrap.yaml

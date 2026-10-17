@@ -38,6 +38,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["worker-01"]
+  values = { id = "02:00:00:00:00:12", mac = "02:00:00:00:00:12" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = {
     id  = "02:00:00:00:00:05"

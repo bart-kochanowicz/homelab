@@ -22,6 +22,7 @@ The unmanaged switch for Apple TV and LG TV uses Home on UCG-Fiber `voyager-01` 
 Both switches use tagged Management 90. U7 Lite uses native Management 90 on
 `voyager-01` port 4, with no AP Network Override; client VLANs stay tagged.
 Houston uses native Servers 70 on Flex 8 port 1, with DHCP reservation `10.0.70.10`.
+The Talos worker uses native Servers 70 on Flex 8 port 7, reserved as `10.0.70.12`.
 Supply `infrastructure_macs` through ignored `terraform.tfvars`; Actions uses
 the JSON map `UNIFI_INFRASTRUCTURE_MACS`. UniFi device IDs equal their MACs and
 remain visible in import diagnostics and protected state.
@@ -41,6 +42,8 @@ after reservation changes and re-plan after address or membership changes. WAN e
 and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exceptions.md).
 Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).
+Inter-zone cluster rules identify both nodes; Cilium VXLAN carries pod traffic,
+while Cilium policies control access inside the cluster.
 
 Guest has Internet access and required gateway services only; site mDNS proxy is disabled.
 

@@ -20,6 +20,11 @@ locals {
           profile = "access-launchpad"
           name    = "${var.name_prefix}houston-01"
         }
+        worker = {
+          index   = 7
+          profile = "access-launchpad"
+          name    = "${var.name_prefix}worker-01"
+        }
       }
     }
     voyager-01 = {
