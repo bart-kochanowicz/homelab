@@ -20,6 +20,15 @@ Compatibility exceptions are listed in [exception-register.md](exception-registe
 5. Verify ArgoCD applications, certificates, storage, monitoring, and network policies.
 
 Cilium is managed outside ArgoCD so network recovery does not depend on GitOps.
+It replaces kube-proxy for Kubernetes Services and reaches the API through
+KubePrism at `localhost:7445`. Keep `bpf.hostLegacyRouting: true` while CoreDNS
+forwards to Talos host DNS.
+
+Talos `cluster.proxy.disabled: true` prevents kube-proxy recreation but does not
+delete an existing DaemonSet or its node rules. Any removal requires a verified
+Cilium replacement and an approved maintenance window. Recovery requires
+restoring Talos proxy configuration and working kube-proxy service handling
+before disabling Cilium replacement; a Helm rollback alone is insufficient.
 
 ## Private application access
 

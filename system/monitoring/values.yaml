@@ -49,6 +49,9 @@ nodeExporter:
 kubeStateMetrics:
   enabled: true
 
+kubeProxy:
+  enabled: false
+
 prometheusOperator:
   enabled: true
   admissionWebhooks:
