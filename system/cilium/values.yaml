@@ -1,4 +1,6 @@
 cilium:
+  upgradeCompatibility: "1.19"
+
   ipam:
     mode: kubernetes
 
