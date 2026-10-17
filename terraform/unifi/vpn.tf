@@ -8,13 +8,12 @@ locals {
     }
   }
 
-  vpn_client_routes = sort(distinct(concat(
+  vpn_client_routes = sort(concat(
     [for key in ["apollo", "launchpad", "mission-control"] :
       "${cidrhost(local.networks[key].subnet, 0)}/${split("/", local.networks[key].subnet)[1]}"
     ],
-    ["${cidrhost(local.vpn_subnet, 1)}/32", "${split("/", data.unifi_network.default.subnet)[0]}/32", "192.168.100.1/32"],
-    [for key in keys(local.server_macs) : "${local.server_ipv4_addresses[local.server_macs[key]]}/32" if local.server_zones[key] == "internal"]
-  )))
+    ["${cidrhost(local.vpn_subnet, 1)}/32", "${split("/", data.unifi_network.default.subnet)[0]}/32", "192.168.100.1/32"]
+  ))
 
   vpn_firewall_rules = merge(
     {
@@ -30,14 +29,6 @@ locals {
         ip_version  = "IPV4"
         source      = { zone = "vpn", ips = [local.vpn_subnet] }
         destination = destination
-      }
-    },
-    {
-      for key, mac in local.server_macs : "vpn-${key}" => {
-        description = "Administrative WireGuard access to registered server ${key}."
-        ip_version  = "IPV4"
-        source      = { zone = "vpn", ips = [local.vpn_subnet] }
-        destination = { zone = local.server_zones[key], clients = [mac] }
       }
     },
     {

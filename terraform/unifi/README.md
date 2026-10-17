@@ -24,6 +24,9 @@ Both switches use tagged Management 90. U7 Lite uses native Management 90 on
 Houston uses native Servers 70 on Flex 8 port 1, with DHCP reservation `10.0.70.10`.
 The Talos worker uses native Servers 70 on Flex 8 port 7, reserved as `10.0.70.12`.
 The control plane uses the same network on Flex 8 port 8, reserved as `10.0.70.11`.
+Switch uplinks use native Parking 999 and tagged VLANs 70/80/90:
+`voyager-01:1` ↔ `Flex 5:5`, `Flex 5:3` ↔ `Flex 8:9`.
+Unused LAN ports use Parking with no tagged VLANs; WAN port 7 is unmanaged.
 Supply `infrastructure_macs` through ignored `terraform.tfvars`; Actions uses
 the JSON map `UNIFI_INFRASTRUCTURE_MACS`. UniFi device IDs equal their MACs and
 remain visible in import diagnostics and protected state.
@@ -37,9 +40,8 @@ disabled; the controller stores Default as its base network metadata.
 [firewall.tf](firewall.tf) declares one trust zone per routed LAN, gateway services
 and the access matrix. Unlisted traffic between zones is denied for IPv4/IPv6;
 same-VLAN traffic requires endpoint protection. Server rules follow registered
-client MACs. Declared server reservations supply authoritative addresses and zones;
-other servers use UniFi's reported membership and reservation/address. Renew leases
-after reservation changes and re-plan after address or membership changes. WAN exposure settings
+client MACs. Declared server reservations supply authoritative addresses and zones.
+Renew leases after reservation changes. WAN exposure settings
 and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exceptions.md).
 Check `firewall_policy_order`: allowances/replies must precede denies; the
 provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).

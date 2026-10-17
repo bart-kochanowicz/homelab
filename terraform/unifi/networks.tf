@@ -27,10 +27,16 @@ locals {
         native_network  = "mission-control"
         tagged_networks = ["endeavour", "orbit", "stardust", "comet", "apollo"]
       }
-      servers-trunk = {
+      switch-trunk = {
         native_network  = "parking"
-        tagged_networks = ["launchpad", "mission-control"]
+        tagged_networks = ["launchpad", "apollo", "mission-control"]
       }
+      access-parking = { native_network = "parking" }
     }
   )
+}
+
+moved {
+  from = module.port_profiles.unifi_port_profile.this["servers-trunk"]
+  to   = module.port_profiles.unifi_port_profile.this["switch-trunk"]
 }

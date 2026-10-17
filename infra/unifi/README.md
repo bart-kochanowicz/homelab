@@ -28,10 +28,12 @@ Port profiles use the `cavespace-` prefix:
 | --- | --- | --- |
 | `access-<network>` | Named LAN | None |
 | `ap` | Management 90 | 30, 40, 50, 60, 80 |
-| `servers-trunk` | Parking 999 | 70, 90 |
+| `switch-trunk` | Parking 999 | 70, 80, 90 |
+| `access-parking` | Parking 999 | None |
 
 `cavespace-parking` (999) has no gateway, DHCP or SSID. Switch management uses
 tagged VLAN 90; AP management uses native VLAN 90 without a Network Override.
+Switch uplinks use `switch-trunk`; unused LAN ports use `access-parking`.
 
 Three SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30), and
 `cavespace-orbit` (WPA2 PPSK: HOME → 40, IOT → 50, GUEST → 60).
@@ -42,7 +44,7 @@ remote administration uses `cavespace-wormhole` WireGuard (`10.0.100.0/24`),
 in the built-in VPN zone with scoped Admin permissions and split routing.
 Guest has Internet access and required gateway services only; mDNS proxy is disabled.
 Home Assistant runs in
-Servers with explicit IoT integration rules. Application endpoints are private.
+Servers; IoT has no access to it without an explicit integration rule. Application endpoints are private.
 
 The WAN uses Netia GPON through LEOX LXT-010S-H, VLAN 35 and PPPoE.
 LEOX management uses a WAN-side route and SNAT.

@@ -1,17 +1,8 @@
-mock_provider "unifi" {
-  mock_data "unifi_client_info" {
-    defaults = { network_id = "test-default-lan", ip = "192.168.1.200", use_fixedip = false }
-  }
-}
+mock_provider "unifi" {}
 
 override_data {
   target = data.unifi_network.default
   values = { id = "test-default-lan", purpose = "corporate", subnet = "192.168.1.1/24" }
-}
-
-override_data {
-  target = data.unifi_client_info.server["worker-01"]
-  values = { network_id = "test-default-lan", ip = "192.168.1.217" }
 }
 
 override_module {
@@ -63,7 +54,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", ap = "test-ap-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", access-parking = "test-parking-profile", switch-trunk = "test-trunk-profile", ap = "test-ap-profile" }
   }
 }
 
@@ -154,7 +145,7 @@ run "shared_media_port_uses_home" {
   command = plan
   assert {
     condition = (
-      length(local.devices["voyager-01"].ports) == 2 &&
+      length(local.devices["voyager-01"].ports) == 6 &&
       local.devices["voyager-01"].ports.home.index == 2 &&
       local.devices["voyager-01"].ports.home.profile == "access-orbit"
     )
@@ -162,16 +153,16 @@ run "shared_media_port_uses_home" {
   }
 }
 
-run "management_paths_preserve_other_ports" {
+run "management_paths_preserve_admin_servers_and_ap" {
   command = plan
   assert {
     condition = (
       local.devices["flex-5"].management_network == "mission-control" &&
       local.devices["flex-8"].management_network == "mission-control" &&
-      length(local.devices["flex-5"].ports) == 1 &&
+      length(local.devices["flex-5"].ports) == 5 &&
       local.devices["flex-5"].ports.admin.index == 1 &&
       local.devices["flex-5"].ports.admin.profile == "access-apollo" &&
-      length(local.devices["flex-8"].ports) == 3 &&
+      length(local.devices["flex-8"].ports) == 10 &&
       local.devices["flex-8"].ports.houston.index == 1 &&
       local.devices["flex-8"].ports.houston.profile == "access-launchpad" &&
       local.devices["voyager-01"].ports.ap.index == 4 &&
@@ -180,86 +171,8 @@ run "management_paths_preserve_other_ports" {
       local.port_profiles.ap.native_network == "mission-control" &&
       toset(local.port_profiles.ap.tagged_networks) == toset(["endeavour", "orbit", "stardust", "comet", "apollo"])
     )
-    error_message = "Switch management and the AP uplink must preserve Admin, client tags, power and unrelated switch ports."
+    error_message = "Switch management and the AP uplink must preserve Admin, server access, client tags and power."
   }
-}
-
-run "server_permissions_use_reserved_addresses" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["worker-01"]
-    values = { network_id = "test-servers", ip = "10.0.70.12" }
-  }
-  assert {
-    condition = (
-      local.firewall_rules.home-ha.destination.zone == "launchpad" &&
-      local.firewall_rules["admin-worker-01"].destination.zone == "launchpad" &&
-      local.firewall_rules["admin-control-plane-01"].destination.zone == "launchpad" &&
-      local.server_ipv4_addresses[local.server_macs["worker-01"]] == "10.0.70.12" &&
-      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "10.0.70.11" &&
-      !contains(local.vpn_client_routes, "192.168.1.217/32") &&
-      !contains(local.vpn_client_routes, "10.0.70.12/32") &&
-      contains(local.vpn_client_routes, "10.0.70.0/24")
-    )
-    error_message = "Registered client rules must use their declared IPv4 reservations and network memberships."
-  }
-}
-
-run "houston_permissions_use_declared_placement" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["houston-01"]
-    values = { network_id = "test-default-lan", ip = "192.168.1.201", fixed_ip = "192.168.1.202", use_fixedip = true }
-  }
-  assert {
-    condition = (
-      local.server_zones["houston-01"] == "launchpad" &&
-      local.server_ipv4_addresses[local.server_macs["houston-01"]] == "10.0.70.10" &&
-      local.firewall_rules["houston-01-controller"].source.zone == "launchpad" &&
-      local.firewall_rules["houston-01-controller"].source.clients == [local.server_macs["houston-01"]] &&
-      local.firewall_rules["houston-01-controller"].destination.ports == "443" &&
-      local.firewall_rules["admin-houston-01"].destination.zone == "launchpad" &&
-      local.vpn_firewall_rules["vpn-houston-01"].destination.zone == "launchpad" &&
-      !contains(local.vpn_client_routes, "192.168.1.201/32") &&
-      !contains(local.vpn_client_routes, "192.168.1.202/32") &&
-      !contains(local.vpn_client_routes, "10.0.70.10/32") &&
-      contains(local.vpn_client_routes, "10.0.70.0/24")
-    )
-    error_message = "Houston permissions and VPN routes must use its declared reservation and zone despite stale client observations."
-  }
-}
-
-run "control_plane_permissions_use_declared_placement" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["control-plane-01"]
-    values = { network_id = "test-default-lan", ip = "192.168.1.216", fixed_ip = "192.168.1.217", use_fixedip = true }
-  }
-  assert {
-    condition = (
-      local.server_zones["control-plane-01"] == "launchpad" &&
-      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "10.0.70.11" &&
-      local.devices["flex-8"].ports.control-plane.index == 8 &&
-      local.devices["flex-8"].ports.control-plane.profile == "access-launchpad" &&
-      local.firewall_rules["admin-control-plane-01"].destination.zone == "launchpad" &&
-      local.firewall_rules["home-minecraft-control-plane-01"].destination.zone == "launchpad" &&
-      local.vpn_firewall_rules["vpn-control-plane-01"].destination.zone == "launchpad" &&
-      !contains(local.vpn_client_routes, "192.168.1.217/32") &&
-      !contains(local.vpn_client_routes, "192.168.1.216/32") &&
-      !contains(local.vpn_client_routes, "10.0.70.11/32") &&
-      contains(local.vpn_client_routes, "10.0.70.0/24")
-    )
-    error_message = "Control-plane placement, access and VPN routes must use its declared reservation despite stale observations."
-  }
-}
-
-run "reject_server_with_invalid_reservation" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["worker-01"]
-    values = { network_id = "test-default-lan", ip = "192.168.1.217", fixed_ip = "", use_fixedip = true }
-  }
-  expect_failures = [data.unifi_client_info.server["worker-01"]]
 }
 
 run "vpn_keeps_builtin_membership_and_split_routes" {
@@ -281,39 +194,81 @@ run "vpn_keeps_builtin_membership_and_split_routes" {
   }
 }
 
-run "worker_permissions_use_declared_placement" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["worker-01"]
-    values = { network_id = "test-default-lan", ip = "192.168.1.216", fixed_ip = "192.168.1.217", use_fixedip = true }
-  }
-  assert {
-    condition = (
-      local.server_zones["worker-01"] == "launchpad" &&
-      local.server_ipv4_addresses[local.server_macs["worker-01"]] == "10.0.70.12" &&
-      local.devices["flex-8"].ports.worker.index == 7 &&
-      local.devices["flex-8"].ports.worker.profile == "access-launchpad" &&
-      local.firewall_rules.home-ha.destination.zone == "launchpad" &&
-      local.firewall_rules["home-minecraft-worker-01"].destination.zone == "launchpad" &&
-      local.firewall_rules["admin-worker-01"].destination.zone == "launchpad" &&
-      local.vpn_firewall_rules["vpn-worker-01"].destination.zone == "launchpad" &&
-      !contains(local.vpn_client_routes, "192.168.1.217/32") &&
-      !contains(local.vpn_client_routes, "192.168.1.216/32") &&
-      contains(local.vpn_client_routes, "10.0.70.0/24")
-    )
-    error_message = "Worker placement, application access and VPN routes must use its declared reservation despite stale observations."
-  }
-}
-
 run "same_vlan_nodes_need_no_router_exceptions" {
   command = plan
   assert {
     condition = (
-      local.server_zones["control-plane-01"] == "launchpad" &&
-      local.server_zones["worker-01"] == "launchpad" &&
+      local.server_reservations["control-plane-01"].network == "launchpad" &&
+      local.server_reservations["worker-01"].network == "launchpad" &&
       alltrue([for name in keys(local.firewall_rules) : !startswith(name, "cluster-")])
     )
     error_message = "Nodes sharing Servers must not retain inter-zone cluster exceptions."
+  }
+}
+
+run "server_access_uses_reservations_and_zone_permissions" {
+  command = plan
+  assert {
+    condition = (
+      alltrue([for key, server in local.server_reservations :
+        server.network == "launchpad" && local.server_ipv4_addresses[server.mac] == server.ip
+      ]) &&
+      local.firewall_rules["houston-01-controller"].source.zone == "launchpad" &&
+      local.firewall_rules.home-ha.destination.zone == "launchpad" &&
+      local.firewall_rules.home-ha.destination.clients == [local.server_macs["worker-01"]] &&
+      local.devices["flex-8"].ports.worker.index == 7 &&
+      local.devices["flex-8"].ports.worker.profile == "access-launchpad" &&
+      local.devices["flex-8"].ports.control-plane.index == 8 &&
+      local.devices["flex-8"].ports.control-plane.profile == "access-launchpad" &&
+      alltrue([for key in keys(local.server_reservations) :
+        !contains(keys(local.firewall_rules), "admin-${key}") &&
+        !contains(keys(local.vpn_firewall_rules), "vpn-${key}")
+      ]) &&
+      alltrue([for rule in values(local.firewall_rules) :
+        rule.source.zone != "launchpad" || rule.destination.zone != "mission-control"
+      ])
+    )
+    error_message = "Servers must use declared reservations and shared Admin/VPN zone permissions, without blanket Management access."
+  }
+}
+
+run "switch_uplinks_carry_only_required_tagged_vlans" {
+  command = plan
+  assert {
+    condition = (
+      local.port_profiles["switch-trunk"].native_network == "parking" &&
+      toset(local.port_profiles["switch-trunk"].tagged_networks) == toset(["launchpad", "apollo", "mission-control"]) &&
+      alltrue([for port in [
+        local.devices["voyager-01"].ports.switches,
+        local.devices["flex-5"].ports.uplink,
+        local.devices["flex-5"].ports.flex-8,
+        local.devices["flex-8"].ports.uplink
+      ] : port.profile == "switch-trunk"]) &&
+      local.devices["voyager-01"].ports.switches.index == 1 &&
+      local.devices["flex-5"].ports.uplink.index == 5 &&
+      local.devices["flex-5"].ports.flex-8.index == 3 &&
+      local.devices["flex-8"].ports.uplink.index == 9
+    )
+    error_message = "Both ends of each switch link must use Parking native and only Servers, Admin and Management tags."
+  }
+}
+
+run "unused_lan_ports_are_parked_and_wan_is_unmanaged" {
+  command = plan
+  assert {
+    condition = (
+      local.port_profiles["access-parking"].native_network == "parking" &&
+      alltrue(flatten([for device, ports in {
+        flex-5     = [2, 4]
+        flex-8     = [2, 3, 4, 5, 6, 10]
+        voyager-01 = [3, 5, 6]
+        } : [for port in ports :
+        local.devices[device].ports["parking-${port}"].index == port &&
+        local.devices[device].ports["parking-${port}"].profile == "access-parking"
+      ]])) &&
+      alltrue([for port in values(local.devices["voyager-01"].ports) : port.index != 7])
+    )
+    error_message = "Unused LAN ports must use Parking without managing the gateway WAN port."
   }
 }
 
@@ -321,16 +276,15 @@ run "vpn_permissions_require_admin_pool" {
   command = plan
   assert {
     condition = (
-      length(local.vpn_firewall_rules) == 10 &&
+      length(local.vpn_firewall_rules) == 7 &&
       alltrue([for rule in values(local.vpn_firewall_rules) :
         rule.source.zone == "vpn" && rule.source.ips == ["10.0.100.0/24"] && rule.ip_version == "IPV4" &&
-        contains(["apollo", "launchpad", "mission-control", "gateway", "external", "internal"], rule.destination.zone)
+        contains(["apollo", "launchpad", "mission-control", "gateway", "external"], rule.destination.zone)
         if rule.source.zone == "vpn"
       ]) &&
       local.vpn_firewall_rules.vpn-servers.destination.zone == "launchpad" &&
       local.vpn_firewall_rules.vpn-management.destination.zone == "mission-control" &&
       local.vpn_firewall_rules.vpn-gateway.destination.zone == "gateway" &&
-      local.vpn_firewall_rules["vpn-worker-01"].destination.clients == [local.server_macs["worker-01"]] &&
       local.vpn_firewall_rules.vpn-internet.destination.invert_ips &&
       contains(local.vpn_firewall_rules.vpn-internet.destination.ips, "192.168.0.0/16") &&
       local.vpn_firewall_rules.vpn-internet-icmp-errors.destination.ips == ["10.0.100.0/24"] &&
@@ -351,22 +305,4 @@ run "icmp_errors_require_related_state" {
     ])
     error_message = "ICMP errors must match RELATED state without relying on TCP/UDP port filters."
   }
-}
-
-run "reject_server_on_client_vlan" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["worker-01"]
-    values = { network_id = "test-home" }
-  }
-  expect_failures = [data.unifi_client_info.server["worker-01"]]
-}
-
-run "reject_server_without_ipv4" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["worker-01"]
-    values = { network_id = "test-default-lan", ip = "", use_fixedip = false }
-  }
-  expect_failures = [data.unifi_client_info.server["worker-01"]]
 }

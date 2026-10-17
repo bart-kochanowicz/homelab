@@ -3,50 +3,97 @@ locals {
     flex-5 = {
       mac                = var.infrastructure_macs["flex-5"]
       management_network = "mission-control"
-      ports = {
-        admin = {
-          index   = 1
-          profile = "access-apollo"
-          name    = "${var.name_prefix}apollo"
+      ports = merge(
+        {
+          admin = {
+            index   = 1
+            profile = "access-apollo"
+            name    = "${var.name_prefix}apollo"
+          }
+          uplink = {
+            index   = 5
+            profile = "switch-trunk"
+            name    = "${var.name_prefix}voyager-01"
+          }
+          flex-8 = {
+            index   = 3
+            profile = "switch-trunk"
+            name    = "${var.name_prefix}flex-8"
+          }
+        },
+        {
+          for port in [2, 4] : "parking-${port}" => {
+            index   = port
+            profile = "access-parking"
+            name    = "${var.name_prefix}parking-${port}"
+          }
         }
-      }
+      )
     }
     flex-8 = {
       mac                = var.infrastructure_macs["flex-8"]
       management_network = "mission-control"
-      ports = {
-        houston = {
-          index   = 1
-          profile = "access-launchpad"
-          name    = "${var.name_prefix}houston-01"
+      ports = merge(
+        {
+          houston = {
+            index   = 1
+            profile = "access-launchpad"
+            name    = "${var.name_prefix}houston-01"
+          }
+          worker = {
+            index   = 7
+            profile = "access-launchpad"
+            name    = "${var.name_prefix}worker-01"
+          }
+          control-plane = {
+            index   = 8
+            profile = "access-launchpad"
+            name    = "${var.name_prefix}control-plane-01"
+          }
+          uplink = {
+            index   = 9
+            profile = "switch-trunk"
+            name    = "${var.name_prefix}flex-5"
+          }
+        },
+        {
+          for port in [2, 3, 4, 5, 6, 10] : "parking-${port}" => {
+            index   = port
+            profile = "access-parking"
+            name    = "${var.name_prefix}parking-${port}"
+          }
         }
-        worker = {
-          index   = 7
-          profile = "access-launchpad"
-          name    = "${var.name_prefix}worker-01"
-        }
-        control-plane = {
-          index   = 8
-          profile = "access-launchpad"
-          name    = "${var.name_prefix}control-plane-01"
-        }
-      }
+      )
     }
     voyager-01 = {
       mac = var.infrastructure_macs["voyager-01"]
-      ports = {
-        ap = {
-          index    = 4
-          profile  = "ap"
-          name     = "${var.name_prefix}ap"
-          poe_mode = "auto"
+      ports = merge(
+        {
+          switches = {
+            index   = 1
+            profile = "switch-trunk"
+            name    = "${var.name_prefix}flex-5"
+          }
+          ap = {
+            index    = 4
+            profile  = "ap"
+            name     = "${var.name_prefix}ap"
+            poe_mode = "auto"
+          }
+          home = {
+            index   = 2
+            profile = "access-orbit"
+            name    = "${var.name_prefix}orbit"
+          }
+        },
+        {
+          for port in [3, 5, 6] : "parking-${port}" => {
+            index   = port
+            profile = "access-parking"
+            name    = "${var.name_prefix}parking-${port}"
+          }
         }
-        home = {
-          index   = 2
-          profile = "access-orbit"
-          name    = "${var.name_prefix}orbit"
-        }
-      }
+      )
     }
   }
 }
