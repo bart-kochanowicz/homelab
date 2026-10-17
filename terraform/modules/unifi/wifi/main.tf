@@ -13,6 +13,11 @@ resource "unifi_wlan" "this" {
   wpa3_transition = false
   pmf_mode        = "required"
   enhanced_iot    = false
+  wpa_enc         = "ccmp"
+  group_rekey     = 3600
+  bss_transition  = false
+  hide_ssid       = false
+  no2ghz_oui      = true
   passphrase_wo   = lookup(var.passphrases, each.key, null)
 
   wlan_bands = each.value.bands
@@ -38,6 +43,11 @@ resource "unifi_wlan" "ppsk" {
   wpa3_transition = false
   pmf_mode        = "optional"
   enhanced_iot    = false
+  wpa_enc         = "ccmp"
+  group_rekey     = 3600
+  bss_transition  = false
+  hide_ssid       = false
+  no2ghz_oui      = true
   l2_isolation    = false
   is_guest        = false
 

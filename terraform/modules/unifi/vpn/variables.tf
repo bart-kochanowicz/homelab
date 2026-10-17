@@ -87,7 +87,7 @@ variable "dns_servers" {
     condition = length(var.dns_servers) >= 1 && length(var.dns_servers) <= 2 && alltrue([
       for ip in var.dns_servers : can(cidrnetmask("${ip}/32"))
     ])
-    error_message = "Provider 0.57.0 supports one or two IPv4 DNS servers."
+    error_message = "Provide one or two IPv4 DNS servers."
   }
 }
 

@@ -43,6 +43,17 @@ run "admin_wifi_boundaries" {
 
   assert {
     condition = (
+      unifi_wlan.this["apollo"].wpa_enc == "ccmp" &&
+      unifi_wlan.this["apollo"].group_rekey == 3600 &&
+      !unifi_wlan.this["apollo"].bss_transition &&
+      !unifi_wlan.this["apollo"].hide_ssid &&
+      unifi_wlan.this["apollo"].no2ghz_oui
+    )
+    error_message = "Admin WiFi creation must preserve encryption, rekey, roaming, visibility and band steering without provider defaults."
+  }
+
+  assert {
+    condition = (
       unifi_wlan.this["apollo"].wlan_band == "5g" &&
       unifi_wlan.this["apollo"].wlan_bands == toset(["5g"])
     )

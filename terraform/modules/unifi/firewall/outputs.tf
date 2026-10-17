@@ -22,7 +22,7 @@ output "policy_order" {
         true
       )]
     ))
-    error_message = "Allow/reply policies must precede their zone-pair deny. Reorder them in UniFi; provider 0.57.0 cannot manage indices."
+    error_message = "Allow/reply policies must precede their zone-pair deny. Reorder them in UniFi; the provider cannot manage indices."
   }
 
   precondition {
