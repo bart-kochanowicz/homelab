@@ -25,6 +25,11 @@ locals {
           profile = "access-launchpad"
           name    = "${var.name_prefix}worker-01"
         }
+        control-plane = {
+          index   = 8
+          profile = "access-launchpad"
+          name    = "${var.name_prefix}control-plane-01"
+        }
       }
     }
     voyager-01 = {

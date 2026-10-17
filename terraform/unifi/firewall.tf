@@ -258,8 +258,7 @@ locals {
         destination = { zone = "orbit" }
       }
     },
-    local.vpn_firewall_rules,
-    local.cluster_firewall_rules
+    local.vpn_firewall_rules
   )
 }
 

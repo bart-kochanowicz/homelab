@@ -1,0 +1,11 @@
+machine:
+  kubelet:
+    nodeIP:
+      validSubnets:
+        - 10.0.70.0/24
+cluster:
+  controlPlane:
+    endpoint: https://10.0.70.11:6443
+  apiServer:
+    certSANs:
+      - 10.0.70.11
