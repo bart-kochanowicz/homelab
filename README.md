@@ -10,7 +10,7 @@ Home Assistant uses host networking for LAN discovery.
 | --- | --- |
 | `apps/` | Home Assistant, Crafty Controller, and n8n |
 | `system/` | ArgoCD, Cilium, certificates, storage, monitoring, and network policies |
-| `talos/patches/cilium.yaml` | Talos CNI configuration |
+| `talos/patches/` | Talos CNI and API configuration |
 | `terraform/cloudflare/` | Cloudflare R2 backup storage; Garage state at `prod/homelab/terraform.tfstate` |
 | `terraform/unifi/` | UniFi LAN configuration; Garage state at `prod/unifi/terraform.tfstate` |
 | `infra/ansible/` | Houston: Garage, Terraform CLI, and private Actions runner |
@@ -32,8 +32,11 @@ make validate
 make -C system setup-from-scratch
 ```
 
-Generate Talos configuration with the Cilium patch first. Bootstrap installs
-Cilium before ArgoCD; ArgoCD manages the remaining platform and applications.
+Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`
+and `--config-patch-control-plane @talos/patches/service-accounts.yaml`.
+The API uses a stable ServiceAccount issuer and audience independent of node IPs.
+Bootstrap installs Cilium before ArgoCD; ArgoCD manages the remaining platform
+and applications.
 Cilium is managed separately so network recovery does not depend on GitOps.
 
 ## Operations
