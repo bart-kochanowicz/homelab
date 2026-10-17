@@ -14,4 +14,5 @@ packages:
   - name: cilium/cilium-cli@v0.19.4
   - name: restic/restic@v0.19.0
   - name: jqlang/jq@jq-1.8.1
+  - name: mikefarah/yq@v4.54.1
   - name: bitnami-labs/sealed-secrets@v0.37.0
