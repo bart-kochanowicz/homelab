@@ -5,6 +5,11 @@ locals {
       network = "launchpad"
       ip      = "10.0.70.10"
     }
+    worker-01 = {
+      mac     = var.infrastructure_macs["worker-01"]
+      network = "launchpad"
+      ip      = "10.0.70.12"
+    }
   }
 }
 
