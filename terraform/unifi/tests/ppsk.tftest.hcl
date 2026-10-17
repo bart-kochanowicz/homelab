@@ -64,6 +64,15 @@ run "work_and_ppsk_boundaries" {
   }
 
   assert {
+    condition = alltrue([
+      for wlan in [unifi_wlan.this["endeavour"], unifi_wlan.ppsk["orbit"]] :
+      wlan.wpa_enc == "ccmp" && wlan.group_rekey == 3600 &&
+      !wlan.bss_transition && !wlan.hide_ssid && wlan.no2ghz_oui
+    ])
+    error_message = "Work and PPSK WiFi creation must preserve encryption, rekey, roaming, visibility and band steering without provider defaults."
+  }
+
+  assert {
     condition = {
       for key in unifi_wlan.ppsk["orbit"].private_preshared_keys : key.network_id => key.password
       } == {

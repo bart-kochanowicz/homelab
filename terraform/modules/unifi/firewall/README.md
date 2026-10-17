@@ -10,7 +10,7 @@ Use separate ICMP/ICMPv6 `RELATED` allowances for connection errors; TCP/UDP
 reply port filters cannot match these packets.
 
 Allowances/replies must precede denies. Creation dependencies order the first
-apply; provider 0.57.0 cannot reorder existing policies. Newly created allowances
+apply; the provider cannot reorder existing policies. Newly created allowances
 can require UI reordering above existing denies. `policy_order` rejects an order
 that shadows allowances or replies; re-plan after correcting the order.
 Custom denies must also precede built-in policies (`builtin_policy_index`,

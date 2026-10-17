@@ -8,7 +8,7 @@ resource "unifi_port_profile" "this" {
   tagged_vlan_mgmt      = length(each.value.tagged_networks) == 0 ? "block_all" : "custom"
   setting_preference    = "manual"
 
-  # Provider 0.57.0 does not serialize tagged_networkconf_ids for profiles.
+  # The provider does not serialize tagged_networkconf_ids for profiles.
   excluded_networkconf_ids = length(each.value.tagged_networks) == 0 ? null : setsubtract(
     toset(concat(values(var.network_ids), tolist(var.reserved_network_ids))),
     toset(concat(

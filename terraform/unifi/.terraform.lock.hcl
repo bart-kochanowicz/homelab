@@ -25,24 +25,24 @@ provider "registry.terraform.io/ojford/wireguard" {
 }
 
 provider "registry.terraform.io/ubiquiti-community/unifi" {
-  version     = "0.57.0"
-  constraints = "0.57.0"
+  version     = "0.59.0"
+  constraints = "0.59.0"
   hashes = [
-    "h1:5ufFalodKROagYlbhfQyxnafifBJPsl9DXGbgEeD6VQ=",
-    "h1:dLSdPiyPSQyu0ec6v+Noyzdbj3Di80uvXds6g+8oBM4=",
-    "zh:10409bdbaa2695bfeebacd80709d915ad525c6fe4b362fe45afad8109ce3e438",
-    "zh:11ecbef5c0f3c1d86cc861cd35d9cade2f19c21a884e0caad546d2cc4d5750c0",
-    "zh:13e6dc680fe3a61fcae535040be43e78c016ad0c698bc5844fc6e84a5d911a14",
-    "zh:159c8868c77a90fd602e55c62dd8d097456db1dcd6e55f751e2c94f173da7ced",
-    "zh:1cb60b777d5cc909e558cef7c062315832fcaeacc2af4cb708d6e86be3d11693",
-    "zh:23d817122ddaafecea47f2aadbdc276851dceae45b5d81b82ca06891bea99b5a",
-    "zh:38315e3fc3fed1abd8af3d584605eb24f2824c373a9015a9012600275cd8ffac",
-    "zh:481eb97d45f225bb4eac5ebd0faff968a78034a7ba4ec460e35ccd89f5255045",
-    "zh:608fc499fed2b8bbd73acecd04ce8a7338a95bf62e8e6aa329aeef3b4731670a",
-    "zh:71bc4355ed52d71e6012d54616d4816a12aea7ee8672dce64d26e76eb62befe5",
+    "h1:U3BUKSx4RON6GMcsfFw7Aq04FPYmH6gctCjZjoMqBlQ=",
+    "h1:rJW4Cl2BCgyIgR8UiCwn/4ckHNBIFfW2REVZhc+9Yto=",
+    "zh:10193d8db98fd5e0a649448fd0300d8f8024ea80b5460e817b6c240e4236b77f",
+    "zh:4237023307cd0134c46d5eab482ae169909c19b0e75561e920c7d880506e5a05",
+    "zh:436303b0e2935d365670058a8217d90a1a97d17823a035b9551e22ab1e990716",
+    "zh:648431dd0daadd15e6b3423a6df309362fec555df3903325e97de370d682918b",
+    "zh:69302a21a932a0d326dcd563ca99f88b602721154e794adfa672100106c2670d",
+    "zh:6aaadc4d0afc383d6aaa8790821e2a8540c05afe22440b881442810032f7976f",
     "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
-    "zh:942907b3f353c2a6a20db1a5e3a44665bb9ff0d9bd7d299646756331c0040b05",
-    "zh:9f277da33856840d72b0f16b57c3fb3ee23d55522ca436e827e89fb656be0511",
-    "zh:d56c2b175a3a75934da119b014cc7ba9b2ba34b1cf705fad92a4f9a2f36cb796",
+    "zh:8aaab8e3ca4b6a7f9cfe67ef62b67cad3578abbb46390fa9c08f03b3f1ae0a9c",
+    "zh:aa1d2bd27d38f36944cea6eebd06dee64de17ca5069f4501fa17e5fa0cf30665",
+    "zh:be6abb484f2a07eaa35f598426e95b176acb8ea4dc41271276e4871430dfffd4",
+    "zh:c5568d4a897e04e9a968a882413e00af0562439298d24b7e9aaba4bc1b4efad9",
+    "zh:de8ae03aa0f57675b5bd9e76a2e9471a78ab39adbaf86b11bbe7b61338b111d7",
+    "zh:f61c3f88b8606d1412809349c80a39c7365315e7b95fd37331291bf575630191",
+    "zh:f83dfe3a1f973eeff10bd463f65fa62b0b312829afc58e4fe45fc58fdadb7748",
   ]
 }
