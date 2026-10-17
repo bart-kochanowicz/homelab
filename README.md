@@ -32,8 +32,10 @@ make validate
 make -C system setup-from-scratch
 ```
 
-Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`
-and `--config-patch-control-plane @talos/patches/service-accounts.yaml`.
+Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
+`--config-patch @talos/patches/network.yaml` and
+`--config-patch-control-plane @talos/patches/service-accounts.yaml`.
+The Kubernetes API is `https://10.0.70.11:6443`; kubelet addresses use Servers VLAN 70.
 The API uses a stable ServiceAccount issuer and audience independent of node IPs.
 Bootstrap installs Cilium before ArgoCD; ArgoCD manages the remaining platform
 and applications.

@@ -38,6 +38,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["control-plane-01"]
+  values = { id = "02:00:00:00:00:11", mac = "02:00:00:00:00:11" }
+}
+
+override_resource {
   target = module.reservations.unifi_client.this["worker-01"]
   values = { id = "02:00:00:00:00:12", mac = "02:00:00:00:00:12" }
 }

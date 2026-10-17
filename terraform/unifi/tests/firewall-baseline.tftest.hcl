@@ -36,6 +36,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["control-plane-01"]
+  values = { id = "02:00:00:00:00:11", mac = "02:00:00:00:00:11" }
+}
+
+override_resource {
   target = module.reservations.unifi_client.this["worker-01"]
   values = { id = "02:00:00:00:00:12", mac = "02:00:00:00:00:12" }
 }
@@ -166,7 +171,7 @@ run "management_paths_preserve_other_ports" {
       length(local.devices["flex-5"].ports) == 1 &&
       local.devices["flex-5"].ports.admin.index == 1 &&
       local.devices["flex-5"].ports.admin.profile == "access-apollo" &&
-      length(local.devices["flex-8"].ports) == 2 &&
+      length(local.devices["flex-8"].ports) == 3 &&
       local.devices["flex-8"].ports.houston.index == 1 &&
       local.devices["flex-8"].ports.houston.profile == "access-launchpad" &&
       local.devices["voyager-01"].ports.ap.index == 4 &&
@@ -179,7 +184,7 @@ run "management_paths_preserve_other_ports" {
   }
 }
 
-run "server_rule_follows_address_and_membership" {
+run "server_permissions_use_reserved_addresses" {
   command = plan
   override_data {
     target = data.unifi_client_info.server["worker-01"]
@@ -189,14 +194,14 @@ run "server_rule_follows_address_and_membership" {
     condition = (
       local.firewall_rules.home-ha.destination.zone == "launchpad" &&
       local.firewall_rules["admin-worker-01"].destination.zone == "launchpad" &&
-      local.firewall_rules["admin-control-plane-01"].destination.zone == "internal" &&
+      local.firewall_rules["admin-control-plane-01"].destination.zone == "launchpad" &&
       local.server_ipv4_addresses[local.server_macs["worker-01"]] == "10.0.70.12" &&
-      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "192.168.1.200" &&
+      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "10.0.70.11" &&
       !contains(local.vpn_client_routes, "192.168.1.217/32") &&
       !contains(local.vpn_client_routes, "10.0.70.12/32") &&
       contains(local.vpn_client_routes, "10.0.70.0/24")
     )
-    error_message = "Registered client rules must follow independently reported IPv4 addresses and network memberships."
+    error_message = "Registered client rules must use their declared IPv4 reservations and network memberships."
   }
 }
 
@@ -224,7 +229,7 @@ run "houston_permissions_use_declared_placement" {
   }
 }
 
-run "server_reservation_overrides_stale_client_address" {
+run "control_plane_permissions_use_declared_placement" {
   command = plan
   override_data {
     target = data.unifi_client_info.server["control-plane-01"]
@@ -232,11 +237,19 @@ run "server_reservation_overrides_stale_client_address" {
   }
   assert {
     condition = (
-      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "192.168.1.217" &&
-      contains(local.vpn_client_routes, "192.168.1.217/32") &&
-      !contains(local.vpn_client_routes, "192.168.1.216/32")
+      local.server_zones["control-plane-01"] == "launchpad" &&
+      local.server_ipv4_addresses[local.server_macs["control-plane-01"]] == "10.0.70.11" &&
+      local.devices["flex-8"].ports.control-plane.index == 8 &&
+      local.devices["flex-8"].ports.control-plane.profile == "access-launchpad" &&
+      local.firewall_rules["admin-control-plane-01"].destination.zone == "launchpad" &&
+      local.firewall_rules["home-minecraft-control-plane-01"].destination.zone == "launchpad" &&
+      local.vpn_firewall_rules["vpn-control-plane-01"].destination.zone == "launchpad" &&
+      !contains(local.vpn_client_routes, "192.168.1.217/32") &&
+      !contains(local.vpn_client_routes, "192.168.1.216/32") &&
+      !contains(local.vpn_client_routes, "10.0.70.11/32") &&
+      contains(local.vpn_client_routes, "10.0.70.0/24")
     )
-    error_message = "Firewall selectors and VPN routes must use the configured reservation instead of a stale client address."
+    error_message = "Control-plane placement, access and VPN routes must use its declared reservation despite stale observations."
   }
 }
 
@@ -261,7 +274,7 @@ run "vpn_keeps_builtin_membership_and_split_routes" {
   assert {
     condition = (
       local.vpn_client_routes == sort([
-        "10.0.70.0/24", "10.0.80.0/24", "10.0.90.0/24", "10.0.100.1/32", "192.168.1.1/32", "192.168.1.200/32", "192.168.100.1/32"
+        "10.0.70.0/24", "10.0.80.0/24", "10.0.90.0/24", "10.0.100.1/32", "192.168.1.1/32", "192.168.100.1/32"
       ]) && !contains(keys(local.firewall_rules), "wireguard-handshake")
     )
     error_message = "Split routes must exclude default/client routes; controller-owned WireGuard handshake rules must not be duplicated."
@@ -292,42 +305,15 @@ run "worker_permissions_use_declared_placement" {
   }
 }
 
-run "cluster_access_requires_registered_nodes_and_ports" {
+run "same_vlan_nodes_need_no_router_exceptions" {
   command = plan
   assert {
     condition = (
-      length(local.cluster_firewall_rules) == 6 &&
-      alltrue([for rule in values(local.cluster_firewall_rules) :
-        length(rule.source.clients) == 1 && length(rule.destination.clients) == 1 &&
-        toset(concat(rule.source.clients, rule.destination.clients)) == toset([
-          local.server_macs["worker-01"], local.server_macs["control-plane-01"]
-        ]) && rule.ip_version == "IPV4"
-      ]) &&
-      local.cluster_firewall_rules["cluster-worker-control-plane-tcp"].source.zone == "launchpad" &&
-      local.cluster_firewall_rules["cluster-worker-control-plane-tcp"].destination.zone == "internal" &&
-      local.cluster_firewall_rules["cluster-worker-control-plane-tcp"].protocol == "tcp" &&
-      local.cluster_firewall_rules["cluster-worker-control-plane-tcp"].destination.ports == "4240,6443,50001" &&
-      local.cluster_firewall_rules["cluster-control-plane-worker-tcp"].destination.ports == "4240,10250,50000" &&
-      alltrue([for key, rule in local.cluster_firewall_rules :
-        rule.protocol == "udp" && rule.destination.ports == "8472" if endswith(key, "-vxlan")
-      ]) &&
-      alltrue([for key, rule in local.cluster_firewall_rules :
-        rule.protocol == "icmp" && !can(rule.destination.ports) if endswith(key, "-icmp")
-      ])
+      local.server_zones["control-plane-01"] == "launchpad" &&
+      local.server_zones["worker-01"] == "launchpad" &&
+      alltrue([for name in keys(local.firewall_rules) : !startswith(name, "cluster-")])
     )
-    error_message = "Inter-zone cluster access must identify both registered nodes and permit only control, VXLAN and health traffic."
-  }
-}
-
-run "same_zone_nodes_need_no_router_exceptions" {
-  command = plan
-  override_data {
-    target = data.unifi_client_info.server["control-plane-01"]
-    values = { network_id = "test-servers", ip = "10.0.70.11", use_fixedip = false }
-  }
-  assert {
-    condition     = length(local.cluster_firewall_rules) == 0
-    error_message = "Nodes sharing Servers must not create redundant or invalid same-zone router rules."
+    error_message = "Nodes sharing Servers must not retain inter-zone cluster exceptions."
   }
 }
 
