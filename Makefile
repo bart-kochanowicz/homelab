@@ -7,11 +7,12 @@ KUSTOMIZE_DIRS := \
 	system/app-namespaces \
 	system/argocd \
 	system/cert-manager-ca \
+	system/gateway-api-crds \
 	system/local-path-provisioner \
 	system/network-policies
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
-	validate-shell validate-kustomize validate-helm validate-kubernetes \
+	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
 
 default: system
@@ -24,7 +25,7 @@ validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-terraform-tests validate-workflows
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -50,7 +51,7 @@ validate-format: validate-terraform-layout
 validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
-validate-workflows:
+validate-workflows: validate-gateway-api
 	python3 -m unittest discover -s tests -v
 
 validate-yaml:
@@ -79,7 +80,7 @@ validate-shell:
 
 validate-kustomize:
 	@rm -rf .cache/rendered && mkdir -p .cache/rendered
-	@for dir in $(KUSTOMIZE_DIRS); do \
+	@set -e; for dir in $(KUSTOMIZE_DIRS); do \
 		kubectl kustomize "$$dir" > ".cache/rendered/$$(echo "$$dir" | tr / -).yaml"; \
 	done
 	kubectl kustomize --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
@@ -109,7 +110,18 @@ validate-helm:
 			> ".cache/rendered/helm-$$(basename "$$dir").yaml"; \
 	done
 
-validate-kubernetes: validate-kustomize
+validate-gateway-api: validate-kustomize
+	@rm -rf .cache/gateway-api-schemas && mkdir -p .cache/gateway-api-schemas
+	yq -o=json --split-exp '".cache/gateway-api-schemas/" + .title' \
+		'.spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
+		.cache/rendered/system-gateway-api-crds.yaml
+	yq 'select(.apiVersion | test("^gateway[.]networking[.]k8s[.]io/"))' \
+		.cache/rendered/*.yaml > .cache/gateway-api-resources.yaml
+	kubeconform -strict -summary \
+		-schema-location '.cache/gateway-api-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+		.cache/gateway-api-resources.yaml
+
+validate-kubernetes: validate-kustomize validate-gateway-api
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \

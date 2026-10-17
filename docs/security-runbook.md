@@ -30,6 +30,17 @@ Cilium replacement and an approved maintenance window. Recovery requires
 restoring Talos proxy configuration and working kube-proxy service handling
 before disabling Cilium replacement; a Helm rollback alone is insufficient.
 
+## Gateway API definitions
+
+Sync `argocd-bootstrap` to register the dedicated `gateway-api-crds` Application,
+then sync `gateway-api-crds` manually. It owns the pinned standard CRDs using
+server-side apply; pruning and deletion are disabled for those CRDs. Keep Helm
+and other Applications from owning the same definitions.
+
+`make validate-gateway-api` derives strict JSON schemas from those exact CRDs
+and validates rendered Gateway API resources without skipping missing schemas.
+Kubernetes server validation also checks CEL rules when resources are submitted.
+
 ## Private application access
 
 | Application | URL |
