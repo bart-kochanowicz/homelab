@@ -12,51 +12,17 @@ data "unifi_firewall_zone" "builtin" {
   name = each.value
 }
 
-data "unifi_client_info" "server" {
-  for_each = local.server_macs
-
-  site = var.controller.site
-  mac  = each.value
-
-  lifecycle {
-    postcondition {
-      condition = contains(
-        [data.unifi_network.default.id, module.networks.network_ids["launchpad"]],
-        self.network_id
-      )
-      error_message = "Registered servers must belong to Default or launchpad."
-    }
-
-    postcondition {
-      condition     = can(cidrnetmask("${self.use_fixedip ? self.fixed_ip : self.ip}/32"))
-      error_message = "Registered servers must report a valid IPv4 address for firewall selectors."
-    }
-  }
-}
-
 locals {
   firewall_zone_network_ids = {
     for key in keys(local.vlan_ids) : key => [module.networks.network_ids[key]]
   }
 
   server_macs = {
-    houston-01       = var.infrastructure_macs["houston-01"]
-    control-plane-01 = var.infrastructure_macs["control-plane-01"]
-    worker-01        = var.infrastructure_macs["worker-01"]
-  }
-
-  server_zones = {
-    for key, server in data.unifi_client_info.server : key =>
-    contains(keys(local.server_reservations), key) ? local.server_reservations[key].network : (
-      server.network_id == data.unifi_network.default.id ? "internal" : "launchpad"
-    )
+    for key, server in local.server_reservations : key => server.mac
   }
 
   server_ipv4_addresses = {
-    for key, server in data.unifi_client_info.server : local.server_macs[key] =>
-    contains(keys(local.server_reservations), key) ? module.reservations.ipv4_addresses[key] : (
-      server.use_fixedip ? server.fixed_ip : server.ip
-    )
+    for key, server in local.server_reservations : server.mac => module.reservations.ipv4_addresses[key]
   }
 
   non_public_destinations = [
@@ -107,15 +73,10 @@ locals {
         source      = { zone = "apollo" }
         destination = { zone = "external", ips = ["192.168.100.1"] }
       }
-      servers-management = {
-        description = "Infrastructure collection; owner: homelab operator; review when collector services are defined."
-        source      = { zone = "launchpad" }
-        destination = { zone = "mission-control" }
-      }
       houston-01-controller = {
         description = "Houston Terraform access to the UniFi HTTPS API."
         protocol    = "tcp"
-        source      = { zone = local.server_zones["houston-01"], clients = [local.server_macs["houston-01"]] }
+        source      = { zone = local.server_reservations["houston-01"].network, clients = [local.server_macs["houston-01"]] }
         destination = { zone = "gateway", ports = "443" }
       }
       home-ha = {
@@ -123,7 +84,7 @@ locals {
         protocol    = "tcp"
         ip_version  = "IPV4"
         source      = { zone = "orbit" }
-        destination = { zone = local.server_zones["worker-01"], clients = [local.server_macs["worker-01"]], ports = "8123" }
+        destination = { zone = local.server_reservations["worker-01"].network, clients = [local.server_macs["worker-01"]], ports = "8123" }
       }
       management-inform = {
         description = "Infrastructure inform traffic to the Network controller."
@@ -139,19 +100,12 @@ locals {
       }
     },
     {
-      for key, mac in local.server_macs : "admin-${key}" => {
-        description = "Admin access to registered server ${key}."
-        source      = { zone = "apollo" }
-        destination = { zone = local.server_zones[key], clients = [mac] }
-      }
-    },
-    {
       for key in ["control-plane-01", "worker-01"] : "home-minecraft-${key}" => {
         description = "Home access to the Minecraft NodePort."
         protocol    = "tcp"
         ip_version  = "IPV4"
         source      = { zone = "orbit" }
-        destination = { zone = local.server_zones[key], clients = [local.server_macs[key]], ports = "30000" }
+        destination = { zone = local.server_reservations[key].network, clients = [local.server_macs[key]], ports = "30000" }
       }
     },
     {
@@ -254,7 +208,7 @@ locals {
         ip_version  = "IPV4"
         reply       = false
         states      = ["RELATED"]
-        source      = { zone = local.server_zones[key], clients = [local.server_macs[key]] }
+        source      = { zone = local.server_reservations[key].network, clients = [local.server_macs[key]] }
         destination = { zone = "orbit" }
       }
     },

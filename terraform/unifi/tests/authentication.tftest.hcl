@@ -2,9 +2,6 @@ mock_provider "unifi" {
   mock_resource "unifi_firewall_policy" {
     defaults = { index = 10000 }
   }
-  mock_data "unifi_client_info" {
-    defaults = { network_id = "test-default-lan", ip = "192.168.1.200", use_fixedip = false }
-  }
 }
 
 override_data {
@@ -68,7 +65,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", ap = "test-ap-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", access-parking = "test-parking-profile", switch-trunk = "test-trunk-profile", ap = "test-ap-profile" }
   }
 }
 
@@ -104,7 +101,7 @@ run "local_authentication" {
       issensitive(local.server_macs["worker-01"]) &&
       issensitive(output.device_ids) &&
       local.devices["flex-5"].mac == var.infrastructure_macs["flex-5"] &&
-      data.unifi_client_info.server["worker-01"].mac == var.infrastructure_macs["worker-01"]
+      local.server_reservations["worker-01"].mac == var.infrastructure_macs["worker-01"]
     )
     error_message = "Private MAC inputs must reach device/client selectors and keep MAC-derived device IDs sensitive."
   }

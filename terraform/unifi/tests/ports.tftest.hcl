@@ -5,19 +5,21 @@ variables {
   network_ids = {
     orbit           = "test-home"
     launchpad       = "test-servers"
+    apollo          = "test-admin"
     mission-control = "test-management"
     parking         = "test-parking"
   }
   reserved_network_ids = ["test-default"]
   port_profiles = {
-    access = { native_network = "orbit" }
+    access  = { native_network = "orbit" }
+    parking = { native_network = "parking" }
     ap = {
       native_network  = "mission-control"
       tagged_networks = ["orbit"]
     }
     trunk = {
       native_network  = "parking"
-      tagged_networks = ["launchpad", "mission-control"]
+      tagged_networks = ["launchpad", "apollo", "mission-control"]
     }
   }
 }
@@ -40,16 +42,24 @@ run "port_boundaries" {
     condition = (
       unifi_port_profile.this["ap"].native_networkconf_id == "test-management" &&
       unifi_port_profile.this["ap"].tagged_vlan_mgmt == "custom" &&
-      unifi_port_profile.this["ap"].excluded_networkconf_ids == toset(["test-default", "test-servers", "test-parking"])
+      unifi_port_profile.this["ap"].excluded_networkconf_ids == toset(["test-default", "test-servers", "test-parking", "test-admin"])
     )
-    error_message = "The AP profile must exclude Servers, Default and parking without excluding its native or allowed tagged networks."
+    error_message = "The AP profile must exclude every LAN outside its native and tagged set."
   }
   assert {
     condition = (
       unifi_port_profile.this["trunk"].native_networkconf_id == "test-parking" &&
       unifi_port_profile.this["trunk"].excluded_networkconf_ids == toset(["test-home", "test-default"])
     )
-    error_message = "The server trunk must allow only Servers and Management tags."
+    error_message = "The switch trunk must allow only Servers, Admin and Management tags."
+  }
+  assert {
+    condition = (
+      unifi_port_profile.this["parking"].native_networkconf_id == "test-parking" &&
+      unifi_port_profile.this["parking"].forward == "native" &&
+      unifi_port_profile.this["parking"].tagged_vlan_mgmt == "block_all"
+    )
+    error_message = "Parking access ports must not carry tagged networks."
   }
 }
 
