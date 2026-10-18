@@ -6,6 +6,7 @@ KUSTOMIZE_DIRS := \
 	apps/n8n \
 	system/app-namespaces \
 	system/argocd \
+	system/cert-manager-acme \
 	system/cert-manager-ca \
 	system/gateway-api-crds \
 	system/local-path-provisioner \
@@ -13,6 +14,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
+	validate-cert-manager \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
 
 default: system
@@ -85,7 +87,7 @@ validate-kustomize:
 	done
 	kubectl kustomize --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
 
-validate-helm:
+validate-helm: validate-kustomize
 	@set -e; retry() { \
 		for attempt in 1 2 3; do \
 			"$$@" && return 0; \
@@ -121,7 +123,18 @@ validate-gateway-api: validate-kustomize
 		-schema-location '.cache/gateway-api-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
 		.cache/gateway-api-resources.yaml
 
-validate-kubernetes: validate-kustomize validate-gateway-api
+validate-cert-manager: validate-helm
+	@rm -rf .cache/cert-manager-schemas && mkdir -p .cache/cert-manager-schemas
+	yq -o=json --split-exp '".cache/cert-manager-schemas/" + .title' \
+		'select(.kind == "CustomResourceDefinition") | .spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
+		.cache/rendered/helm-cert-manager.yaml
+	yq 'select(.apiVersion | test("^(acme[.])?cert-manager[.]io/"))' \
+		.cache/rendered/*.yaml > .cache/cert-manager-resources.yaml
+	kubeconform -strict -summary \
+		-schema-location '.cache/cert-manager-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+		.cache/cert-manager-resources.yaml
+
+validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \

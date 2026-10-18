@@ -81,6 +81,54 @@ For local-admin recovery, use cluster-admin access to set `admin.enabled: "true"
 in `argocd-cm` and restart `argocd-server`. Restore `admin.enabled: "false"`
 after recovery.
 
+## Frontend certificates
+
+`cert-manager-acme` requires manual ArgoCD sync. It owns the DNS-01 issuers,
+Cloudflare SealedSecret, and separate wildcard Certificates in `private-home`
+and `private-admin`. Its resources are protected from pruning and deletion.
+Sync the issuers and SealedSecret selectively, validate issuance and renewal
+with a temporary Certificate using `letsencrypt-staging`, then sync the
+production Certificates. Staging certificates are not browser-trusted.
+
+The `cloudflare-dns01-token` Secret belongs in `cert-manager`, the controller's
+cluster resource namespace. DNS Edit and Zone Read permissions must be
+restricted to `thecavespace.net`. This token is shared with Terraform/R2;
+coordinate rotation with its other consumers. Keep plaintext credentials in
+ignored files with mode `0600`. Seal a replacement token saved without a
+trailing newline in `.secrets/cloudflare-dns01-token` with:
+
+```bash
+kubectl create secret generic cloudflare-dns01-token --namespace cert-manager \
+  --from-file=api-token=.secrets/cloudflare-dns01-token --dry-run=client -o json | \
+  kubeseal --controller-name=sealed-secrets-controller \
+    --controller-namespace=sealed-secrets --scope strict --format yaml \
+    > system/cert-manager-acme/sealed-cloudflare-token.yaml
+```
+
+Commit only the ciphertext and sync `cert-manager-acme`. Its solver is limited
+to `thecavespace.net`; the Cloudflare permission covers all DNS record types
+in that zone. Cert-manager owns transient challenge TXT records. Preserve
+public TXT/SOA resolution when configuring private DNS; no inbound WAN ports
+or public A/AAAA/CNAME records are needed for private services.
+
+Each gateway has its own TLS Secret and rotating ECDSA key. Only the wildcard
+appears in Certificate SANs, keeping private service names out of public
+Certificate Transparency logs. The wildcard does not authorize routes or DNS
+records. Renew and inspect Certificates with the pinned `cmctl` tool:
+
+```bash
+cmctl status certificate private-home-wildcard --namespace private-home
+cmctl renew private-home-wildcard --namespace private-home
+cmctl status certificate private-admin-wildcard --namespace private-admin
+```
+
+Confirm a new revision, `Ready=True`, and the new certificate served by HTTPS
+listeners after renewal. Cert-manager schedules renewal from the issued
+certificate's actual lifetime; monitoring alerts before expiry. ACME account
+keys are generated in-cluster, separately for staging and production.
+`make validate-cert-manager` validates resources against CRDs from the pinned
+Helm chart without skipping missing schemas.
+
 ## Internal CA
 
 Keep the offline CA key under `.secrets/` with mode `0600` and a separate backup.
