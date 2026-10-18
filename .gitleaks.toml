@@ -15,6 +15,7 @@ paths = [
   # Full-history scans include this removed manifest's ciphertext.
   '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
   '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
+  '''^system/cert-manager-acme/sealed-cloudflare-token\.yaml$''',
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
   '''^system/monitoring/grafana-admin-sealed-secret\.yaml$''',
 ]

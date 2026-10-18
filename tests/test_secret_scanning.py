@@ -12,6 +12,7 @@ SEALED_SECRET_PATHS = (
     "apps/n8n/sealed-secret.yaml",
     "system/cloudflared/sealed-cloudflared-token.yaml",
     "system/cert-manager-ca/sealed-root-ca.yaml",
+    "system/cert-manager-acme/sealed-cloudflare-token.yaml",
     "system/argocd/argocd-sso-sealed-secret.yaml",
     "system/monitoring/grafana-admin-sealed-secret.yaml",
 )
