@@ -8,9 +8,9 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: https://github.com/bart-kochanowicz/homelab.git
+    repoURL: git@github.com:bart-kochanowicz/homelab-config.git
     targetRevision: main
-    path: system/argocd/
+    path: argocd
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

@@ -7,6 +7,7 @@ spec:
   description: Namespace-scoped homelab applications
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
+    - git@github.com:bart-kochanowicz/homelab-config.git
   destinations:
     - namespace: crafty-controller
       server: https://kubernetes.default.svc
@@ -46,6 +47,7 @@ spec:
   description: Explicitly scoped cluster platform components
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
+    - git@github.com:bart-kochanowicz/homelab-config.git
   destinations:
     - namespace: argocd
       server: https://kubernetes.default.svc

@@ -41,13 +41,30 @@ and other Applications from owning the same definitions.
 and validates rendered Gateway API resources without skipping missing schemas.
 Kubernetes server validation also checks CEL rules when resources are submitted.
 
+## Private GitOps configuration
+
+Public manifests contain reserved example domains. Production ArgoCD and
+application overlays live in the private `homelab-config` repository; ACME
+issuers and frontend Certificates are defined there. ArgoCD uses a repository-
+specific read-only deploy key sealed in `homelab-config-repository`.
+
+Private overlays pin the public bases to a commit. Update those references
+when deploying changes from this repository. Validate both the public bases
+and private overlays before syncing. Bootstrap needs the repository
+SealedSecret and exact AppProject source grants before the private sources
+can be read. Keep existing Application names and deletion safeguards when
+changing their sources.
+
 ## Private application access
+
+The following URLs are examples. Actual endpoints and OAuth callbacks come
+from private overlays; do not commit their values here.
 
 | Application | URL |
 | --- | --- |
-| ArgoCD | `https://argocd.thecavespace.com` |
-| n8n editor | `https://n8n.thecavespace.com` |
-| n8n webhooks | `https://n8n-webhook.thecavespace.com/` |
+| ArgoCD | `https://argocd.example.com` |
+| n8n editor | `https://n8n.example.com` |
+| n8n webhooks | `https://n8n-webhook.example.com/` |
 
 ArgoCD and n8n use `ClusterIP` Services. Private DNS must resolve these names to
 a LAN HTTPS entry point with routes to those Services. DNS, TLS, and the LAN
@@ -60,9 +77,10 @@ authorized LAN client. For access failures, check private DNS and HTTPS routes.
 
 ## GitHub SSO
 
-GitHub OAuth uses homepage `https://argocd.thecavespace.com` and callback
-`https://argocd.thecavespace.com/api/dex/callback`. Dex and RBAC configuration
-live in `system/argocd/`. The SSO SealedSecret patches OAuth keys into the
+GitHub OAuth uses homepage `https://argocd.example.com` and callback
+`https://argocd.example.com/api/dex/callback`. Dex and RBAC configuration
+use public bases in `system/argocd/` and private endpoint overrides. The SSO
+SealedSecret patches OAuth keys into the
 Helm-managed `argocd-secret` without replacing its other credentials.
 
 Rotate credentials with:
@@ -92,21 +110,22 @@ production Certificates. Staging certificates are not browser-trusted.
 
 The `cloudflare-dns01-token` Secret belongs in `cert-manager`, the controller's
 cluster resource namespace. DNS Edit and Zone Read permissions must be
-restricted to `thecavespace.net`. This token is shared with Terraform/R2;
+restricted to the configured DNS zone. This token is shared with Terraform/R2;
 coordinate rotation with its other consumers. Keep plaintext credentials in
 ignored files with mode `0600`. Seal a replacement token saved without a
-trailing newline in `.secrets/cloudflare-dns01-token` with:
+trailing newline in `.secrets/cloudflare-dns01-token` with
+`PRIVATE_CONFIG_DIR` pointing to your private checkout:
 
 ```bash
 kubectl create secret generic cloudflare-dns01-token --namespace cert-manager \
   --from-file=api-token=.secrets/cloudflare-dns01-token --dry-run=client -o json | \
   kubeseal --controller-name=sealed-secrets-controller \
     --controller-namespace=sealed-secrets --scope strict --format yaml \
-    > system/cert-manager-acme/sealed-cloudflare-token.yaml
+    > "$PRIVATE_CONFIG_DIR/cert-manager-acme/sealed-cloudflare-token.yaml"
 ```
 
-Commit only the ciphertext and sync `cert-manager-acme`. Its solver is limited
-to `thecavespace.net`; the Cloudflare permission covers all DNS record types
+Commit the ciphertext in the private configuration repository and sync
+`cert-manager-acme`. Its solver is limited to the configured DNS zone; the Cloudflare permission covers all DNS record types
 in that zone. Cert-manager owns transient challenge TXT records. Preserve
 public TXT/SOA resolution when configuring private DNS; no inbound WAN ports
 or public A/AAAA/CNAME records are needed for private services.

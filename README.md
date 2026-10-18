@@ -8,7 +8,7 @@ Home Assistant uses host networking for LAN discovery.
 
 | Path | Scope |
 | --- | --- |
-| `apps/` | Home Assistant, Crafty Controller, and n8n |
+| `apps/` | Public bases for Home Assistant, Crafty Controller, and n8n |
 | `system/` | ArgoCD, Cilium, certificates, storage, monitoring, and network policies |
 | `talos/patches/` | Talos CNI and API configuration |
 | `terraform/cloudflare/` | Cloudflare R2 backup storage; Garage state at `prod/homelab/terraform.tfstate` |
@@ -38,7 +38,10 @@ Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
 The Kubernetes API is `https://10.0.70.11:6443`; kubelet addresses use Servers VLAN 70.
 The API uses a stable ServiceAccount issuer and audience independent of node IPs.
 Bootstrap installs Cilium before ArgoCD; ArgoCD manages the remaining platform
-and applications.
+and applications. Production overlays and real domains live in the private
+`homelab-config` repository, accessed with a sealed read-only deploy key.
+Public endpoint values are reserved examples. Private overlays pin public
+bases to a commit; update that pin to deploy public configuration changes.
 Cilium is managed separately so network recovery does not depend on GitOps.
 
 ## Operations

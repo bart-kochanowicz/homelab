@@ -12,7 +12,6 @@ spec:
     kind: ClusterIssuer
   commonName: argocd-server.argocd.svc.cluster.local
   dnsNames:
-    - argocd.thecavespace.com
     - argocd-server
     - argocd-server.argocd
     - argocd-server.argocd.svc

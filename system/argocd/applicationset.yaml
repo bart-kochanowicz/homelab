@@ -7,7 +7,7 @@ spec:
     preserveResourcesOnDeletion: true
   generators:
     - git:
-        repoURL: &repoURL https://github.com/bart-kochanowicz/homelab.git
+        repoURL: &repoURL git@github.com:bart-kochanowicz/homelab-config.git
         revision: main
         directories:
           - path: apps/*

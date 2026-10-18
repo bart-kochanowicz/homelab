@@ -52,13 +52,13 @@ spec:
         - name: N8N_PROTOCOL
           value: "https"
         - name: N8N_HOST
-          value: "n8n.thecavespace.com"
+          value: "n8n.example.com"
         - name: N8N_PORT
           value: "5678"
         - name: N8N_EDITOR_BASE_URL
-          value: "https://n8n.thecavespace.com"
+          value: "https://n8n.example.com"
         - name: WEBHOOK_URL
-          value: "https://n8n-webhook.thecavespace.com/"
+          value: "https://n8n-webhook.example.com/"
         - name: N8N_PROXY_HOPS
           value: "1"
         - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS

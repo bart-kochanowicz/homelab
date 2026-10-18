@@ -6,7 +6,6 @@ KUSTOMIZE_DIRS := \
 	apps/n8n \
 	system/app-namespaces \
 	system/argocd \
-	system/cert-manager-acme \
 	system/cert-manager-ca \
 	system/gateway-api-crds \
 	system/local-path-provisioner \

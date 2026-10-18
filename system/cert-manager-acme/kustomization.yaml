@@ -1,9 +1,0 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-commonAnnotations:
-  argocd.argoproj.io/sync-options: Prune=false,Delete=false
-resources:
-  - sealed-cloudflare-token.yaml
-  - cluster-issuers.yaml
-  - private-home-certificate.yaml
-  - private-admin-certificate.yaml
