@@ -14,7 +14,6 @@ SEALED_SECRET_PATHS = (
     "system/cert-manager-ca/sealed-root-ca.yaml",
     "system/cert-manager-acme/sealed-cloudflare-token.yaml",
     "system/argocd/argocd-sso-sealed-secret.yaml",
-    "system/argocd/homelab-config-repository.yaml",
     "system/monitoring/grafana-admin-sealed-secret.yaml",
 )
 

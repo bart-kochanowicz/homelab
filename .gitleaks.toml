@@ -15,9 +15,7 @@ paths = [
   # Full-history scans include this removed manifest's ciphertext.
   '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
   '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
-  # Full-history scans include the ACME manifest now held in private GitOps.
   '''^system/cert-manager-acme/sealed-cloudflare-token\.yaml$''',
-  '''^system/argocd/homelab-config-repository\.yaml$''',
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
   '''^system/monitoring/grafana-admin-sealed-secret\.yaml$''',
 ]

@@ -8,9 +8,9 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: git@github.com:bart-kochanowicz/homelab-config.git
+    repoURL: https://github.com/bart-kochanowicz/homelab.git
     targetRevision: main
-    path: cert-manager-acme
+    path: system/cert-manager-acme
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
