@@ -43,67 +43,25 @@ Kubernetes server validation also checks CEL rules when resources are submitted.
 
 ## Private gateways
 
-Envoy Gateway manages separate proxy Deployments and Services in `private-home`
-and `private-admin`. Cilium remains bootstrap-managed and supplies pod networking,
-the host firewall, LB IPAM and L2 announcements; its Gateway API controller is disabled.
-Do not patch controller-generated Services, Deployments or proxy configuration.
+Envoy Gateway runs separate Home/Admin proxies. Cilium provides networking,
+the host firewall, VIP allocation and L2 announcements.
 
-| Gateway | IPv4 VIP | Permitted client networks |
-| --- | --- | --- |
-| `private-home/private-home` | `10.0.70.200` | Home, Admin, VPN |
-| `private-admin/private-admin` | `10.0.70.201` | Admin, VPN |
+After bootstrap/namespaces, manually sync: `gateway-api-crds` →
+`envoy-gateway-crds` → `network-policies` → `envoy-gateway` → `gateways`.
+Certificates must be Ready. Keep CRD ownership separate from the controller chart.
 
-Sync `argocd-bootstrap` and `app-namespaces` first. The manual `gateway-api-crds`
-Application owns standard Gateway API CRDs. Sync `envoy-gateway-crds` for controller
-extensions, `network-policies` for controller/proxy isolation, then `envoy-gateway`
-and `gateways`. Both charts disable installation of standard Gateway API CRDs;
-the controller chart also disables extension CRDs. CRD Applications have no
-cascading-deletion finalizers or automated pruning. Referenced Certificates must
-be Ready, and VIP availability must be checked in UniFi and on the Servers LAN.
-
-`GatewayClass.spec.controllerName` is immutable. Changing a class's controller
-requires explicitly approved recreation of its Gateways and GatewayClass. Keep
-the previous controller running until its generated frontends are removed; never
-force a sync to bypass this constraint.
-
-The generated Services request exact pool addresses through Cilium annotations,
-use `externalTrafficPolicy: Cluster`, IPv4 only, no allocated NodePorts and the
-class's source ranges. Gateway `spec.addresses` is omitted because Envoy Gateway
-maps IP addresses there to Service `externalIPs`. LB pools and announcements match
-the exact Service name, namespace and owning Gateway identity.
-
-Proxy pods listen on unprivileged port 10443 behind Service 443. Their policies
-reject application-pod ingress and initially allow egress only to DNS and the
-controller's TLS xDS port 18000. Backend access requires separate, application-specific
-proxy egress and backend ingress rules. The remote-node ingress allowance supports
-Cluster-mode SNAT; VIP source filtering must be verified before relying on it.
-No client-supplied forwarding hops are trusted. Cluster-mode SNAT can change the
-peer IP visible to Envoy; do not use forwarded headers as network authorization.
-
-Routes must explicitly name the Gateway namespace and listener section. Each
-listener admits only its application's namespace and exact hostname. Applications
-cannot create EnvoyProxy or ClientTrafficPolicy resources through their Argo project.
-Controller watch/RBAC is limited to the configured namespaces; topology injection
-and Kubernetes resource patches through EnvoyProxy are disabled.
+- Controller changes require approved Gateway/class recreation. Remove old
+  generated frontends before stopping their controller.
+- Request VIPs through EnvoyProxy Service annotations; Gateway `spec.addresses`
+  creates Service `externalIPs`.
+- Backend access needs explicit proxy egress and backend ingress rules.
+  Cluster-mode SNAT can hide client IPs; forwarded headers do not authorize access.
 
 ```bash
-kubectl -n argocd get applications gateway-api-crds envoy-gateway-crds envoy-gateway gateways
-kubectl get gatewayclasses
 kubectl get gateways -A
-kubectl get ciliumloadbalancerippools,ciliuml2announcementpolicies
-kubectl -n private-home get service envoy-private-home -o yaml
-kubectl -n private-admin get service envoy-private-admin -o yaml
-kubectl -n kube-system get leases | grep cilium-l2announce
+kubectl -n private-home get service envoy-private-home
+kubectl -n private-admin get service envoy-private-admin
 ```
-
-`make validate-envoy-gateway` and `make validate-cilium-gateways` use pinned CRD
-schemas without missing-schema skips. After deployment, verify Accepted/Programmed,
-service settings, same-node and cross-node backends, pod/ClusterIP/direct-pod and
-same-LAN denial, unknown/cross-VIP Host/SNI, certificate reload and L2 failover.
-Two proxy replicas improve frontend availability; application storage may still
-be tied to one node. L2 announcement is beta and failover depends on API availability
-and client ARP caches. Two five-second lease renewals require about 0.4 QPS; the agent
-budget remains 10 QPS/burst 20. Check throttling and lease stability under actual load.
 
 ## Private application access
 
