@@ -1,0 +1,9 @@
+apiVersion: v2
+name: homelab-envoy-gateway
+description: Private Gateway API controller
+type: application
+version: 0.1.0
+dependencies:
+  - name: gateway-helm
+    version: v1.9.2
+    repository: oci://docker.io/envoyproxy

@@ -1,0 +1,31 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: private-home
+  namespace: private-home
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: private-home
+  clientIPDetection:
+    xForwardedFor:
+      numTrustedHops: 0
+  tls:
+    alpnProtocols: [h2, http/1.1]
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: private-admin
+  namespace: private-admin
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: private-admin
+  clientIPDetection:
+    xForwardedFor:
+      numTrustedHops: 0
+  tls:
+    alpnProtocols: [h2, http/1.1]

@@ -5,9 +5,6 @@ metadata:
   namespace: private-admin
 spec:
   gatewayClassName: private-admin
-  addresses:
-    - type: IPAddress
-      value: 10.0.70.201
   listeners:
     - name: crafty-controller
       hostname: crafty-controller.thecavespace.net

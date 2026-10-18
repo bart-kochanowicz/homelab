@@ -1,6 +1,22 @@
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: envoy-gateway-system
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  labels:
+    app.kubernetes.io/name: envoy-gateway-system
+    app.kubernetes.io/part-of: homelab
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.34
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.34
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.34
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: crafty-controller
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false

@@ -69,6 +69,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: private-admin
       server: https://kubernetes.default.svc
+    - namespace: envoy-gateway-system
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -143,8 +145,10 @@ spec:
       kind: NetworkPolicy
     - group: cilium.io
       kind: CiliumNetworkPolicy
-    - group: cilium.io
-      kind: CiliumGatewayClassConfig
+    - group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+    - group: gateway.envoyproxy.io
+      kind: ClientTrafficPolicy
     - group: policy
       kind: PodDisruptionBudget
     - group: gateway.networking.k8s.io
@@ -185,7 +189,7 @@ metadata:
   name: gateway-api-crds
   namespace: argocd
 spec:
-  description: Retained Gateway API CRDs from the pinned standard channel
+  description: Separately managed Gateway API and controller extension CRDs
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:

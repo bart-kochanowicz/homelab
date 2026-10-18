@@ -1,0 +1,9 @@
+apiVersion: v2
+name: homelab-envoy-gateway-crds
+description: Separately managed Envoy Gateway extension CRDs
+type: application
+version: 0.1.0
+dependencies:
+  - name: gateway-crds-helm
+    version: v1.9.2
+    repository: oci://docker.io/envoyproxy
