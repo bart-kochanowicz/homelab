@@ -10,6 +10,11 @@ locals {
             profile = "access-apollo"
             name    = "${var.name_prefix}apollo"
           }
+          admin-pc = {
+            index   = 2
+            profile = "access-apollo"
+            name    = "${var.name_prefix}apollo-pc"
+          }
           uplink = {
             index   = 5
             profile = "switch-trunk"
@@ -22,7 +27,7 @@ locals {
           }
         },
         {
-          for port in [2, 4] : "parking-${port}" => {
+          for port in [4] : "parking-${port}" => {
             index   = port
             profile = "access-parking"
             name    = "${var.name_prefix}parking-${port}"

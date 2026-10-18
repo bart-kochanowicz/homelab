@@ -162,6 +162,8 @@ run "management_paths_preserve_admin_servers_and_ap" {
       length(local.devices["flex-5"].ports) == 5 &&
       local.devices["flex-5"].ports.admin.index == 1 &&
       local.devices["flex-5"].ports.admin.profile == "access-apollo" &&
+      local.devices["flex-5"].ports.admin-pc.index == 2 &&
+      local.devices["flex-5"].ports.admin-pc.profile == "access-apollo" &&
       length(local.devices["flex-8"].ports) == 10 &&
       local.devices["flex-8"].ports.houston.index == 1 &&
       local.devices["flex-8"].ports.houston.profile == "access-launchpad" &&
@@ -259,7 +261,7 @@ run "unused_lan_ports_are_parked_and_wan_is_unmanaged" {
     condition = (
       local.port_profiles["access-parking"].native_network == "parking" &&
       alltrue(flatten([for device, ports in {
-        flex-5     = [2, 4]
+        flex-5     = [4]
         flex-8     = [2, 3, 4, 5, 6, 10]
         voyager-01 = [3, 5, 6]
         } : [for port in ports :

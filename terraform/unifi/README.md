@@ -17,7 +17,7 @@ Port profile creation does not assign profiles to physical ports.
 | `cavespace-endeavour` | WPA3 | 2.4/5 GHz | Work 30 |
 | `cavespace-orbit` | WPA2 PPSK | 2.4/5 GHz | HOME 40, IOT 50, GUEST 60 |
 
-The wired Admin port is USW Flex 2.5G 5 port 1. AP/QoS groups are read-only.
+The wired Admin ports are USW Flex 2.5G 5 ports 1 and 2 (PC). AP/QoS groups are read-only.
 The unmanaged switch for Apple TV and LG TV uses Home on UCG-Fiber `voyager-01` port 2.
 Both switches use tagged Management 90. U7 Lite uses native Management 90 on
 `voyager-01` port 4, with no AP Network Override; client VLANs stay tagged.
