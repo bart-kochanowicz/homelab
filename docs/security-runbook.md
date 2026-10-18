@@ -43,52 +43,67 @@ Kubernetes server validation also checks CEL rules when resources are submitted.
 
 ## Private gateways
 
-Cilium's bootstrap Helm release enables Gateway API and L2 announcements.
-The manually synced `gateways` Application owns the two GatewayClasses,
-their namespaced Cilium parameters, exact-address pools, L2 policies and
-HTTPS Gateways. Cilium's operator owns its CRDs and generated Services,
-EndpointSlices, Envoy configuration and synchronized TLS Secrets; do not
-patch those generated resources or add a second CRD owner.
+Envoy Gateway manages separate proxy Deployments and Services in `private-home`
+and `private-admin`. Cilium remains bootstrap-managed and supplies pod networking,
+the host firewall, LB IPAM and L2 announcements; its Gateway API controller is disabled.
+Do not patch controller-generated Services, Deployments or proxy configuration.
 
 | Gateway | IPv4 VIP | Permitted client networks |
 | --- | --- | --- |
 | `private-home/private-home` | `10.0.70.200` | Home, Admin, VPN |
 | `private-admin/private-admin` | `10.0.70.201` | Admin, VPN |
 
-Verify address availability in UniFi and on the Servers LAN before allocating
-VIPs. Bootstrap Cilium first; wait for its GatewayClassConfig CRD to become
-Established and for agents/operator to be ready. Then sync `argocd-bootstrap`
-and manually sync `gateways`. Referenced production Certificates must be Ready.
-`make validate-cilium-gateways` checks configuration against CRDs from the
-pinned Cilium source without installing them or skipping missing schemas.
+Sync `argocd-bootstrap` and `app-namespaces` first. The manual `gateway-api-crds`
+Application owns standard Gateway API CRDs. Sync `envoy-gateway-crds` for controller
+extensions, `network-policies` for controller/proxy isolation, then `envoy-gateway`
+and `gateways`. Both charts disable installation of standard Gateway API CRDs;
+the controller chart also disables extension CRDs. CRD Applications have no
+cascading-deletion finalizers or automated pruning. Referenced Certificates must
+be Ready, and VIP availability must be checked in UniFi and on the Servers LAN.
 
-Generated Services must use `externalTrafficPolicy: Cluster`, IPv4 only,
-no allocated NodePorts, and the class's source ranges. Source-range filtering
-also covers ClusterIP frontends through `bpf.lbSourceRangeAllTypes`; verify
-pod and same-LAN paths, since router rules do not cover those paths. Application
-egress and backend ingress policies remain necessary. Envoy uses a shared
-`ingress` identity; Gateways are not separate backend security identities.
-Routes must name their Gateway namespace and listener section explicitly.
-Each listener admits only its application's namespace and exact hostname.
+`GatewayClass.spec.controllerName` is immutable. Changing a class's controller
+requires explicitly approved recreation of its Gateways and GatewayClass. Keep
+the previous controller running until its generated frontends are removed; never
+force a sync to bypass this constraint.
+
+The generated Services request exact pool addresses through Cilium annotations,
+use `externalTrafficPolicy: Cluster`, IPv4 only, no allocated NodePorts and the
+class's source ranges. Gateway `spec.addresses` is omitted because Envoy Gateway
+maps IP addresses there to Service `externalIPs`. LB pools and announcements match
+the exact Service name, namespace and owning Gateway identity.
+
+Proxy pods listen on unprivileged port 10443 behind Service 443. Their policies
+reject application-pod ingress and initially allow egress only to DNS and the
+controller's TLS xDS port 18000. Backend access requires separate, application-specific
+proxy egress and backend ingress rules. The remote-node ingress allowance supports
+Cluster-mode SNAT; VIP source filtering must be verified before relying on it.
+No client-supplied forwarding hops are trusted. Cluster-mode SNAT can change the
+peer IP visible to Envoy; do not use forwarded headers as network authorization.
+
+Routes must explicitly name the Gateway namespace and listener section. Each
+listener admits only its application's namespace and exact hostname. Applications
+cannot create EnvoyProxy or ClientTrafficPolicy resources through their Argo project.
+Controller watch/RBAC is limited to the configured namespaces; topology injection
+and Kubernetes resource patches through EnvoyProxy are disabled.
 
 ```bash
+kubectl -n argocd get applications gateway-api-crds envoy-gateway-crds envoy-gateway gateways
 kubectl get gatewayclasses
 kubectl get gateways -A
 kubectl get ciliumloadbalancerippools,ciliuml2announcementpolicies
-kubectl -n private-home get service cilium-gateway-private-home -o yaml
-kubectl -n private-admin get service cilium-gateway-private-admin -o yaml
+kubectl -n private-home get service envoy-private-home -o yaml
+kubectl -n private-admin get service envoy-private-admin -o yaml
 kubectl -n kube-system get leases | grep cilium-l2announce
 ```
 
-Check Accepted/Programmed conditions, both VIPs, source ranges, leases and
-certificate reload after renewal. Test unknown names and cross-VIP Host/SNI
-combinations, including allowed SNI with another application's Host header.
-Test generated ClusterIPs and node addresses as well as VIPs. The L2 feature
-is beta; lease failover depends on API availability and client ARP caches.
-Two services with a five-second renew deadline require about 0.4 lease QPS;
-the agent budget is 10 QPS with burst 20. Check throttling and lease stability
-under actual load before changing those values. L2 failover does not make
-single-node application storage highly available.
+`make validate-envoy-gateway` and `make validate-cilium-gateways` use pinned CRD
+schemas without missing-schema skips. After deployment, verify Accepted/Programmed,
+service settings, same-node and cross-node backends, pod/ClusterIP/direct-pod and
+same-LAN denial, unknown/cross-VIP Host/SNI, certificate reload and L2 failover.
+Two proxy replicas improve frontend availability; application storage may still
+be tied to one node. L2 announcement is beta and failover depends on API availability
+and client ARP caches. Two five-second lease renewals require about 0.4 QPS; the agent
+budget remains 10 QPS/burst 20. Check throttling and lease stability under actual load.
 
 ## Private application access
 

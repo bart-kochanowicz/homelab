@@ -5,9 +5,6 @@ metadata:
   namespace: private-home
 spec:
   gatewayClassName: private-home
-  addresses:
-    - type: IPAddress
-      value: 10.0.70.200
   listeners:
     - name: home-assistant
       hostname: ha.thecavespace.net

@@ -15,7 +15,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
-	validate-cert-manager validate-cilium-gateways \
+	validate-cert-manager validate-cilium-gateways validate-envoy-gateway \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
 
 default: system
@@ -54,7 +54,7 @@ validate-format: validate-terraform-layout
 validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
-validate-workflows: validate-gateway-api validate-cilium-gateways
+validate-workflows: validate-gateway-api validate-cilium-gateways validate-envoy-gateway
 	python3 -m unittest discover -s tests -v
 
 validate-yaml:
@@ -105,6 +105,8 @@ validate-helm: validate-kustomize
 	for spec in \
 		system/cert-manager:cert-manager \
 		system/cilium:kube-system \
+		system/envoy-gateway:envoy-gateway-system \
+		system/envoy-gateway-crds:argocd \
 		system/sealed-secrets:sealed-secrets; do \
 		dir="$${spec%%:*}"; namespace="$${spec##*:}"; \
 		retry helm dependency build "$$dir" >/dev/null; \
@@ -139,7 +141,7 @@ validate-cilium-gateways: validate-kustomize
 	@rm -rf .cache/cilium-gateway-crds .cache/cilium-gateway-schemas && \
 		mkdir -p .cache/cilium-gateway-crds .cache/cilium-gateway-schemas
 	@set -e; version="$$(yq '.dependencies[] | select(.name == "cilium") | .version' system/cilium/Chart.yaml)"; \
-	for resource in v2/ciliumloadbalancerippools v2alpha1/ciliuml2announcementpolicies v2alpha1/ciliumgatewayclassconfigs; do \
+	for resource in v2/ciliumloadbalancerippools v2alpha1/ciliuml2announcementpolicies; do \
 		curl --fail --silent --show-error --location --retry 3 \
 			"https://raw.githubusercontent.com/cilium/cilium/v$$version/pkg/k8s/apis/cilium.io/client/crds/$$resource.yaml" \
 			-o ".cache/cilium-gateway-crds/$${resource##*/}.yaml"; \
@@ -147,13 +149,24 @@ validate-cilium-gateways: validate-kustomize
 	yq -o=json --split-exp '".cache/cilium-gateway-schemas/" + .title' \
 		'.spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
 		.cache/cilium-gateway-crds/*.yaml
-	yq 'select(.apiVersion | test("^cilium[.]io/")) | select(.kind == "CiliumLoadBalancerIPPool" or .kind == "CiliumL2AnnouncementPolicy" or .kind == "CiliumGatewayClassConfig")' \
+	yq 'select(.apiVersion | test("^cilium[.]io/")) | select(.kind == "CiliumLoadBalancerIPPool" or .kind == "CiliumL2AnnouncementPolicy")' \
 		.cache/rendered/*.yaml > .cache/cilium-gateway-resources.yaml
 	kubeconform -strict -summary \
 		-schema-location '.cache/cilium-gateway-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
 		.cache/cilium-gateway-resources.yaml
 
-validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-cilium-gateways
+validate-envoy-gateway: validate-helm
+	@rm -rf .cache/envoy-gateway-schemas && mkdir -p .cache/envoy-gateway-schemas
+	yq -o=json --split-exp '".cache/envoy-gateway-schemas/" + .title' \
+		'select(.kind == "CustomResourceDefinition") | .spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
+		.cache/rendered/helm-envoy-gateway-crds.yaml
+	yq 'select(.apiVersion | test("^gateway[.]envoyproxy[.]io/"))' \
+		.cache/rendered/*.yaml > .cache/envoy-gateway-resources.yaml
+	kubeconform -strict -summary \
+		-schema-location '.cache/envoy-gateway-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+		.cache/envoy-gateway-resources.yaml
+
+validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-cilium-gateways validate-envoy-gateway
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \

@@ -12,14 +12,9 @@ cilium:
 
   kubeProxyReplacement: true
   gatewayAPI:
-    enabled: true
-    gatewayClass:
-      create: false
-    hostNetwork:
-      enabled: false
-    externalTrafficPolicy: Cluster
-    enableAlpn: true
-    xffNumTrustedHops: 0
+    enabled: false
+  socketLB:
+    hostNamespaceOnly: true
   l2announcements:
     enabled: true
     leaseDuration: 15s

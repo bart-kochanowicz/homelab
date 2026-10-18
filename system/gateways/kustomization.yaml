@@ -4,5 +4,7 @@ resources:
   - address-pools.yaml
   - l2-announcements.yaml
   - gateway-classes.yaml
+  - envoy-proxies.yaml
+  - client-traffic-policies.yaml
   - private-home.yaml
   - private-admin.yaml

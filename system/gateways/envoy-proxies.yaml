@@ -1,0 +1,120 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: private-home
+  namespace: private-home
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  ipFamily: IPv4
+  concurrency: 2
+  mergeGateways: false
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 2
+        pod:
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  gateway.envoyproxy.io/owning-gateway-name: private-home
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+        container:
+          image: docker.io/envoyproxy/envoy:distroless-v1.39.3@sha256:7369b033550a14997e5d698677b7b51f0210a80754f5d084c5caa1a78268267b
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      envoyService:
+        name: envoy-private-home
+        type: LoadBalancer
+        loadBalancerClass: io.cilium/l2-announcer
+        allocateLoadBalancerNodePorts: false
+        externalTrafficPolicy: Cluster
+        annotations:
+          lbipam.cilium.io/ips: 10.0.70.200
+        loadBalancerSourceRanges:
+          - 10.0.40.0/24
+          - 10.0.80.0/24
+          - 10.0.100.0/24
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: private-admin
+  namespace: private-admin
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  ipFamily: IPv4
+  concurrency: 2
+  mergeGateways: false
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 2
+        pod:
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  gateway.envoyproxy.io/owning-gateway-name: private-admin
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+        container:
+          image: docker.io/envoyproxy/envoy:distroless-v1.39.3@sha256:7369b033550a14997e5d698677b7b51f0210a80754f5d084c5caa1a78268267b
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      envoyService:
+        name: envoy-private-admin
+        type: LoadBalancer
+        loadBalancerClass: io.cilium/l2-announcer
+        allocateLoadBalancerNodePorts: false
+        externalTrafficPolicy: Cluster
+        annotations:
+          lbipam.cilium.io/ips: 10.0.70.201
+        loadBalancerSourceRanges:
+          - 10.0.80.0/24
+          - 10.0.100.0/24

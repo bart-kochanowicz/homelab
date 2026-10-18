@@ -26,6 +26,7 @@ misconfigurations:
       - "helm-cert-manager.yaml"
       - "helm-cilium.yaml"
       - "helm-sealed-secrets.yaml"
+      - "helm-envoy-gateway.yaml"
       - "system-monitoring.yaml"
     expired_at: 2026-12-31
     statement: These controllers require scoped secret access for their core function.
@@ -37,9 +38,9 @@ misconfigurations:
     statement: Upstream controllers require discovery of networking resources.
   - id: KSV-0056
     paths:
-      - "helm-cilium.yaml"
+      - "helm-envoy-gateway.yaml"
     expired_at: 2026-12-31
-    statement: Cilium Gateway API requires its operator to manage generated Services and EndpointSlices.
+    statement: Envoy Gateway requires namespaced Service writes to manage proxy frontends.
   - id: KSV-0114
     paths:
       - "helm-cert-manager.yaml"

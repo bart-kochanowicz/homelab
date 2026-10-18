@@ -6,8 +6,9 @@ spec:
   serviceSelector:
     matchLabels:
       io.kubernetes.service.namespace: private-home
-      io.kubernetes.service.name: cilium-gateway-private-home
-      gateway.networking.k8s.io/gateway-name: private-home
+      io.kubernetes.service.name: envoy-private-home
+      gateway.envoyproxy.io/owning-gateway-name: private-home
+      gateway.envoyproxy.io/owning-gateway-namespace: private-home
   nodeSelector:
     matchLabels:
       kubernetes.io/os: linux
@@ -24,8 +25,9 @@ spec:
   serviceSelector:
     matchLabels:
       io.kubernetes.service.namespace: private-admin
-      io.kubernetes.service.name: cilium-gateway-private-admin
-      gateway.networking.k8s.io/gateway-name: private-admin
+      io.kubernetes.service.name: envoy-private-admin
+      gateway.envoyproxy.io/owning-gateway-name: private-admin
+      gateway.envoyproxy.io/owning-gateway-namespace: private-admin
   nodeSelector:
     matchLabels:
       kubernetes.io/os: linux

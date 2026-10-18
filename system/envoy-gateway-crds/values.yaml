@@ -1,0 +1,6 @@
+gateway-crds-helm:
+  crds:
+    gatewayAPI:
+      enabled: false
+    envoyGateway:
+      enabled: true

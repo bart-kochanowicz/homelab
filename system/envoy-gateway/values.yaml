@@ -1,0 +1,56 @@
+gateway-helm:
+  nameOverride: envoy-gateway
+  fullnameOverride: envoy-gateway
+  crds:
+    enabled: false
+  topologyInjector:
+    enabled: false
+  global:
+    images:
+      envoyGateway:
+        image: docker.io/envoyproxy/gateway:v1.9.2@sha256:9d67017c442a70e6ae9f1a358e6c80eb653c67c2e40823d9a991e0daf37ba926
+  config:
+    envoyGateway:
+      gateway:
+        controllerName: gateway.envoyproxy.io/gatewayclass-controller
+      provider:
+        type: Kubernetes
+        kubernetes:
+          deploy:
+            type: GatewayNamespace
+          watch:
+            type: Namespaces
+            namespaces:
+              - private-home
+              - private-admin
+              - home-assistant
+              - crafty-controller
+              - argocd
+              - n8n
+              - monitoring
+      runtimeFlags:
+        disabled:
+          - EnvoyProxyPatch
+  deployment:
+    pod:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+    envoyGateway:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+  certgen:
+    job:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
