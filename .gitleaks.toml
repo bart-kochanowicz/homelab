@@ -16,6 +16,8 @@ paths = [
   '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
   '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
   '''^system/cert-manager-acme/sealed-cloudflare-token\.yaml$''',
+  # Historical ciphertext for a repository credential that was never registered.
+  '''^system/argocd/homelab-config-repository\.yaml$''',
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
   '''^system/monitoring/grafana-admin-sealed-secret\.yaml$''',
 ]
