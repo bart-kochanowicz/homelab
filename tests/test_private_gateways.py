@@ -202,6 +202,29 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertFalse(any(item["group"] == "gateway.envoyproxy.io" for item in
                              applications["spec"]["namespaceResourceWhitelist"]))
 
+    def test_controller_can_watch_its_own_endpoints_without_cluster_wide_access(self):
+        resources = self.rendered("helm-envoy-gateway.yaml")
+        account = {"kind": "ServiceAccount", "name": "envoy-gateway",
+                   "namespace": "envoy-gateway-system"}
+        roles = {(item["kind"], item["metadata"].get("namespace"), item["metadata"]["name"]): item
+                 for item in resources if item["kind"] in {"Role", "ClusterRole"}}
+        granted = set()
+        for binding in resources:
+            if binding["kind"] not in {"RoleBinding", "ClusterRoleBinding"}:
+                continue
+            if account not in binding.get("subjects", []):
+                continue
+            ref = binding["roleRef"]
+            namespace = binding["metadata"].get("namespace")
+            role = roles[(ref["kind"], namespace if ref["kind"] == "Role" else None, ref["name"])]
+            for rule in role["rules"]:
+                if "discovery.k8s.io" in rule["apiGroups"] and "endpointslices" in rule["resources"]:
+                    self.assertEqual(binding["kind"], "RoleBinding")
+                    self.assertEqual(set(rule["verbs"]), {"get", "list", "watch"})
+                    if namespace == account["namespace"]:
+                        granted.update(rule["verbs"])
+        self.assertEqual(granted, {"get", "list", "watch"})
+
     def test_proxies_deny_application_pods_and_have_no_backend_access(self):
         policies = self.rendered("system-network-policies.yaml")
         proxies = [item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
