@@ -45,9 +45,9 @@ Kubernetes server validation also checks CEL rules when resources are submitted.
 
 | Application | URL |
 | --- | --- |
-| ArgoCD | `https://argocd.thecavespace.com` |
-| n8n editor | `https://n8n.thecavespace.com` |
-| n8n webhooks | `https://n8n-webhook.thecavespace.com/` |
+| ArgoCD | `https://argocd.thecavespace.net` |
+| n8n editor | `https://n8n.thecavespace.net` |
+| n8n webhooks | `https://n8n-webhook.thecavespace.net/` |
 
 ArgoCD and n8n use `ClusterIP` Services. Private DNS must resolve these names to
 a LAN HTTPS entry point with routes to those Services. DNS, TLS, and the LAN
@@ -60,8 +60,8 @@ authorized LAN client. For access failures, check private DNS and HTTPS routes.
 
 ## GitHub SSO
 
-GitHub OAuth uses homepage `https://argocd.thecavespace.com` and callback
-`https://argocd.thecavespace.com/api/dex/callback`. Dex and RBAC configuration
+GitHub OAuth uses homepage `https://argocd.thecavespace.net` and callback
+`https://argocd.thecavespace.net/api/dex/callback`. Dex and RBAC configuration
 live in `system/argocd/`. The SSO SealedSecret patches OAuth keys into the
 Helm-managed `argocd-secret` without replacing its other credentials.
 
