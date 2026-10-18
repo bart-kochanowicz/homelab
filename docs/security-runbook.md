@@ -41,6 +41,55 @@ and other Applications from owning the same definitions.
 and validates rendered Gateway API resources without skipping missing schemas.
 Kubernetes server validation also checks CEL rules when resources are submitted.
 
+## Private gateways
+
+Cilium's bootstrap Helm release enables Gateway API and L2 announcements.
+The manually synced `gateways` Application owns the two GatewayClasses,
+their namespaced Cilium parameters, exact-address pools, L2 policies and
+HTTPS Gateways. Cilium's operator owns its CRDs and generated Services,
+EndpointSlices, Envoy configuration and synchronized TLS Secrets; do not
+patch those generated resources or add a second CRD owner.
+
+| Gateway | IPv4 VIP | Permitted client networks |
+| --- | --- | --- |
+| `private-home/private-home` | `10.0.70.200` | Home, Admin, VPN |
+| `private-admin/private-admin` | `10.0.70.201` | Admin, VPN |
+
+Verify address availability in UniFi and on the Servers LAN before allocating
+VIPs. Bootstrap Cilium first; wait for its GatewayClassConfig CRD to become
+Established and for agents/operator to be ready. Then sync `argocd-bootstrap`
+and manually sync `gateways`. Referenced production Certificates must be Ready.
+`make validate-cilium-gateways` checks configuration against CRDs from the
+pinned Cilium source without installing them or skipping missing schemas.
+
+Generated Services must use `externalTrafficPolicy: Cluster`, IPv4 only,
+no allocated NodePorts, and the class's source ranges. Source-range filtering
+also covers ClusterIP frontends through `bpf.lbSourceRangeAllTypes`; verify
+pod and same-LAN paths, since router rules do not cover those paths. Application
+egress and backend ingress policies remain necessary. Envoy uses a shared
+`ingress` identity; Gateways are not separate backend security identities.
+Routes must name their Gateway namespace and listener section explicitly.
+Each listener admits only its application's namespace and exact hostname.
+
+```bash
+kubectl get gatewayclasses
+kubectl get gateways -A
+kubectl get ciliumloadbalancerippools,ciliuml2announcementpolicies
+kubectl -n private-home get service cilium-gateway-private-home -o yaml
+kubectl -n private-admin get service cilium-gateway-private-admin -o yaml
+kubectl -n kube-system get leases | grep cilium-l2announce
+```
+
+Check Accepted/Programmed conditions, both VIPs, source ranges, leases and
+certificate reload after renewal. Test unknown names and cross-VIP Host/SNI
+combinations, including allowed SNI with another application's Host header.
+Test generated ClusterIPs and node addresses as well as VIPs. The L2 feature
+is beta; lease failover depends on API availability and client ARP caches.
+Two services with a five-second renew deadline require about 0.4 lease QPS;
+the agent budget is 10 QPS with burst 20. Check throttling and lease stability
+under actual load before changing those values. L2 failover does not make
+single-node application storage highly available.
+
 ## Private application access
 
 | Application | URL |

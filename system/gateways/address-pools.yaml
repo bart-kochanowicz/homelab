@@ -1,0 +1,27 @@
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: private-home
+spec:
+  blocks:
+    - start: 10.0.70.200
+      stop: 10.0.70.200
+  serviceSelector:
+    matchLabels:
+      io.kubernetes.service.namespace: private-home
+      io.kubernetes.service.name: cilium-gateway-private-home
+      gateway.networking.k8s.io/gateway-name: private-home
+---
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: private-admin
+spec:
+  blocks:
+    - start: 10.0.70.201
+      stop: 10.0.70.201
+  serviceSelector:
+    matchLabels:
+      io.kubernetes.service.namespace: private-admin
+      io.kubernetes.service.name: cilium-gateway-private-admin
+      gateway.networking.k8s.io/gateway-name: private-admin

@@ -9,12 +9,13 @@ KUSTOMIZE_DIRS := \
 	system/cert-manager-acme \
 	system/cert-manager-ca \
 	system/gateway-api-crds \
+	system/gateways \
 	system/local-path-provisioner \
 	system/network-policies
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
-	validate-cert-manager \
+	validate-cert-manager validate-cilium-gateways \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
 
 default: system
@@ -27,7 +28,7 @@ validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-terraform-tests validate-workflows
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq curl; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -53,7 +54,7 @@ validate-format: validate-terraform-layout
 validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
-validate-workflows: validate-gateway-api
+validate-workflows: validate-gateway-api validate-cilium-gateways
 	python3 -m unittest discover -s tests -v
 
 validate-yaml:
@@ -134,7 +135,25 @@ validate-cert-manager: validate-helm
 		-schema-location '.cache/cert-manager-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
 		.cache/cert-manager-resources.yaml
 
-validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager
+validate-cilium-gateways: validate-kustomize
+	@rm -rf .cache/cilium-gateway-crds .cache/cilium-gateway-schemas && \
+		mkdir -p .cache/cilium-gateway-crds .cache/cilium-gateway-schemas
+	@set -e; version="$$(yq '.dependencies[] | select(.name == "cilium") | .version' system/cilium/Chart.yaml)"; \
+	for resource in v2/ciliumloadbalancerippools v2alpha1/ciliuml2announcementpolicies v2alpha1/ciliumgatewayclassconfigs; do \
+		curl --fail --silent --show-error --location --retry 3 \
+			"https://raw.githubusercontent.com/cilium/cilium/v$$version/pkg/k8s/apis/cilium.io/client/crds/$$resource.yaml" \
+			-o ".cache/cilium-gateway-crds/$${resource##*/}.yaml"; \
+	done
+	yq -o=json --split-exp '".cache/cilium-gateway-schemas/" + .title' \
+		'.spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
+		.cache/cilium-gateway-crds/*.yaml
+	yq 'select(.apiVersion | test("^cilium[.]io/")) | select(.kind == "CiliumLoadBalancerIPPool" or .kind == "CiliumL2AnnouncementPolicy" or .kind == "CiliumGatewayClassConfig")' \
+		.cache/rendered/*.yaml > .cache/cilium-gateway-resources.yaml
+	kubeconform -strict -summary \
+		-schema-location '.cache/cilium-gateway-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+		.cache/cilium-gateway-resources.yaml
+
+validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-cilium-gateways
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \

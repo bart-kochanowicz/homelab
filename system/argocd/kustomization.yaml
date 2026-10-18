@@ -17,5 +17,6 @@ resources:
   - local-path-provisioner.yaml
   - monitoring-crds.yaml
   - gateway-api-crds.yaml
+  - gateways.yaml
   - monitoring.yaml
   - network-policies.yaml
