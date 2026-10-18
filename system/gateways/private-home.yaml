@@ -1,0 +1,30 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: private-home
+  namespace: private-home
+spec:
+  gatewayClassName: private-home
+  addresses:
+    - type: IPAddress
+      value: 10.0.70.200
+  listeners:
+    - name: home-assistant
+      hostname: ha.thecavespace.net
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: private-home-tls
+      allowedRoutes:
+        kinds:
+          - group: gateway.networking.k8s.io
+            kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: home-assistant

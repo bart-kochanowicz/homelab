@@ -11,11 +11,30 @@ cilium:
       maxUnavailable: 1
 
   kubeProxyReplacement: true
+  gatewayAPI:
+    enabled: true
+    gatewayClass:
+      create: false
+    hostNetwork:
+      enabled: false
+    externalTrafficPolicy: Cluster
+    enableAlpn: true
+    xffNumTrustedHops: 0
+  l2announcements:
+    enabled: true
+    leaseDuration: 15s
+    leaseRenewDeadline: 5s
+    leaseRetryPeriod: 2s
+  k8sClientRateLimit:
+    # Two leases / 5 seconds = 0.4 QPS; retain room for other API traffic.
+    qps: 10
+    burst: 20
   k8sServiceHost: localhost
   k8sServicePort: 7445
 
   bpf:
     hostLegacyRouting: true
+    lbSourceRangeAllTypes: true
 
   cgroup:
     autoMount:

@@ -35,6 +35,11 @@ misconfigurations:
       - "system-monitoring.yaml"
     expired_at: 2026-12-31
     statement: Upstream controllers require discovery of networking resources.
+  - id: KSV-0056
+    paths:
+      - "helm-cilium.yaml"
+    expired_at: 2026-12-31
+    statement: Cilium Gateway API requires its operator to manage generated Services and EndpointSlices.
   - id: KSV-0114
     paths:
       - "helm-cert-manager.yaml"
