@@ -1,0 +1,26 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+  labels:
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/part-of: homelab
+spec:
+  parentRefs:
+    - name: private-home
+      namespace: private-home
+      sectionName: home-assistant
+  hostnames:
+    - ha.thecavespace.net
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: home-assistant
+          port: 8123
+      # HA event streams must stay open beyond a normal request timeout.
+      timeouts:
+        request: 0s

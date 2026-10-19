@@ -172,6 +172,30 @@ class PrivateGatewayTests(unittest.TestCase):
             self.assertEqual(detection, {"xForwardedFor": {"numTrustedHops": 0}})
             self.assertEqual(policy["spec"]["tls"]["alpnProtocols"], ["h2", "http/1.1"])
 
+    def test_home_assistant_route_only_uses_its_private_home_listener_and_service(self):
+        resources = self.rendered("apps-home-assistant.yaml")
+        routes = [item for item in resources if item["kind"] == "HTTPRoute"]
+        self.assertEqual(len(routes), 1)
+        route = routes[0]
+        self.assertEqual(route["metadata"]["namespace"], "home-assistant")
+        spec = route["spec"]
+        self.assertEqual(spec["parentRefs"], [{
+            "name": "private-home", "namespace": "private-home", "sectionName": "home-assistant",
+        }])
+        self.assertEqual(spec["hostnames"], ["ha.thecavespace.net"])
+        self.assertEqual(len(spec["rules"]), 1)
+        rule = spec["rules"][0]
+        self.assertEqual(set(rule), {"matches", "backendRefs", "timeouts"})
+        self.assertEqual(rule["matches"], [{"path": {"type": "PathPrefix", "value": "/"}}])
+        self.assertEqual(rule["backendRefs"], [{"name": "home-assistant", "port": 8123}])
+        self.assertEqual(rule["timeouts"], {"request": "0s"})
+        service = next(item for item in resources if item["kind"] == "Service" and
+                       item["metadata"]["name"] == rule["backendRefs"][0]["name"])
+        self.assertEqual(service["metadata"]["namespace"], route["metadata"]["namespace"])
+        self.assertEqual(service["spec"]["type"], "ClusterIP")
+        self.assertIn({"name": "http", "port": 8123, "targetPort": 8123, "protocol": "TCP"},
+                      service["spec"]["ports"])
+
     def test_proxy_images_and_runtime_do_not_require_host_privileges(self):
         for proxy in self.resources_of_kind("EnvoyProxy"):
             provider = proxy["spec"]["provider"]["kubernetes"]
