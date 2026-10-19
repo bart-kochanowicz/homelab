@@ -86,6 +86,35 @@ run "client_source_reply_uses_ip_destination" {
   }
 }
 
+run "vip_access_and_replies_use_exact_ip_and_service_port" {
+  command = plan
+  module {
+    source = "../modules/unifi/firewall"
+  }
+  variables {
+    rules = {
+      ha = {
+        description = "Home HTTPS gateway access."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "orbit" }
+        destination = { zone = "launchpad", ips = ["10.0.70.200"], ports = "443" }
+      }
+    }
+  }
+  assert {
+    condition = (
+      unifi_firewall_policy.allow["ha"].destination.matching_target == "IP" &&
+      unifi_firewall_policy.allow["ha"].destination.ips == tolist(["10.0.70.200"]) &&
+      unifi_firewall_policy.allow["ha"].destination.port == "443" &&
+      unifi_firewall_policy.reply["ha"].source.ips == tolist(["10.0.70.200"]) &&
+      unifi_firewall_policy.reply["ha"].source.port == "443" &&
+      unifi_firewall_policy.reply["ha"].connection_state_type == "RESPOND_ONLY"
+    )
+    error_message = "A floating VIP must use exact IP selectors and stateful service-port replies."
+  }
+}
+
 run "reject_unresolved_client_destination" {
   command = plan
   module {

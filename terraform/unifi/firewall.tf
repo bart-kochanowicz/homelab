@@ -86,6 +86,13 @@ locals {
         source      = { zone = "orbit" }
         destination = { zone = local.server_reservations["worker-01"].network, clients = [local.server_macs["worker-01"]], ports = "8123" }
       }
+      home-ha-https = {
+        description = "Home HTTPS access to the Home Assistant gateway."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "orbit" }
+        destination = { zone = "launchpad", ips = [local.private_dns_records["home-assistant"].address], ports = "443" }
+      }
       management-inform = {
         description = "Infrastructure inform traffic to the Network controller."
         protocol    = "tcp"

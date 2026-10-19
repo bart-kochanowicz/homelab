@@ -120,12 +120,17 @@ run "least_privilege_access_matrix" {
   }
   assert {
     condition = alltrue([
-      for rule in values(local.firewall_rules) :
+      for name, rule in local.firewall_rules :
       rule.source.zone != "orbit" || !contains(["internal", "launchpad"], rule.destination.zone) ? true : (
-        rule.protocol == "tcp" && contains(["8123", "30000"], rule.destination.ports) && length(rule.destination.clients) == 1
+        rule.protocol == "tcp" && (
+          name == "home-ha-https" ? (
+            rule.ip_version == "IPV4" && rule.destination.ports == "443" &&
+            rule.destination.zone == "launchpad" && rule.destination.ips == ["10.0.70.200"]
+          ) : contains(["8123", "30000"], rule.destination.ports) && length(rule.destination.clients) == 1
+        )
       )
     ])
-    error_message = "Home server access must identify the service and registered server MAC."
+    error_message = "Home server access must identify a registered server or the exact HA HTTPS VIP."
   }
   assert {
     condition = (
@@ -138,6 +143,21 @@ run "least_privilege_access_matrix" {
       local.firewall_rules["houston-01-controller"].destination.ports == "443"
     )
     error_message = "Internet rules must exclude private/ONT destinations and controller access must identify Houston."
+  }
+}
+
+run "home_https_uses_only_its_private_gateway" {
+  command = plan
+  assert {
+    condition = (
+      local.private_dns_records == {
+        home-assistant = { name = "ha.thecavespace.net", address = "10.0.70.200" }
+      } &&
+      local.firewall_rules.home-ha-https.source.zone == "orbit" &&
+      local.firewall_rules.home-ha-https.destination.ips == [local.private_dns_records["home-assistant"].address] &&
+      !can(local.firewall_rules.home-ha-https.destination.clients)
+    )
+    error_message = "Only the exact HA local A record and Home HTTPS VIP may be declared."
   }
 }
 
