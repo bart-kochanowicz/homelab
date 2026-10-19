@@ -21,6 +21,7 @@ gateway-helm:
           watch:
             type: Namespaces
             namespaces:
+              - envoy-gateway-system
               - private-home
               - private-admin
               - home-assistant
