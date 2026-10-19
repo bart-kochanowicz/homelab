@@ -220,6 +220,16 @@ class PrivateGatewayTests(unittest.TestCase):
 
     def test_controller_can_watch_its_own_endpoints_without_cluster_wide_access(self):
         resources = self.rendered("helm-envoy-gateway.yaml")
+        config = next(item for item in resources if item["kind"] == "ConfigMap" and
+                      item["metadata"]["name"] == "envoy-gateway-config")
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
+            fixture = Path(directory) / "envoy-gateway.yaml"
+            fixture.write_text(config["data"]["envoy-gateway.yaml"])
+            result = subprocess.run(["yq", "-o=json", ".provider.kubernetes.watch", str(fixture)],
+                                    check=True, capture_output=True, text=True, timeout=15)
+        watch = json.loads(result.stdout)
+        self.assertEqual(watch["type"], "Namespaces")
+        self.assertIn("envoy-gateway-system", watch["namespaces"])
         account = {"kind": "ServiceAccount", "name": "envoy-gateway",
                    "namespace": "envoy-gateway-system"}
         roles = {(item["kind"], item["metadata"].get("namespace"), item["metadata"]["name"]): item
