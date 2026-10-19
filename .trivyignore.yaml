@@ -46,6 +46,21 @@ misconfigurations:
       - "helm-cert-manager.yaml"
     expired_at: 2026-12-31
     statement: cert-manager installs and manages its admission webhook.
+  - id: KSV-0114
+    paths:
+      - "helm-metallb.yaml"
+    expired_at: 2026-12-31
+    statement: MetalLB rotates the CA of its named validating webhook for metallb.io resources.
+  - id: KSV-0009
+    paths:
+      - "helm-metallb.yaml"
+    expired_at: 2026-12-31
+    statement: L2 speakers require host networking to announce VIPs over ARP.
+  - id: KSV-0119
+    paths:
+      - "helm-metallb.yaml"
+    expired_at: 2026-12-31
+    statement: L2 speakers require NET_RAW for ARP sockets; all other capabilities are dropped.
   - id: KSV-0005
     paths:
       - "helm-cilium.yaml"

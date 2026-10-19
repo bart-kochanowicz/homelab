@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb-crds
+  namespace: argocd
+spec:
+  project: gateway-api-crds
+  source:
+    repoURL: https://github.com/bart-kochanowicz/homelab.git
+    targetRevision: main
+    path: system/metallb-crds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: bgppeers.metallb.io
+      jsonPointers:
+        - /spec/conversion/webhook/clientConfig/caBundle
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      - FailOnSharedResource=true
+      - RespectIgnoreDifferences=true

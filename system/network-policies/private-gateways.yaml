@@ -35,13 +35,6 @@ spec:
         - ports:
             - port: "10443"
               protocol: TCP
-    # Cluster-mode Services can SNAT external traffic through a remote node.
-    - fromEntities:
-        - remote-node
-      toPorts:
-        - ports:
-            - port: "10443"
-              protocol: TCP
   egress:
     - toEndpoints:
         - matchLabels:
@@ -94,13 +87,6 @@ spec:
     - fromCIDR:
         - 10.0.80.0/24
         - 10.0.100.0/24
-      toPorts:
-        - ports:
-            - port: "10443"
-              protocol: TCP
-    # Cluster-mode Services can SNAT external traffic through a remote node.
-    - fromEntities:
-        - remote-node
       toPorts:
         - ports:
             - port: "10443"

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: homelab-metallb
+description: Private LoadBalancer address allocation and L2 announcements
+type: application
+version: 0.1.0
+dependencies:
+  - name: metallb
+    version: 0.16.1
+    repository: https://metallb.github.io/metallb

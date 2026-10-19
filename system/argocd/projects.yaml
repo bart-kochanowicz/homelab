@@ -71,6 +71,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: envoy-gateway-system
       server: https://kubernetes.default.svc
+    - namespace: metallb-system
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -92,10 +94,6 @@ spec:
       kind: ClusterIssuer
     - group: cilium.io
       kind: CiliumClusterwideNetworkPolicy
-    - group: cilium.io
-      kind: CiliumLoadBalancerIPPool
-    - group: cilium.io
-      kind: CiliumL2AnnouncementPolicy
     - group: gateway.networking.k8s.io
       kind: GatewayClass
   namespaceResourceWhitelist:
@@ -145,6 +143,10 @@ spec:
       kind: NetworkPolicy
     - group: cilium.io
       kind: CiliumNetworkPolicy
+    - group: metallb.io
+      kind: IPAddressPool
+    - group: metallb.io
+      kind: L2Advertisement
     - group: gateway.envoyproxy.io
       kind: EnvoyProxy
     - group: gateway.envoyproxy.io
@@ -189,7 +191,7 @@ metadata:
   name: gateway-api-crds
   namespace: argocd
 spec:
-  description: Separately managed Gateway API and controller extension CRDs
+  description: Separately managed networking CRDs
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:

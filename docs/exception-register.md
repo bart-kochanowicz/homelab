@@ -7,3 +7,4 @@
 | local-path-provisioner | Privileged namespace/helper | Node filesystem access | Scoped RBAC, pinned images, retained volumes, mode `0770`, workload ownership | Quarterly |
 | Monitoring | Privileged PSS namespace | Host-level monitoring | Dedicated namespace, ArgoCD resource allowlist, private access | Quarterly |
 | Envoy Gateway | Secret reads, Service writes (`KSV-0041`, `KSV-0056`) | TLS and proxy management | Pinned images, namespace-scoped RBAC, manual sync; rendered controller chart only | 2026-12-31 |
+| MetalLB | Host network, NET_RAW, own webhook CA writes; wildcard verbs on named status CRDs | ARP and controller operation | Pinned images, bounded pools/nodes, host firewall; rendered chart only | 2026-12-31 |

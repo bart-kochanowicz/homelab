@@ -15,13 +15,10 @@ cilium:
     enabled: false
   socketLB:
     hostNamespaceOnly: true
+  defaultLBServiceIPAM: none
   l2announcements:
-    enabled: true
-    leaseDuration: 15s
-    leaseRenewDeadline: 5s
-    leaseRetryPeriod: 2s
+    enabled: false
   k8sClientRateLimit:
-    # Two leases / 5 seconds = 0.4 QPS; retain room for other API traffic.
     qps: 10
     burst: 20
   k8sServiceHost: localhost
