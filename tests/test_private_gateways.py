@@ -271,10 +271,18 @@ class PrivateGatewayTests(unittest.TestCase):
             self.assertRegex(container["image"], r":v0\.16\.1@sha256:[0-9a-f]{64}$")
             self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
             self.assertEqual(container["securityContext"]["capabilities"]["drop"], ["ALL"])
+            secret_envs = {env["name"]: env.get("value") for env in container.get("env", [])
+                           if "SECRET" in env["name"]}
             if workload["kind"] == "DaemonSet":
                 self.assertTrue(pod["hostNetwork"])
                 self.assertIn("--ignore-exclude-lb", container["args"])
                 self.assertEqual(container["securityContext"]["capabilities"]["add"], ["NET_RAW"])
+                self.assertEqual(secret_envs, {"METALLB_ML_SECRET_KEY_PATH": "/etc/ml_secret_key"})
+                self.assertIn({"name": "memberlist", "secret": {
+                    "secretName": "metallb-memberlist", "defaultMode": 420,
+                }}, pod["volumes"])
+            else:
+                self.assertEqual(secret_envs, {"METALLB_ML_SECRET_NAME": "metallb-memberlist"})
 
     def test_metallb_crds_and_configuration_have_separate_manual_owners(self):
         controller = self.rendered("helm-metallb.yaml")

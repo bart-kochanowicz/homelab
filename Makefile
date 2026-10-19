@@ -167,7 +167,11 @@ validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manag
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \
+		--ignore-paths '.cache/rendered/helm-metallb.yaml' \
 		.cache/rendered/*.yaml
+	yq '.checks.include -= ["drop-net-raw-capability", "env-var-secret"]' \
+		.kube-linter.yaml > .cache/metallb-kube-linter.yaml
+	kube-linter lint --config .cache/metallb-kube-linter.yaml .cache/rendered/helm-metallb.yaml
 	find .cache/rendered -type f -name '*.yaml' \
 		-not -name 'system-monitoring.yaml' \
 		-not -name 'helm-cilium.yaml' -not -name 'helm-metallb.yaml' -print0 | \
