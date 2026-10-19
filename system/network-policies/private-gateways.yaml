@@ -17,6 +17,7 @@ spec:
     matchLabels:
       app.kubernetes.io/managed-by: envoy-gateway
       app.kubernetes.io/component: proxy
+      gateway.envoyproxy.io/owning-gateway-name: private-home
   ingressDeny:
     - fromEndpoints:
         - matchExpressions:
@@ -36,6 +37,13 @@ spec:
             - port: "10443"
               protocol: TCP
   egress:
+    - toEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "8123"
+              protocol: TCP
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system

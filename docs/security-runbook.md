@@ -223,11 +223,14 @@ Test required access and denied traffic using fresh connections and Hubble verdi
 | Admin `10.0.80.0/24` | Node administration, Crafty TCP `8443`, Minecraft TCP `30000`, n8n TCP `5678` |
 | Home `10.0.40.0/24` | Home Assistant TCP `8123`, Minecraft TCP `30000` |
 | n8n | Home Assistant on local or remote nodes, TCP `8123` |
+| Home gateway proxy | Home Assistant on local or remote nodes, TCP `8123` |
 
 Home Assistant uses `hostNetwork`; its namespace policies cannot isolate it.
 Host rules apply to every process listening on the allowed node ports. n8n uses
 Cilium host/node identities for this connection; default Cilium CIDR matching and
 namespace selectors do not select host-network workloads. Host egress remains unrestricted.
+The Home proxy's host allowance matches its namespace and Envoy ownership labels;
+the Admin proxy has no Home Assistant backend allowance.
 
 Minecraft uses `externalTrafficPolicy: Local` to preserve client IPs for pod
 policy enforcement. Connect to a node running the Crafty pod; other nodes do not

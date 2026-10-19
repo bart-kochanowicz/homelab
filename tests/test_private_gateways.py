@@ -251,7 +251,7 @@ class PrivateGatewayTests(unittest.TestCase):
                         granted.update(rule["verbs"])
         self.assertEqual(granted, {"get", "list", "watch"})
 
-    def test_proxies_deny_application_pods_and_have_no_backend_access(self):
+    def test_proxies_deny_application_pods_and_limit_backend_access(self):
         policies = self.rendered("system-network-policies.yaml")
         proxies = [item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
                    item["metadata"]["name"] == "private-proxy"]
@@ -263,9 +263,42 @@ class PrivateGatewayTests(unittest.TestCase):
             ])
             ports = {port["port"] for rule in policy["spec"]["egress"]
                      for to_port in rule["toPorts"] for port in to_port["ports"]}
-            self.assertEqual(ports, {"53", "18000"})
+            expected_ports = {"53", "18000"}
+            if policy["metadata"]["namespace"] == "private-home":
+                expected_ports.add("8123")
+            self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
+
+    def test_home_assistant_host_access_requires_home_proxy_identity(self):
+        policies = self.rendered("system-network-policies.yaml")
+        host = next(item for item in policies if item["kind"] == "CiliumClusterwideNetworkPolicy" and
+                    item["metadata"]["name"] == "homelab-host-firewall")
+        proxy_rules = [rule for rule in host["spec"]["ingress"] if any(
+            selector.get("matchLabels", {}).get("k8s:io.kubernetes.pod.namespace") == "private-home"
+            for selector in rule.get("fromEndpoints", [])
+        )]
+        self.assertEqual(len(proxy_rules), 1)
+        rule = proxy_rules[0]
+        self.assertEqual(set(rule), {"fromEndpoints", "toPorts"})
+        self.assertEqual(rule["fromEndpoints"], [{"matchLabels": {
+            "k8s:io.kubernetes.pod.namespace": "private-home",
+            "k8s:app.kubernetes.io/managed-by": "envoy-gateway",
+            "k8s:app.kubernetes.io/component": "proxy",
+            "k8s:gateway.envoyproxy.io/owning-gateway-name": "private-home",
+        }}])
+        ports = [{"ports": [{"port": "8123", "protocol": "TCP"}]}]
+        self.assertEqual(rule["toPorts"], ports)
+        home = next(item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
+                    item["metadata"]["name"] == "private-proxy" and
+                    item["metadata"]["namespace"] == "private-home")
+        self.assertEqual(home["spec"]["endpointSelector"], {"matchLabels": {
+            "app.kubernetes.io/managed-by": "envoy-gateway",
+            "app.kubernetes.io/component": "proxy",
+            "gateway.envoyproxy.io/owning-gateway-name": "private-home",
+        }})
+        node_rules = [rule for rule in home["spec"]["egress"] if "toEntities" in rule]
+        self.assertEqual(node_rules, [{"toEntities": ["host", "remote-node"], "toPorts": ports}])
 
     def test_metallb_only_runs_l2_with_a_dedicated_service_class(self):
         resources = self.rendered("helm-metallb.yaml")

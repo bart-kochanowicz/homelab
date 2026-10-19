@@ -44,6 +44,16 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
+            k8s:io.kubernetes.pod.namespace: private-home
+            k8s:app.kubernetes.io/managed-by: envoy-gateway
+            k8s:app.kubernetes.io/component: proxy
+            k8s:gateway.envoyproxy.io/owning-gateway-name: private-home
+      toPorts:
+        - ports:
+            - port: "8123"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
             k8s:io.kubernetes.pod.namespace: monitoring
       toPorts:
         - ports:
