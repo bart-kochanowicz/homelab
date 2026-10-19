@@ -72,14 +72,15 @@ kubectl -n private-admin get service envoy-private-admin
 
 | Application | URL |
 | --- | --- |
+| Home Assistant | `https://ha.thecavespace.net` |
 | ArgoCD | `https://argocd.thecavespace.net` |
 | n8n editor | `https://n8n.thecavespace.net` |
 | n8n webhooks | `https://n8n-webhook.thecavespace.net/` |
 
-ArgoCD and n8n use `ClusterIP` Services. Private DNS must resolve these names to
-a LAN HTTPS entry point with routes to those Services. DNS, TLS, and the LAN
-entry point are configured outside the application manifests. Clients must
-trust the issuer, and ArgoCD server pods must resolve and reach the ArgoCD URL
+Private DNS must resolve HA to `10.0.70.200` and administrative names to
+`10.0.70.201`. HTTPS listeners are defined in `system/gateways/`; application
+routes live with their workloads. Clients must trust the issuer, and ArgoCD
+server pods must resolve and reach the ArgoCD URL
 for SSO. Keep Kubernetes API access available for recovery.
 
 Verify DNS, HTTPS, GitHub login, n8n login, and a disposable webhook from an
