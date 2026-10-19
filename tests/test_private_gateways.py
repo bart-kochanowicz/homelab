@@ -8,7 +8,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMAS = ROOT / ".cache/cilium-gateway-schemas"
+SCHEMAS = ROOT / ".cache/metallb-schemas"
 ENVOY_SCHEMAS = ROOT / ".cache/envoy-gateway-schemas"
 
 
@@ -16,18 +16,19 @@ class PrivateGatewayTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if not SCHEMAS.is_dir() or not ENVOY_SCHEMAS.is_dir():
-            raise RuntimeError("Run make validate-cilium-gateways validate-envoy-gateway before these tests")
+            raise RuntimeError("Run make validate-metallb validate-envoy-gateway before these tests")
         result = subprocess.run(
             ["yq", "-o=json", "-I=0", "select(. != null)", str(ROOT / ".cache/rendered/system-gateways.yaml")],
             check=True, capture_output=True, text=True, timeout=15,
         )
         cls.resources = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+        cls.resources += cls.rendered("system-metallb-config.yaml")
 
     def resources_of_kind(self, kind):
         return [item for item in self.resources if item["kind"] == kind]
 
     def validate(self, document):
-        with tempfile.TemporaryDirectory(prefix="cilium-schema-", dir=ROOT / ".cache") as directory:
+        with tempfile.TemporaryDirectory(prefix="gateway-schema-", dir=ROOT / ".cache") as directory:
             fixture = Path(directory) / "resource.json"
             fixture.write_text(json.dumps(document))
             return subprocess.run(
@@ -39,8 +40,8 @@ class PrivateGatewayTests(unittest.TestCase):
 
     def test_schemas_reject_invalid_admission_configuration(self):
         config = self.resources_of_kind("EnvoyProxy")[0]
-        pool = self.resources_of_kind("CiliumLoadBalancerIPPool")[0]
-        announcement = self.resources_of_kind("CiliumL2AnnouncementPolicy")[0]
+        pool = self.resources_of_kind("IPAddressPool")[0]
+        announcement = self.resources_of_kind("L2Advertisement")[0]
         for resource in (config, pool, announcement, self.resources_of_kind("ClientTrafficPolicy")[0]):
             with self.subTest(kind=resource["kind"], valid=True):
                 result = self.validate(resource)
@@ -54,7 +55,7 @@ class PrivateGatewayTests(unittest.TestCase):
         invalid["spec"]["provider"]["kubernetes"]["envoyService"]["allocateLoadBalancerNodePorts"] = "false"
         invalid_examples.append(invalid)
         invalid = copy.deepcopy(pool)
-        invalid["spec"]["serviceSelector"]["matchLabels"] = ["private-home"]
+        invalid["spec"]["serviceAllocation"]["serviceSelectors"] = "private-home"
         invalid_examples.append(invalid)
         invalid = copy.deepcopy(announcement)
         invalid["spec"]["interfaces"] = "eno1"
@@ -81,7 +82,7 @@ class PrivateGatewayTests(unittest.TestCase):
             admitted = {client for client in clients if any(ipaddress.ip_address(client) in net for net in ranges)}
             self.assertEqual(admitted, allowed[name])
             self.assertFalse(service["allocateLoadBalancerNodePorts"])
-            self.assertEqual(service["externalTrafficPolicy"], "Cluster")
+            self.assertEqual(service["externalTrafficPolicy"], "Local")
             self.assertEqual(config["spec"]["ipFamily"], "IPv4")
         for gateway in self.resources_of_kind("Gateway"):
             namespace = gateway["metadata"]["namespace"]
@@ -93,28 +94,43 @@ class PrivateGatewayTests(unittest.TestCase):
             self.assertEqual((parameters["namespace"], parameters["name"]), (namespace, namespace))
 
     def test_ip_allocation_and_announcements_require_exact_service_identity(self):
-        for kind in ("CiliumLoadBalancerIPPool", "CiliumL2AnnouncementPolicy"):
-            for resource in self.resources_of_kind(kind):
-                name = resource["metadata"]["name"]
-                selector = resource["spec"]["serviceSelector"]["matchLabels"]
-                self.assertEqual(selector["io.kubernetes.service.namespace"], name)
-                self.assertEqual(selector["io.kubernetes.service.name"], f"envoy-{name}")
-                self.assertEqual(selector["gateway.envoyproxy.io/owning-gateway-name"], name)
-                self.assertEqual(selector["gateway.envoyproxy.io/owning-gateway-namespace"], name)
-                if kind == "CiliumL2AnnouncementPolicy":
-                    self.assertEqual(resource["spec"]["interfaces"], ["^eno1$"])
-                    self.assertFalse(resource["spec"]["externalIPs"])
-        addresses = set()
+        pools = self.resources_of_kind("IPAddressPool")
         proxies = {item["metadata"]["name"]: item for item in self.resources_of_kind("EnvoyProxy")}
-        for pool in self.resources_of_kind("CiliumLoadBalancerIPPool"):
-            for block in pool["spec"]["blocks"]:
-                self.assertEqual(block["start"], block["stop"])
-                addresses.add(block["start"])
-                proxy = proxies[pool["metadata"]["name"]]
-                service = proxy["spec"]["provider"]["kubernetes"]["envoyService"]
-                self.assertEqual(service["annotations"]["lbipam.cilium.io/ips"], block["start"])
-                self.assertEqual(service["name"], "envoy-" + pool["metadata"]["name"])
+        self.assertEqual(len(pools), 2)
+        addresses = set()
+        for pool in pools:
+            name = pool["metadata"]["name"]
+            self.assertEqual(pool["metadata"]["namespace"], "metallb-system")
+            self.assertFalse(pool["spec"]["autoAssign"])
+            allocation = pool["spec"]["serviceAllocation"]
+            self.assertEqual(allocation["namespaces"], [name])
+            self.assertEqual(allocation["serviceSelectors"], [{"matchLabels": {
+                "app.kubernetes.io/managed-by": "envoy-gateway",
+                "app.kubernetes.io/component": "proxy",
+                "gateway.envoyproxy.io/owning-gateway-name": name,
+                "gateway.envoyproxy.io/owning-gateway-namespace": name,
+            }}])
+            network = ipaddress.ip_network(pool["spec"]["addresses"][0])
+            self.assertEqual(network.prefixlen, 32)
+            addresses.add(str(network.network_address))
+            service = proxies[name]["spec"]["provider"]["kubernetes"]["envoyService"]
+            self.assertEqual(service["loadBalancerClass"], "metallb.io/metallb")
+            self.assertEqual(service["annotations"], {
+                "metallb.io/address-pool": name,
+                "metallb.io/loadBalancerIPs": str(network.network_address),
+            })
+            self.assertEqual(service["name"], "envoy-" + name)
         self.assertEqual(addresses, {"10.0.70.200", "10.0.70.201"})
+        advertisements = self.resources_of_kind("L2Advertisement")
+        self.assertEqual(len(advertisements), 1)
+        self.assertEqual(advertisements[0]["spec"], {
+            "ipAddressPools": ["private-home", "private-admin"],
+            "nodeSelectors": [
+                {"matchLabels": {"kubernetes.io/hostname": "talos-2jn-7he"}},
+                {"matchLabels": {"kubernetes.io/hostname": "talos-p5e-e9e"}},
+            ],
+            "interfaces": ["eno1"],
+        })
 
     def test_listener_attachment_is_limited_to_its_application(self):
         expected = {
@@ -238,16 +254,87 @@ class PrivateGatewayTests(unittest.TestCase):
             ports = {port["port"] for rule in policy["spec"]["egress"]
                      for to_port in rule["toPorts"] for port in to_port["ports"]}
             self.assertEqual(ports, {"53", "18000"})
+            self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
+            self.assertEqual(len(policy["spec"]["ingress"]), 1)
+
+    def test_metallb_only_runs_l2_with_a_dedicated_service_class(self):
+        resources = self.rendered("helm-metallb.yaml")
+        workloads = [item for item in resources if item["kind"] in {"Deployment", "DaemonSet"}]
+        self.assertEqual({item["metadata"]["name"] for item in workloads},
+                         {"metallb-controller", "metallb-speaker"})
+        for workload in workloads:
+            pod = workload["spec"]["template"]["spec"]
+            self.assertFalse(pod.get("initContainers"))
+            self.assertEqual(len(pod["containers"]), 1)
+            container = pod["containers"][0]
+            self.assertIn("--lb-class=metallb.io/metallb", container["args"])
+            self.assertRegex(container["image"], r":v0\.16\.1@sha256:[0-9a-f]{64}$")
+            self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
+            self.assertEqual(container["securityContext"]["capabilities"]["drop"], ["ALL"])
+            secret_envs = {env["name"]: env.get("value") for env in container.get("env", [])
+                           if "SECRET" in env["name"]}
+            if workload["kind"] == "DaemonSet":
+                self.assertTrue(pod["hostNetwork"])
+                self.assertIn("--ignore-exclude-lb", container["args"])
+                self.assertEqual(container["securityContext"]["capabilities"]["add"], ["NET_RAW"])
+                self.assertEqual(secret_envs, {"METALLB_ML_SECRET_KEY_PATH": "/etc/ml_secret_key"})
+                self.assertIn({"name": "memberlist", "secret": {
+                    "secretName": "metallb-memberlist", "defaultMode": 420,
+                }}, pod["volumes"])
+            else:
+                self.assertEqual(secret_envs, {"METALLB_ML_SECRET_NAME": "metallb-memberlist"})
+
+    def test_metallb_crds_and_configuration_have_separate_manual_owners(self):
+        controller = self.rendered("helm-metallb.yaml")
+        definitions = self.rendered("system-metallb-crds.yaml")
+        self.assertFalse(any(item["kind"] == "CustomResourceDefinition" for item in controller))
+        self.assertEqual(len(definitions), 9)
+        for item in definitions:
+            self.assertEqual(item["kind"], "CustomResourceDefinition")
+            self.assertEqual(item["spec"]["group"], "metallb.io")
+            self.assertEqual(item["metadata"]["annotations"]["argocd.argoproj.io/sync-options"],
+                             "Prune=false,Delete=false")
+        argocd = self.rendered("system-argocd.yaml")
+        apps = [item for item in argocd if item["kind"] == "Application" and
+                item["metadata"]["name"] in {"metallb", "metallb-crds", "metallb-config"}]
+        self.assertEqual(len(apps), 3)
+        for app in apps:
+            self.assertNotIn("automated", app["spec"]["syncPolicy"])
+            self.assertNotIn("finalizers", app["metadata"])
+            self.assertIn("FailOnSharedResource=true", app["spec"]["syncPolicy"]["syncOptions"])
+        applications = next(item for item in argocd if item["kind"] == "AppProject" and
+                            item["metadata"]["name"] == "applications")
+        self.assertFalse(any(item["group"] == "metallb.io" for item in
+                             applications["spec"]["namespaceResourceWhitelist"]))
+
+    def test_metallb_upstream_wildcard_verbs_are_limited_to_status_resources(self):
+        for item in self.rendered("helm-metallb.yaml"):
+            if item["kind"] not in {"Role", "ClusterRole"}:
+                continue
+            for rule in item["rules"]:
+                self.assertNotIn("*", rule["apiGroups"])
+                self.assertNotIn("*", rule["resources"])
+                if "*" in rule["verbs"]:
+                    self.assertEqual(rule["apiGroups"], ["metallb.io"])
+                    self.assertLessEqual(set(rule["resources"]), {
+                        "servicel2statuses", "servicel2statuses/status",
+                        "servicebgpstatuses", "servicebgpstatuses/status",
+                        "configurationstates", "configurationstates/status",
+                    })
 
     def test_cilium_keeps_the_existing_dataplane_and_host_firewall(self):
         config = next(item for item in self.rendered("helm-cilium.yaml") if
                       item["kind"] == "ConfigMap" and item["metadata"]["name"] == "cilium-config")
         data = config["data"]
         for key in ("kube-proxy-replacement", "enable-host-firewall", "enable-host-legacy-routing",
-                    "bpf-lb-sock-hostns-only", "bpf-lb-source-range-all-types", "enable-l2-announcements"):
+                    "bpf-lb-sock-hostns-only", "bpf-lb-source-range-all-types"):
             self.assertEqual(data[key], "true", key)
         self.assertEqual(data.get("enable-gateway-api", "false"), "false")
         self.assertEqual(data["routing-mode"], "tunnel")
+        self.assertEqual(data.get("enable-l2-announcements", "false"), "false")
+        self.assertEqual(data["default-lb-service-ipam"], "none")
+        self.assertFalse(any(item["kind"] in {"CiliumLoadBalancerIPPool", "CiliumL2AnnouncementPolicy"}
+                             for item in self.resources))
 
 
 if __name__ == "__main__":

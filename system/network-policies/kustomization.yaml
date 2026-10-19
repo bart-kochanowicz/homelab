@@ -6,3 +6,4 @@ resources:
   - n8n-host-access.yaml
   - talos-worker-bootstrap.yaml
   - private-gateways.yaml
+  - metallb.yaml

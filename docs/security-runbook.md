@@ -44,18 +44,23 @@ Kubernetes server validation also checks CEL rules when resources are submitted.
 ## Private gateways
 
 Envoy Gateway runs separate Home/Admin proxies. Cilium provides networking,
-the host firewall, VIP allocation and L2 announcements.
+Service forwarding and the host firewall; MetalLB allocates and announces VIPs.
 
 After bootstrap/namespaces, manually sync: `gateway-api-crds` →
-`envoy-gateway-crds` → `network-policies` → `envoy-gateway` → `gateways`.
+`envoy-gateway-crds` → `metallb-crds` → `network-policies` → `metallb` →
+`metallb-config` → `envoy-gateway` → `gateways`.
 Certificates must be Ready. Keep CRD ownership separate from the controller chart.
 
 - Controller changes require approved Gateway/class recreation. Remove old
   generated frontends before stopping their controller.
+- LoadBalancer class changes require approved Service recreation. Only MetalLB
+  owns VIP allocation/announcements; keep Cilium L2 and default LB IPAM disabled.
 - Request VIPs through EnvoyProxy Service annotations; Gateway `spec.addresses`
   creates Service `externalIPs`.
 - Backend access needs explicit proxy egress and backend ingress rules.
-  Cluster-mode SNAT can hide client IPs; forwarded headers do not authorize access.
+  Keep `externalTrafficPolicy: Local` to preserve client IPs for admission.
+- L2 advertisements list both nodes and `eno1`; speakers override Talos's default
+  control-plane exclusion. Update those selectors when replacing nodes.
 
 ```bash
 kubectl get gateways -A

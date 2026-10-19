@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_ipaddresspools.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_bgppeers.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_bfdprofiles.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_bgpadvertisements.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_l2advertisements.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_communities.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_servicel2statuses.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_servicebgpstatuses.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/crd/bases/metallb.io_configurationstates.yaml
+commonAnnotations:
+  argocd.argoproj.io/sync-options: Prune=false,Delete=false
+patches:
+  - target:
+      kind: CustomResourceDefinition
+      name: bgppeers.metallb.io
+    patch: |-
+      - op: add
+        path: /spec/conversion
+        value:
+          strategy: Webhook
+          webhook:
+            conversionReviewVersions: [v1beta1, v1beta2]
+            clientConfig:
+              service:
+                namespace: metallb-system
+                name: metallb-webhook-service
+                path: /convert

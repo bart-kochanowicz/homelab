@@ -49,11 +49,12 @@ spec:
       envoyService:
         name: envoy-private-home
         type: LoadBalancer
-        loadBalancerClass: io.cilium/l2-announcer
+        loadBalancerClass: metallb.io/metallb
         allocateLoadBalancerNodePorts: false
-        externalTrafficPolicy: Cluster
+        externalTrafficPolicy: Local
         annotations:
-          lbipam.cilium.io/ips: 10.0.70.200
+          metallb.io/address-pool: private-home
+          metallb.io/loadBalancerIPs: 10.0.70.200
         loadBalancerSourceRanges:
           - 10.0.40.0/24
           - 10.0.80.0/24
@@ -110,11 +111,12 @@ spec:
       envoyService:
         name: envoy-private-admin
         type: LoadBalancer
-        loadBalancerClass: io.cilium/l2-announcer
+        loadBalancerClass: metallb.io/metallb
         allocateLoadBalancerNodePorts: false
-        externalTrafficPolicy: Cluster
+        externalTrafficPolicy: Local
         annotations:
-          lbipam.cilium.io/ips: 10.0.70.201
+          metallb.io/address-pool: private-admin
+          metallb.io/loadBalancerIPs: 10.0.70.201
         loadBalancerSourceRanges:
           - 10.0.80.0/24
           - 10.0.100.0/24

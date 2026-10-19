@@ -11,11 +11,13 @@ KUSTOMIZE_DIRS := \
 	system/gateway-api-crds \
 	system/gateways \
 	system/local-path-provisioner \
+	system/metallb-crds \
+	system/metallb-config \
 	system/network-policies
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
-	validate-cert-manager validate-cilium-gateways validate-envoy-gateway \
+	validate-cert-manager validate-metallb validate-envoy-gateway \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
 
 default: system
@@ -54,7 +56,7 @@ validate-format: validate-terraform-layout
 validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
-validate-workflows: validate-gateway-api validate-cilium-gateways validate-envoy-gateway
+validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
 	python3 -m unittest discover -s tests -v
 
 validate-yaml:
@@ -102,11 +104,13 @@ validate-helm: validate-kustomize
 	retry helm repo add --force-update jetstack https://charts.jetstack.io >/dev/null; \
 	retry helm repo add --force-update cilium https://helm.cilium.io/ >/dev/null; \
 	retry helm repo add --force-update sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null; \
+	retry helm repo add --force-update metallb https://metallb.github.io/metallb >/dev/null; \
 	for spec in \
 		system/cert-manager:cert-manager \
 		system/cilium:kube-system \
 		system/envoy-gateway:envoy-gateway-system \
 		system/envoy-gateway-crds:argocd \
+		system/metallb:metallb-system \
 		system/sealed-secrets:sealed-secrets; do \
 		dir="$${spec%%:*}"; namespace="$${spec##*:}"; \
 		retry helm dependency build "$$dir" >/dev/null; \
@@ -137,23 +141,16 @@ validate-cert-manager: validate-helm
 		-schema-location '.cache/cert-manager-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
 		.cache/cert-manager-resources.yaml
 
-validate-cilium-gateways: validate-kustomize
-	@rm -rf .cache/cilium-gateway-crds .cache/cilium-gateway-schemas && \
-		mkdir -p .cache/cilium-gateway-crds .cache/cilium-gateway-schemas
-	@set -e; version="$$(yq '.dependencies[] | select(.name == "cilium") | .version' system/cilium/Chart.yaml)"; \
-	for resource in v2/ciliumloadbalancerippools v2alpha1/ciliuml2announcementpolicies; do \
-		curl --fail --silent --show-error --location --retry 3 \
-			"https://raw.githubusercontent.com/cilium/cilium/v$$version/pkg/k8s/apis/cilium.io/client/crds/$$resource.yaml" \
-			-o ".cache/cilium-gateway-crds/$${resource##*/}.yaml"; \
-	done
-	yq -o=json --split-exp '".cache/cilium-gateway-schemas/" + .title' \
+validate-metallb: validate-kustomize
+	@rm -rf .cache/metallb-schemas && mkdir -p .cache/metallb-schemas
+	yq -o=json --split-exp '".cache/metallb-schemas/" + .title' \
 		'.spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
-		.cache/cilium-gateway-crds/*.yaml
-	yq 'select(.apiVersion | test("^cilium[.]io/")) | select(.kind == "CiliumLoadBalancerIPPool" or .kind == "CiliumL2AnnouncementPolicy")' \
-		.cache/rendered/*.yaml > .cache/cilium-gateway-resources.yaml
+		.cache/rendered/system-metallb-crds.yaml
+	yq 'select(.apiVersion | test("^metallb[.]io/"))' \
+		.cache/rendered/*.yaml > .cache/metallb-resources.yaml
 	kubeconform -strict -summary \
-		-schema-location '.cache/cilium-gateway-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-		.cache/cilium-gateway-resources.yaml
+		-schema-location '.cache/metallb-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+		.cache/metallb-resources.yaml
 
 validate-envoy-gateway: validate-helm
 	@rm -rf .cache/envoy-gateway-schemas && mkdir -p .cache/envoy-gateway-schemas
@@ -166,14 +163,18 @@ validate-envoy-gateway: validate-helm
 		-schema-location '.cache/envoy-gateway-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
 		.cache/envoy-gateway-resources.yaml
 
-validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-cilium-gateways validate-envoy-gateway
+validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-metallb validate-envoy-gateway
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \
+		--ignore-paths '.cache/rendered/helm-metallb.yaml' \
 		.cache/rendered/*.yaml
+	yq '.checks.include -= ["drop-net-raw-capability", "env-var-secret"]' \
+		.kube-linter.yaml > .cache/metallb-kube-linter.yaml
+	kube-linter lint --config .cache/metallb-kube-linter.yaml .cache/rendered/helm-metallb.yaml
 	find .cache/rendered -type f -name '*.yaml' \
 		-not -name 'system-monitoring.yaml' \
-		-not -name 'helm-cilium.yaml' -print0 | \
+		-not -name 'helm-cilium.yaml' -not -name 'helm-metallb.yaml' -print0 | \
 		xargs -0 kube-linter lint --do-not-auto-add-defaults \
 			--include wildcard-in-rules
 

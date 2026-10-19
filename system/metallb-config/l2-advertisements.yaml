@@ -1,0 +1,16 @@
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: private-gateways
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - private-home
+    - private-admin
+  nodeSelectors:
+    - matchLabels:
+        kubernetes.io/hostname: talos-2jn-7he
+    - matchLabels:
+        kubernetes.io/hostname: talos-p5e-e9e
+  interfaces:
+    - eno1

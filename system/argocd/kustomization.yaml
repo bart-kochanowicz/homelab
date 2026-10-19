@@ -19,6 +19,9 @@ resources:
   - gateway-api-crds.yaml
   - envoy-gateway-crds.yaml
   - envoy-gateway.yaml
+  - metallb-crds.yaml
+  - metallb.yaml
+  - metallb-config.yaml
   - gateways.yaml
   - monitoring.yaml
   - network-policies.yaml

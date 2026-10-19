@@ -1,0 +1,37 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: private-home
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.0.70.200/32
+  autoAssign: false
+  serviceAllocation:
+    namespaces:
+      - private-home
+    serviceSelectors:
+      - matchLabels:
+          app.kubernetes.io/managed-by: envoy-gateway
+          app.kubernetes.io/component: proxy
+          gateway.envoyproxy.io/owning-gateway-name: private-home
+          gateway.envoyproxy.io/owning-gateway-namespace: private-home
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: private-admin
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.0.70.201/32
+  autoAssign: false
+  serviceAllocation:
+    namespaces:
+      - private-admin
+    serviceSelectors:
+      - matchLabels:
+          app.kubernetes.io/managed-by: envoy-gateway
+          app.kubernetes.io/component: proxy
+          gateway.envoyproxy.io/owning-gateway-name: private-admin
+          gateway.envoyproxy.io/owning-gateway-namespace: private-admin

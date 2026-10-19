@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/bart-kochanowicz/homelab.git
+    targetRevision: main
+    path: system/metallb
+    helm:
+      releaseName: metallb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: metallb-webhook-configuration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - RespectIgnoreDifferences=true
