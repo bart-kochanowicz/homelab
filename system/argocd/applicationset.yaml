@@ -26,6 +26,15 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          name: home-assistant
+          namespace: home-assistant
+          jqPathExpressions:
+            - >-
+              .spec.template.spec.containers[] | select(.name == "home-assistant") |
+              .env[]? | select(.name == "STAKATER_HOME_ASSISTANT_BACKEND_TLS_SECRET")
       syncPolicy:
         automated:
           prune: true

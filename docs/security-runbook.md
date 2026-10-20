@@ -247,6 +247,21 @@ the review and enforce the policy, or remove the live policy before restarting.
 The allowlist also preserves node-internal traffic, pod access to the API on TCP
 `6443`, CoreDNS upstream DNS, Hubble peer traffic and monitoring scrapes.
 
+## Home Assistant backend TLS
+
+Home Assistant serves HTTPS on `8123` using `home-assistant-backend-tls` mounted
+read-only at `/etc/home-assistant/tls`. cert-manager obtains a dedicated Let's
+Encrypt certificate through Cloudflare DNS-01; Envoy verifies its hostname and
+system CA chain. Browser clients keep using `https://ha.thecavespace.net`.
+Direct clients, including n8n, use `https://ha-backend.thecavespace.net:8123` with
+certificate verification enabled. Old HTTP URLs on `8123` no longer work.
+
+HA 2026.6.3 loads certificates only at startup. The namespace-scoped Reloader
+restarts only HA when this TLS Secret changes, including changes missed while
+Reloader was stopped. Each renewal briefly interrupts HA. ArgoCD ignores only
+the Reloader hash environment variable on this Deployment; other drift heals.
+Network policies and the Reloader Application require manual ArgoCD sync.
+
 ## Crafty backend TLS
 
 Mount `crafty-backend-tls` as the entire read-only `/crafty/app/config/web/certs`

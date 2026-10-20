@@ -25,3 +25,4 @@ resources:
   - gateways.yaml
   - monitoring.yaml
   - network-policies.yaml
+  - home-assistant-reloader.yaml

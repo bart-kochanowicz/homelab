@@ -10,10 +10,16 @@ data:
   configuration.yaml: |
     default_config:
 
+    homeassistant:
+      internal_url: https://ha.thecavespace.net
+      external_url: https://ha.thecavespace.net
+
     frontend:
       themes: !include_dir_merge_named themes
 
     http:
+      ssl_certificate: /etc/home-assistant/tls/tls.crt
+      ssl_key: /etc/home-assistant/tls/tls.key
       use_x_forwarded_for: true
       trusted_proxies:
         - 10.244.0.0/16  # Pod network CIDR

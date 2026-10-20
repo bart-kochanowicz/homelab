@@ -1,0 +1,40 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: home-assistant-reloader
+  namespace: home-assistant
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, daemonsets, statefulsets]
+    verbs: [get, list]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [home-assistant]
+    verbs: [patch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [reloader-meta-info]
+    verbs: [get, update]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: home-assistant-reloader
+  namespace: home-assistant
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: home-assistant-reloader
+subjects:
+  - kind: ServiceAccount
+    name: home-assistant-reloader
+    namespace: home-assistant
