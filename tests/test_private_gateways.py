@@ -228,9 +228,7 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(validation, {
             "hostname": route["spec"]["hostnames"][0], "wellKnownCACertificates": "System",
         })
-        self.assertEqual(certificate["spec"]["dnsNames"], ["*.thecavespace.net"])
-        self.assertEqual(validation["hostname"].split(".", 1)[1],
-                         certificate["spec"]["dnsNames"][0][2:])
+        self.assertEqual(certificate["spec"]["dnsNames"], [validation["hostname"]])
         self.assertLess(int(certificate["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
                         int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]))
         self.assertLess(int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),

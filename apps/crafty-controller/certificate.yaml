@@ -19,7 +19,7 @@ spec:
     kind: ClusterIssuer
     group: cert-manager.io
   dnsNames:
-    - "*.thecavespace.net"
+    - crafty-controller.thecavespace.net
   renewBeforePercentage: 33
   revisionHistoryLimit: 2
   usages:
