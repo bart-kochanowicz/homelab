@@ -290,9 +290,51 @@ class PrivateGatewayTests(unittest.TestCase):
             expected_ports = {"53", "18000"}
             if policy["metadata"]["namespace"] == "private-home":
                 expected_ports.add("8123")
+            else:
+                expected_ports.add("8443")
             self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
+
+    def test_crafty_panel_access_requires_admin_proxy_and_exact_backend(self):
+        policies = self.rendered("system-network-policies.yaml")
+        crafty = next(item for item in policies if item["kind"] == "NetworkPolicy" and
+                      item["metadata"]["namespace"] == "crafty-controller" and
+                      item["metadata"]["name"] == "allow-crafty")
+        self.assertEqual(crafty["spec"]["podSelector"], {
+            "matchLabels": {"app.kubernetes.io/name": "crafty-controller"},
+        })
+        proxy_ingress = [rule for rule in crafty["spec"]["ingress"] if any(
+            "namespaceSelector" in peer or "podSelector" in peer for peer in rule["from"]
+        )]
+        self.assertEqual(proxy_ingress, [{
+            "from": [{
+                "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "private-admin"}},
+                "podSelector": {"matchLabels": {
+                    "app.kubernetes.io/managed-by": "envoy-gateway",
+                    "app.kubernetes.io/component": "proxy",
+                    "gateway.envoyproxy.io/owning-gateway-name": "private-admin",
+                }},
+            }],
+            "ports": [{"protocol": "TCP", "port": 8443}],
+        }])
+        admin = next(item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
+                     item["metadata"]["name"] == "private-proxy" and
+                     item["metadata"]["namespace"] == "private-admin")
+        self.assertEqual(admin["spec"]["endpointSelector"], {
+            "matchLabels": proxy_ingress[0]["from"][0]["podSelector"]["matchLabels"],
+        })
+        backend_rules = [rule for rule in admin["spec"]["egress"] if any(
+            port["port"] not in {"53", "18000"}
+            for block in rule["toPorts"] for port in block["ports"]
+        )]
+        self.assertEqual(backend_rules, [{
+            "toEndpoints": [{"matchLabels": {
+                "k8s:io.kubernetes.pod.namespace": "crafty-controller",
+                "k8s:app.kubernetes.io/name": "crafty-controller",
+            }}],
+            "toPorts": [{"ports": [{"port": "8443", "protocol": "TCP"}]}],
+        }])
 
     def test_home_assistant_host_access_requires_home_proxy_identity(self):
         policies = self.rendered("system-network-policies.yaml")
