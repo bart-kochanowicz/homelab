@@ -6,6 +6,10 @@ locals {
       interface_ip = "10.0.100.10"
       public_key   = var.vpn_peer_public_keys["macbook-01"]
     }
+    iphone-01 = {
+      interface_ip = "10.0.100.11"
+      public_key   = var.vpn_peer_public_keys["iphone-01"]
+    }
   }
 
   vpn_client_routes = sort(concat(

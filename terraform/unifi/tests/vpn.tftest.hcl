@@ -173,6 +173,30 @@ run "revoke_peer_without_replacing_server" {
   }
 }
 
+run "add_iphone_without_replacing_server" {
+  command = apply
+  module {
+    source = "../modules/unifi/vpn"
+  }
+  variables {
+    peers = {
+      macbook-01 = { interface_ip = "10.0.100.10", public_key = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo=" }
+      iphone-01  = { interface_ip = "10.0.100.11", public_key = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=" }
+    }
+  }
+  assert {
+    condition = (
+      length(unifi_wireguard_peer.this) == 2 &&
+      output.network_id == run.revoke_peer_without_replacing_server.network_id &&
+      output.server_public_key == run.revoke_peer_without_replacing_server.server_public_key &&
+      unifi_wireguard_peer.this["macbook-01"].interface_ip == "10.0.100.10" &&
+      unifi_wireguard_peer.this["iphone-01"].interface_ip == "10.0.100.11" &&
+      length(unifi_wireguard_peer.this["iphone-01"].allowed_ips) == 0
+    )
+    error_message = "Adding a device must preserve the server identity and existing peer address without advertising homelab routes toward the new peer."
+  }
+}
+
 run "reject_missing_server_private_key" {
   command   = apply
   state_key = "missing-server-key"
