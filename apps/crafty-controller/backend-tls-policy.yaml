@@ -15,8 +15,5 @@ spec:
       name: crafty-controller
       sectionName: web
   validation:
-    caCertificateRefs:
-      - group: ""
-        kind: ConfigMap
-        name: crafty-backend-ca
-    hostname: crafty-controller.crafty-controller.svc.cluster.local
+    wellKnownCACertificates: System
+    hostname: crafty-controller.thecavespace.net

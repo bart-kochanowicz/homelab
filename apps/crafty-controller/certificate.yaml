@@ -3,21 +3,25 @@ kind: Certificate
 metadata:
   name: crafty-backend
   namespace: crafty-controller
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
   labels:
     app.kubernetes.io/name: crafty-controller
     app.kubernetes.io/part-of: homelab
 spec:
   secretName: crafty-backend-tls
-  duration: 2160h
-  renewBefore: 360h
   privateKey:
+    algorithm: ECDSA
+    size: 256
     rotationPolicy: Always
   issuerRef:
-    name: homelab-internal-ca
+    name: letsencrypt-production
     kind: ClusterIssuer
+    group: cert-manager.io
   dnsNames:
-    - crafty-controller.crafty-controller.svc.cluster.local
+    - "*.thecavespace.net"
+  renewBeforePercentage: 33
+  revisionHistoryLimit: 2
   usages:
     - digital signature
-    - key encipherment
     - server auth

@@ -225,18 +225,13 @@ class PrivateGatewayTests(unittest.TestCase):
         }])
         certificate = next(item for item in resources if item["kind"] == "Certificate")
         validation = policy["spec"]["validation"]
-        self.assertEqual(set(validation), {"hostname", "caCertificateRefs"})
-        self.assertIn(validation["hostname"], certificate["spec"]["dnsNames"])
-        self.assertEqual(validation["caCertificateRefs"], [{
-            "group": "", "kind": "ConfigMap", "name": "crafty-backend-ca",
-        }])
-        ca = next(item for item in resources if item["kind"] == "ConfigMap" and
-                  item["metadata"]["name"] == validation["caCertificateRefs"][0]["name"])
-        self.assertEqual(ca["metadata"]["namespace"], namespace)
-        self.assertEqual(set(ca["data"]), {"ca.crt"})
-        self.assertTrue(ca["data"]["ca.crt"].startswith("-----BEGIN CERTIFICATE-----\n"))
-        self.assertNotIn("PRIVATE KEY", ca["data"]["ca.crt"])
-        self.assertLess(int(ca["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
+        self.assertEqual(validation, {
+            "hostname": route["spec"]["hostnames"][0], "wellKnownCACertificates": "System",
+        })
+        self.assertEqual(certificate["spec"]["dnsNames"], ["*.thecavespace.net"])
+        self.assertEqual(validation["hostname"].split(".", 1)[1],
+                         certificate["spec"]["dnsNames"][0][2:])
+        self.assertLess(int(certificate["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
                         int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]))
         self.assertLess(int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
                         int(route["metadata"].get("annotations", {}).get("argocd.argoproj.io/sync-wave", 0)))
@@ -244,12 +239,8 @@ class PrivateGatewayTests(unittest.TestCase):
     def test_crafty_certificate_projection_can_receive_renewed_key_pairs(self):
         resources = self.rendered("apps-crafty-controller.yaml")
         certificate = next(item for item in resources if item["kind"] == "Certificate")
-        service = next(item for item in resources if item["kind"] == "Service" and
-                       item["metadata"]["name"] == "crafty-controller")
-        name, namespace = service["metadata"]["name"], service["metadata"]["namespace"]
-        self.assertIn(f"{name}.{namespace}.svc.cluster.local", certificate["spec"]["dnsNames"])
         self.assertEqual(certificate["spec"]["issuerRef"], {
-            "name": "homelab-internal-ca", "kind": "ClusterIssuer",
+            "name": "letsencrypt-production", "kind": "ClusterIssuer", "group": "cert-manager.io",
         })
         self.assertEqual(certificate["spec"]["privateKey"]["rotationPolicy"], "Always")
         deployment = next(item for item in resources if item["kind"] == "Deployment")
