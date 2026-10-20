@@ -251,6 +251,8 @@ Mount `crafty-backend-tls` as the entire read-only `/crafty/app/config/web/certs
 directory, without `subPath`, so certificate and key updates reach Crafty.
 Changing the mount recreates the shared Crafty/game pod; use a maintenance window.
 After renewal, verify the served certificate serial and hostname over TLS.
+`BackendTLSPolicy` verifies the Service DNS name against `crafty-backend-ca`.
+Update that public CA bundle deliberately when rotating the internal root CA.
 
 ## Retained volumes
 
