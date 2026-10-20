@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: crafty-controller
+  namespace: crafty-controller
+  labels:
+    app.kubernetes.io/name: crafty-controller
+    app.kubernetes.io/part-of: homelab
+spec:
+  parentRefs:
+    - name: private-admin
+      namespace: private-admin
+      sectionName: crafty-controller
+  hostnames:
+    - crafty-controller.thecavespace.net
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: crafty-controller
+          port: 8443
+      timeouts:
+        request: 0s

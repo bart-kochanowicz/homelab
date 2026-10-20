@@ -196,15 +196,49 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertIn({"name": "http", "port": 8123, "targetPort": 8123, "protocol": "TCP"},
                       service["spec"]["ports"])
 
+    def test_crafty_admin_route_requires_verified_tls_on_the_panel_port(self):
+        resources = self.rendered("apps-crafty-controller.yaml")
+        route = next(item for item in resources if item["kind"] == "HTTPRoute")
+        namespace = route["metadata"]["namespace"]
+        self.assertEqual(namespace, "crafty-controller")
+        self.assertEqual(route["spec"]["parentRefs"], [{
+            "name": "private-admin", "namespace": "private-admin", "sectionName": "crafty-controller",
+        }])
+        self.assertEqual(route["spec"]["hostnames"], ["crafty-controller.thecavespace.net"])
+        self.assertEqual(len(route["spec"]["rules"]), 1)
+        rule = route["spec"]["rules"][0]
+        self.assertEqual(rule, {
+            "matches": [{"path": {"type": "PathPrefix", "value": "/"}}],
+            "backendRefs": [{"name": "crafty-controller", "port": 8443}],
+            "timeouts": {"request": "0s"},
+        })
+        service = next(item for item in resources if item["kind"] == "Service" and
+                       item["metadata"]["name"] == rule["backendRefs"][0]["name"])
+        port = next(item for item in service["spec"]["ports"] if
+                    item["port"] == rule["backendRefs"][0]["port"])
+        policy = next(item for item in resources if item["kind"] == "BackendTLSPolicy")
+        self.assertEqual(policy["metadata"]["namespace"], namespace)
+        self.assertEqual(service["metadata"]["namespace"], namespace)
+        self.assertEqual(policy["spec"]["targetRefs"], [{
+            "group": "", "kind": "Service", "name": service["metadata"]["name"],
+            "sectionName": port["name"],
+        }])
+        certificate = next(item for item in resources if item["kind"] == "Certificate")
+        validation = policy["spec"]["validation"]
+        self.assertEqual(validation, {
+            "hostname": route["spec"]["hostnames"][0], "wellKnownCACertificates": "System",
+        })
+        self.assertEqual(certificate["spec"]["dnsNames"], [validation["hostname"]])
+        self.assertLess(int(certificate["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
+                        int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]))
+        self.assertLess(int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
+                        int(route["metadata"].get("annotations", {}).get("argocd.argoproj.io/sync-wave", 0)))
+
     def test_crafty_certificate_projection_can_receive_renewed_key_pairs(self):
         resources = self.rendered("apps-crafty-controller.yaml")
         certificate = next(item for item in resources if item["kind"] == "Certificate")
-        service = next(item for item in resources if item["kind"] == "Service" and
-                       item["metadata"]["name"] == "crafty-controller")
-        name, namespace = service["metadata"]["name"], service["metadata"]["namespace"]
-        self.assertIn(f"{name}.{namespace}.svc.cluster.local", certificate["spec"]["dnsNames"])
         self.assertEqual(certificate["spec"]["issuerRef"], {
-            "name": "homelab-internal-ca", "kind": "ClusterIssuer",
+            "name": "letsencrypt-production", "kind": "ClusterIssuer", "group": "cert-manager.io",
         })
         self.assertEqual(certificate["spec"]["privateKey"]["rotationPolicy"], "Always")
         deployment = next(item for item in resources if item["kind"] == "Deployment")
