@@ -1,0 +1,4 @@
+- op: add
+  path: /machine/network/nameservers
+  value:
+    - 10.0.70.1

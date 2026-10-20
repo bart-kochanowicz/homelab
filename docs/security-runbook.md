@@ -82,6 +82,10 @@ Private DNS must resolve HA to `10.0.70.200` and administrative names to
 routes live with their workloads. Clients must trust the issuer, and ArgoCD
 server pods must resolve and reach the ArgoCD URL
 for SSO. Keep Kubernetes API access available for recovery.
+Talos nodes use the Servers gateway (`10.0.70.1`) as their upstream DNS so
+CoreDNS can resolve UniFi's private records as well as public names.
+Apply `talos/patches/dns.yaml` as JSON Patch to replace the resolver list;
+strategic merge would append addresses and retain public-only resolvers.
 
 Verify DNS, HTTPS, GitHub login, n8n login, and a disposable webhook from an
 authorized LAN client. For access failures, check private DNS and HTTPS routes.
