@@ -47,6 +47,9 @@ spec:
             - name: TZ
               value: "Europe/Warsaw"
           volumeMounts:
+            - name: backend-tls
+              mountPath: /crafty/app/config/web/certs
+              readOnly: true
             - name: crafty-data
               mountPath: /crafty/backups
               subPath: backups
@@ -73,6 +76,15 @@ spec:
               memory: "16Gi"
               cpu: "4000m"
       volumes:
+        - name: backend-tls
+          secret:
+            secretName: crafty-backend-tls
+            defaultMode: 0440
+            items:
+              - key: tls.crt
+                path: commander.cert.pem
+              - key: tls.key
+                path: commander.key.pem
         - name: crafty-data
           persistentVolumeClaim:
             claimName: crafty-data

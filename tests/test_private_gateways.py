@@ -196,6 +196,33 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertIn({"name": "http", "port": 8123, "targetPort": 8123, "protocol": "TCP"},
                       service["spec"]["ports"])
 
+    def test_crafty_certificate_projection_can_receive_renewed_key_pairs(self):
+        resources = self.rendered("apps-crafty-controller.yaml")
+        certificate = next(item for item in resources if item["kind"] == "Certificate")
+        service = next(item for item in resources if item["kind"] == "Service" and
+                       item["metadata"]["name"] == "crafty-controller")
+        name, namespace = service["metadata"]["name"], service["metadata"]["namespace"]
+        self.assertIn(f"{name}.{namespace}.svc.cluster.local", certificate["spec"]["dnsNames"])
+        self.assertEqual(certificate["spec"]["issuerRef"], {
+            "name": "homelab-internal-ca", "kind": "ClusterIssuer",
+        })
+        self.assertEqual(certificate["spec"]["privateKey"]["rotationPolicy"], "Always")
+        deployment = next(item for item in resources if item["kind"] == "Deployment")
+        pod = deployment["spec"]["template"]["spec"]
+        mount = next(item for item in pod["containers"][0]["volumeMounts"] if
+                     item["mountPath"] == "/crafty/app/config/web/certs")
+        self.assertTrue(mount["readOnly"])
+        self.assertFalse({"subPath", "subPathExpr"} & set(mount))
+        volume = next(item for item in pod["volumes"] if item["name"] == mount["name"])
+        self.assertEqual(volume["secret"], {
+            "secretName": certificate["spec"]["secretName"],
+            "defaultMode": 0o440,
+            "items": [
+                {"key": "tls.crt", "path": "commander.cert.pem"},
+                {"key": "tls.key", "path": "commander.key.pem"},
+            ],
+        })
+
     def test_proxy_images_and_runtime_do_not_require_host_privileges(self):
         for proxy in self.resources_of_kind("EnvoyProxy"):
             provider = proxy["spec"]["provider"]["kubernetes"]

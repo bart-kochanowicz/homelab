@@ -245,6 +245,13 @@ the review and enforce the policy, or remove the live policy before restarting.
 The allowlist also preserves node-internal traffic, pod access to the API on TCP
 `6443`, CoreDNS upstream DNS, Hubble peer traffic and monitoring scrapes.
 
+## Crafty backend TLS
+
+Mount `crafty-backend-tls` as the entire read-only `/crafty/app/config/web/certs`
+directory, without `subPath`, so certificate and key updates reach Crafty.
+Changing the mount recreates the shared Crafty/game pod; use a maintenance window.
+After renewal, verify the served certificate serial and hostname over TLS.
+
 ## Retained volumes
 
 Deleting a PVC leaves its PV and node data intact. To remove retained data,
