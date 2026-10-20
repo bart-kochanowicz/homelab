@@ -234,7 +234,9 @@ namespace selectors do not select host-network workloads. Host egress remains un
 The Home proxy's host allowance matches its namespace and Envoy ownership labels;
 the Admin proxy has no Home Assistant backend allowance.
 
-Minecraft uses `externalTrafficPolicy: Local` to preserve client IPs for pod
+Minecraft is private to Home, Admin and WireGuard VPN clients; do not add public
+DNS records or WAN port forwarding for it.
+It uses `externalTrafficPolicy: Local` to preserve client IPs for pod
 policy enforcement. Connect to a node running the Crafty pod; other nodes do not
 forward this NodePort. UI Services remain `ClusterIP` and require private routing
 or authenticated port-forwarding.

@@ -4,6 +4,10 @@ locals {
       name    = "ha.thecavespace.net"
       address = "10.0.70.200"
     }
+    crafty-controller = {
+      name    = "crafty-controller.thecavespace.net"
+      address = "10.0.70.201"
+    }
   }
 }
 
