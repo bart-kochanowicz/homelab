@@ -3,6 +3,8 @@
 [networks.tf](networks.tf) declares LANs and port profiles. [main.tf](main.tf)
 connects the [network and port-profile modules](../modules/unifi/). Resources have
 `prevent_destroy`; DHCP advertises the gateway as DNS.
+`dns.tf` declares exact private A overrides. Home Assistant resolves to its Home
+gateway VIP; public DNS and ACME TXT records remain outside this module.
 The built-in `Default` LAN is read-only; `default_network_id` exposes its ID.
 Managed subnets and names must not conflict with `Default`.
 `network_ids` and `port_profile_ids` expose IDs keyed by logical name.
