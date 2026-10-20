@@ -151,13 +151,14 @@ run "home_https_uses_only_its_private_gateway" {
   assert {
     condition = (
       local.private_dns_records == {
-        home-assistant = { name = "ha.thecavespace.net", address = "10.0.70.200" }
+        home-assistant    = { name = "ha.thecavespace.net", address = "10.0.70.200" }
+        crafty-controller = { name = "crafty-controller.thecavespace.net", address = "10.0.70.201" }
       } &&
       local.firewall_rules.home-ha-https.source.zone == "orbit" &&
       local.firewall_rules.home-ha-https.destination.ips == [local.private_dns_records["home-assistant"].address] &&
       !can(local.firewall_rules.home-ha-https.destination.clients)
     )
-    error_message = "Only the exact HA local A record and Home HTTPS VIP may be declared."
+    error_message = "Private names must use their own gateway VIP; Home HTTPS must remain limited to the HA VIP."
   }
 }
 
