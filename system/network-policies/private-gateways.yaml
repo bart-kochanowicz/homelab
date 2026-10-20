@@ -82,6 +82,7 @@ spec:
     matchLabels:
       app.kubernetes.io/managed-by: envoy-gateway
       app.kubernetes.io/component: proxy
+      gateway.envoyproxy.io/owning-gateway-name: private-admin
   ingressDeny:
     - fromEndpoints:
         - matchExpressions:
@@ -100,6 +101,14 @@ spec:
             - port: "10443"
               protocol: TCP
   egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: crafty-controller
+            k8s:app.kubernetes.io/name: crafty-controller
+      toPorts:
+        - ports:
+            - port: "8443"
+              protocol: TCP
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system

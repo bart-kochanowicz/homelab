@@ -19,6 +19,18 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: private-admin
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: envoy-gateway
+              app.kubernetes.io/component: proxy
+              gateway.envoyproxy.io/owning-gateway-name: private-admin
+      ports:
+        - protocol: TCP
+          port: 8443
+    - from:
         - ipBlock:
             cidr: 10.0.80.0/24
         - ipBlock:

@@ -225,6 +225,7 @@ Test required access and denied traffic using fresh connections and Hubble verdi
 | Home `10.0.40.0/24` | Home Assistant TCP `8123`, Minecraft TCP `30000` |
 | n8n | Home Assistant on local or remote nodes, TCP `8123` |
 | Home gateway proxy | Home Assistant on local or remote nodes, TCP `8123` |
+| Admin gateway proxy | Crafty panel pods, TCP `8443` |
 
 Home Assistant uses `hostNetwork`; its namespace policies cannot isolate it.
 Host rules apply to every process listening on the allowed node ports. n8n uses
