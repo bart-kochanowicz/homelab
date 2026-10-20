@@ -1,0 +1,23 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: crafty-backend
+  namespace: crafty-controller
+  labels:
+    app.kubernetes.io/name: crafty-controller
+    app.kubernetes.io/part-of: homelab
+spec:
+  secretName: crafty-backend-tls
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    rotationPolicy: Always
+  issuerRef:
+    name: homelab-internal-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - crafty-controller.crafty-controller.svc.cluster.local
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
