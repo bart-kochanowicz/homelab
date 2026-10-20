@@ -7,3 +7,4 @@ resources:
   - talos-worker-bootstrap.yaml
   - private-gateways.yaml
   - metallb.yaml
+  - home-assistant-reloader.yaml

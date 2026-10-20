@@ -30,7 +30,7 @@ validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-terraform-tests validate-workflows
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq curl; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -105,12 +105,14 @@ validate-helm: validate-kustomize
 	retry helm repo add --force-update cilium https://helm.cilium.io/ >/dev/null; \
 	retry helm repo add --force-update sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null; \
 	retry helm repo add --force-update metallb https://metallb.github.io/metallb >/dev/null; \
+	retry helm repo add --force-update stakater https://stakater.github.io/stakater-charts >/dev/null; \
 	for spec in \
 		system/cert-manager:cert-manager \
 		system/cilium:kube-system \
 		system/envoy-gateway:envoy-gateway-system \
 		system/envoy-gateway-crds:argocd \
 		system/metallb:metallb-system \
+		system/home-assistant-reloader:home-assistant \
 		system/sealed-secrets:sealed-secrets; do \
 		dir="$${spec%%:*}"; namespace="$${spec##*:}"; \
 		retry helm dependency build "$$dir" >/dev/null; \

@@ -1,0 +1,31 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: home-assistant-backend
+  namespace: home-assistant
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/part-of: homelab
+spec:
+  secretName: home-assistant-backend-tls
+  secretTemplate:
+    labels:
+      homelab/reload: home-assistant-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - ha.thecavespace.net
+    - ha-backend.thecavespace.net
+  renewBeforePercentage: 33
+  revisionHistoryLimit: 2
+  usages:
+    - digital signature
+    - server auth
