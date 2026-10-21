@@ -150,13 +150,13 @@ run "srv_resolves_an_owned_canonical_private_target" {
       unifi_dns_record.srv["minecraft"].value == unifi_dns_record.this["ha"].name &&
       unifi_dns_record.srv["minecraft"].record_type == "SRV" &&
       unifi_dns_record.srv["minecraft"].port == 30000 &&
-      unifi_dns_record.srv["minecraft"].priority == 0 &&
-      unifi_dns_record.srv["minecraft"].weight == 0 &&
+      unifi_dns_record.srv["minecraft"].priority == null &&
+      unifi_dns_record.srv["minecraft"].weight == null &&
       unifi_dns_record.srv["minecraft"].ttl == "5m" &&
       unifi_dns_record.srv["minecraft"].enabled &&
       unifi_dns_record.srv["minecraft"].site == "default"
     )
-    error_message = "SRV records must resolve through owned private A records with canonical names and bounded defaults."
+    error_message = "SRV records must resolve through owned private A records and omit zero priority and weight to match provider readback."
   }
 }
 
