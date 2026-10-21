@@ -380,6 +380,55 @@ class PrivateGatewayTests(unittest.TestCase):
             ],
         })
 
+    def test_argocd_routes_separate_native_grpc_and_ui_with_verified_backend_tls(self):
+        resources = self.rendered("system-argocd.yaml")
+        route = next(item for item in resources if item["kind"] == "HTTPRoute")
+        service = next(item for item in resources if item["kind"] == "Service")
+        policy = next(item for item in resources if item["kind"] == "BackendTLSPolicy")
+        self.assertEqual(route["metadata"]["namespace"], "argocd")
+        self.assertEqual(route["spec"]["parentRefs"], [{
+            "name": "private-admin", "namespace": "private-admin", "sectionName": "argocd",
+        }])
+        config = next(item for item in resources if item["kind"] == "ConfigMap" and
+                      item["metadata"]["name"] == "argocd-cm")
+        hostname = route["spec"]["hostnames"][0]
+        self.assertEqual(config["data"]["url"], "https://" + hostname)
+        self.assertIn("redirectURI: https://" + hostname + "/api/dex/callback", config["data"]["dex.config"])
+        grpc, ui = route["spec"]["rules"]
+        self.assertEqual(grpc["matches"], [{"headers": [{
+            "name": "Content-Type", "type": "Exact", "value": content_type,
+        }]} for content_type in ("application/grpc", "application/grpc+proto")])
+        self.assertEqual(grpc["backendRefs"], [{"name": service["metadata"]["name"], "port": 443}])
+        self.assertEqual(ui["matches"], [{"path": {"type": "PathPrefix", "value": "/"}}])
+        self.assertEqual(ui["backendRefs"], [{"name": "argocd-server", "port": 443}])
+        for rule in (grpc, ui):
+            self.assertEqual(rule["timeouts"], {"request": "0s"})
+        self.assertEqual(service["spec"]["type"], "ClusterIP")
+        self.assertEqual(service["spec"]["ports"], [{
+            "name": "https", "port": 443, "targetPort": 8080,
+            "protocol": "TCP", "appProtocol": "kubernetes.io/h2c",
+        }])
+        self.assertEqual(policy["spec"]["targetRefs"], [{
+            "group": "", "kind": "Service", "name": name, "sectionName": "https",
+        } for name in ("argocd-server", service["metadata"]["name"])])
+        validation = policy["spec"]["validation"]
+        certificate = next(item for item in self.rendered("system-cert-manager-ca.yaml") if
+                           item["kind"] == "Certificate" and item["metadata"]["namespace"] == "argocd")
+        self.assertIn(validation["hostname"], certificate["spec"]["dnsNames"])
+        self.assertNotIn("wellKnownCACertificates", validation)
+        ca = next(item for item in resources if item["kind"] == "ConfigMap" and
+                  item["metadata"]["name"] == validation["caCertificateRefs"][0]["name"])
+        self.assertEqual(validation["caCertificateRefs"], [{
+            "group": "", "kind": "ConfigMap", "name": ca["metadata"]["name"],
+        }])
+        self.assertEqual(set(ca["data"]), {"ca.crt"})
+        self.assertIn("-----BEGIN CERTIFICATE-----", ca["data"]["ca.crt"])
+        self.assertNotIn("PRIVATE KEY", ca["data"]["ca.crt"])
+        server_policy = next(item for item in self.rendered("system-network-policies.yaml") if
+                             item["kind"] == "NetworkPolicy" and
+                             item["metadata"]["name"] == "allow-argocd-server")
+        self.assertEqual(service["spec"]["selector"], server_policy["spec"]["podSelector"]["matchLabels"])
+
     def test_proxy_images_and_runtime_do_not_require_host_privileges(self):
         for proxy in self.resources_of_kind("EnvoyProxy"):
             provider = proxy["spec"]["provider"]["kubernetes"]

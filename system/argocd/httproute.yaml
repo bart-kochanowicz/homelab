@@ -1,0 +1,39 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+spec:
+  parentRefs:
+    - name: private-admin
+      namespace: private-admin
+      sectionName: argocd
+  hostnames:
+    - argocd.thecavespace.net
+  rules:
+    - matches:
+        - headers:
+            - name: Content-Type
+              type: Exact
+              value: application/grpc
+        - headers:
+            - name: Content-Type
+              type: Exact
+              value: application/grpc+proto
+      backendRefs:
+        - name: argocd-gateway-grpc
+          port: 443
+      timeouts:
+        request: 0s
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: argocd-server
+          port: 443
+      timeouts:
+        request: 0s

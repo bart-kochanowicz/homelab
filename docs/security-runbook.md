@@ -165,7 +165,12 @@ Helm chart without skipping missing schemas.
 
 Keep the offline CA key under `.secrets/` with mode `0600` and a separate backup.
 Only its sealed form is tracked. Cert-manager renews `argocd-server-tls`;
-private clients must trust the public CA.
+the Admin gateway trusts its public CA through `argocd-backend-ca` and verifies
+the internal Service DNS name. One HTTPRoute sends native gRPC to the HTTP/2
+`argocd-gateway-grpc` Service; UI, Dex and gRPC-Web use the existing HTTP/1.1
+backend. `BackendTLSPolicy` enforces TLS on both paths.
+Browser clients use the gateway certificate. Update this CA ConfigMap when
+rotating the internal CA.
 
 To rotate the CA, generate a new key/certificate, seal the TLS secret for
 `cert-manager`, distribute the public CA, and commit the SealedSecret. Verify
