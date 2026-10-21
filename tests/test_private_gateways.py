@@ -475,7 +475,7 @@ class PrivateGatewayTests(unittest.TestCase):
             if policy["metadata"]["namespace"] == "private-home":
                 expected_ports.add("8123")
             else:
-                expected_ports.add("8443")
+                expected_ports.update({"8443", "8080"})
             self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
@@ -509,7 +509,7 @@ class PrivateGatewayTests(unittest.TestCase):
             "matchLabels": proxy_ingress[0]["from"][0]["podSelector"]["matchLabels"],
         })
         backend_rules = [rule for rule in admin["spec"]["egress"] if any(
-            port["port"] not in {"53", "18000"}
+            port["port"] == "8443"
             for block in rule["toPorts"] for port in block["ports"]
         )]
         self.assertEqual(backend_rules, [{
@@ -519,6 +519,67 @@ class PrivateGatewayTests(unittest.TestCase):
             }}],
             "toPorts": [{"ports": [{"port": "8443", "protocol": "TCP"}]}],
         }])
+
+    def test_argocd_access_is_limited_to_admin_proxy_release_and_management(self):
+        policies = self.rendered("system-network-policies.yaml")
+        server = next(item for item in policies if item["kind"] == "NetworkPolicy" and
+                      item["metadata"]["namespace"] == "argocd")
+        self.assertEqual(server["spec"]["podSelector"], {"matchLabels": {
+            "app.kubernetes.io/instance": "argocd", "app.kubernetes.io/name": "argocd-server",
+        }})
+        self.assertEqual(server["spec"]["policyTypes"], ["Ingress"])
+        self.assertNotIn("egress", server["spec"])
+        admin = next(item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
+                     item["metadata"]["name"] == "private-proxy" and
+                     item["metadata"]["namespace"] == "private-admin")
+        backend = [rule for rule in admin["spec"]["egress"] if any(
+            port["port"] == "8080" for block in rule["toPorts"] for port in block["ports"]
+        )]
+        self.assertEqual(backend, [{
+            "toEndpoints": [{"matchLabels": {
+                "k8s:io.kubernetes.pod.namespace": "argocd",
+                "k8s:app.kubernetes.io/instance": "argocd",
+                "k8s:app.kubernetes.io/name": "argocd-server",
+            }}],
+            "toPorts": [{"ports": [{"port": "8080", "protocol": "TCP"}]}],
+        }])
+
+        def allows(namespace, labels, address, port):
+            for rule in server["spec"]["ingress"]:
+                if {"port": port, "protocol": "TCP"} not in rule["ports"]:
+                    continue
+                for peer in rule["from"]:
+                    if "ipBlock" in peer:
+                        if ipaddress.ip_address(address) in ipaddress.ip_network(peer["ipBlock"]["cidr"]):
+                            return True
+                    else:
+                        expected_namespace = peer.get("namespaceSelector", {}).get("matchLabels", {}).get(
+                            "kubernetes.io/metadata.name", "argocd")
+                        expected_labels = peer.get("podSelector", {}).get("matchLabels", {})
+                        if namespace == expected_namespace and expected_labels.items() <= labels.items():
+                            return True
+            return False
+
+        proxy_labels = admin["spec"]["endpointSelector"]["matchLabels"]
+        release_labels = {"app.kubernetes.io/instance": "argocd"}
+        cases = [
+            ("private-admin", proxy_labels, "10.244.1.10", 8080, True),
+            ("private-home", proxy_labels, "10.244.1.10", 8080, False),
+            ("private-admin", {}, "10.244.1.10", 8080, False),
+            ("n8n", release_labels, "10.244.1.10", 8080, False),
+            ("argocd", release_labels, "10.244.1.10", 8080, True),
+            ("argocd", {}, "10.244.1.10", 8080, False),
+            (None, {}, "10.0.80.42", 8080, True),
+            (None, {}, "10.0.100.42", 8080, True),
+            (None, {}, "10.0.40.42", 8080, False),
+            ("monitoring", {"app.kubernetes.io/name": "prometheus"}, "10.244.1.10", 8083, True),
+            ("monitoring", {"app.kubernetes.io/name": "prometheus"}, "10.244.1.10", 8080, False),
+            ("private-admin", proxy_labels, "10.244.1.10", 8083, False),
+            (None, {}, "10.0.80.42", 8083, False),
+        ]
+        for namespace, labels, address, port, expected in cases:
+            with self.subTest(namespace=namespace, labels=labels, address=address, port=port):
+                self.assertEqual(allows(namespace, labels, address, port), expected)
 
     def test_home_assistant_host_access_requires_home_proxy_identity(self):
         policies = self.rendered("system-network-policies.yaml")
