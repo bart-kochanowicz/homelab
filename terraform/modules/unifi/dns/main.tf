@@ -9,6 +9,7 @@ resource "unifi_dns_record" "this" {
   ttl         = "5m"
 }
 
+# The provider reads zero priority and weight back as null.
 resource "unifi_dns_record" "srv" {
   for_each = var.srv_records
 
@@ -17,8 +18,8 @@ resource "unifi_dns_record" "srv" {
   record_type = "SRV"
   value       = unifi_dns_record.this[each.value.target_record].name
   port        = each.value.port
-  priority    = each.value.priority
-  weight      = each.value.weight
+  priority    = each.value.priority == 0 ? null : each.value.priority
+  weight      = each.value.weight == 0 ? null : each.value.weight
   enabled     = true
   ttl         = "5m"
 }
