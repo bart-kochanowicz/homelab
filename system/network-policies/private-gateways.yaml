@@ -111,6 +111,15 @@ spec:
               protocol: TCP
     - toEndpoints:
         - matchLabels:
+            k8s:io.kubernetes.pod.namespace: argocd
+            k8s:app.kubernetes.io/instance: argocd
+            k8s:app.kubernetes.io/name: argocd-server
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system
             k8s:k8s-app: kube-dns
       toPorts:
