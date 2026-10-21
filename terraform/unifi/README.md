@@ -3,7 +3,7 @@
 [networks.tf](networks.tf) declares LANs and port profiles. [main.tf](main.tf)
 connects the [network and port-profile modules](../modules/unifi/). Resources have
 `prevent_destroy`; DHCP advertises the gateway as DNS.
-`dns.tf` declares exact private A overrides. Home Assistant resolves to its Home
+`dns.tf` declares exact private A/SRV overrides. Home Assistant resolves to its Home
 gateway VIP; public DNS and ACME TXT records remain outside this module.
 `ha-backend.thecavespace.net` resolves to the reserved worker for direct TLS
 clients on port `8123`, including n8n; it does not grant additional access.

@@ -240,6 +240,8 @@ the Admin proxy has no Home Assistant backend allowance.
 
 Minecraft is private to Home, Admin and WireGuard VPN clients; do not add public
 DNS records or WAN port forwarding for it.
+Minecraft Java clients can use `atm.mc.thecavespace.net`; private A/SRV records
+select the worker and TCP `30000`. `atm.mc.thecavespace.net:30000` also works.
 It uses `externalTrafficPolicy: Local` to preserve client IPs for pod
 policy enforcement. Connect to a node running the Crafty pod; other nodes do not
 forward this NodePort. UI Services remain `ClusterIP` and require private routing

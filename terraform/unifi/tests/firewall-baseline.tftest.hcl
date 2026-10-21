@@ -158,12 +158,29 @@ run "home_https_uses_only_its_private_gateway" {
         home-assistant-backend = {
           name = "ha-backend.thecavespace.net", address = local.server_reservations["worker-01"].ip
         }
+        minecraft-atm = {
+          name = "atm.mc.thecavespace.net", address = local.server_reservations["worker-01"].ip
+        }
       } &&
       local.firewall_rules.home-ha-https.source.zone == "orbit" &&
       local.firewall_rules.home-ha-https.destination.ips == [local.private_dns_records["home-assistant"].address] &&
       !can(local.firewall_rules.home-ha-https.destination.clients)
     )
     error_message = "Private browser names must use their own VIP; the HA backend must use the reserved worker and Home HTTPS only the HA VIP."
+  }
+}
+
+run "minecraft_name_discovers_the_private_nodeport" {
+  command = plan
+  assert {
+    condition = local.private_dns_srv_records == {
+      minecraft-atm = {
+        name          = "_minecraft._tcp.atm.mc.thecavespace.net"
+        target_record = "minecraft-atm"
+        port          = 30000
+      }
+    }
+    error_message = "Minecraft Java must discover port 30000 on the private worker using its owned A record."
   }
 }
 

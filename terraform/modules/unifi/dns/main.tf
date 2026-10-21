@@ -8,3 +8,17 @@ resource "unifi_dns_record" "this" {
   enabled     = true
   ttl         = "5m"
 }
+
+resource "unifi_dns_record" "srv" {
+  for_each = var.srv_records
+
+  site        = var.site
+  name        = lower(trimsuffix(each.value.name, "."))
+  record_type = "SRV"
+  value       = unifi_dns_record.this[each.value.target_record].name
+  port        = each.value.port
+  priority    = each.value.priority
+  weight      = each.value.weight
+  enabled     = true
+  ttl         = "5m"
+}
