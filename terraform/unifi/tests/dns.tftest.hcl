@@ -131,3 +131,137 @@ run "reject_ipv6" {
   }
   expect_failures = [var.records]
 }
+
+run "srv_resolves_an_owned_canonical_private_target" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = {
+      minecraft = { name = "_Minecraft._TCP.HA.Example.net.", target_record = "ha", port = 30000 }
+    }
+  }
+  assert {
+    condition = (
+      length(unifi_dns_record.this) == 1 &&
+      length(unifi_dns_record.srv) == 1 &&
+      unifi_dns_record.srv["minecraft"].name == "_minecraft._tcp.ha.example.net" &&
+      unifi_dns_record.srv["minecraft"].value == unifi_dns_record.this["ha"].name &&
+      unifi_dns_record.srv["minecraft"].record_type == "SRV" &&
+      unifi_dns_record.srv["minecraft"].port == 30000 &&
+      unifi_dns_record.srv["minecraft"].priority == 0 &&
+      unifi_dns_record.srv["minecraft"].weight == 0 &&
+      unifi_dns_record.srv["minecraft"].ttl == "5m" &&
+      unifi_dns_record.srv["minecraft"].enabled &&
+      unifi_dns_record.srv["minecraft"].site == "default"
+    )
+    error_message = "SRV records must resolve through owned private A records with canonical names and bounded defaults."
+  }
+}
+
+run "srv_accepts_explicit_unsigned_16_bit_limits" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = {
+      service = {
+        name = "_service._udp.ha.example.net", target_record = "ha", port = 65535, priority = 65535, weight = 65535
+      }
+    }
+  }
+  assert {
+    condition = (
+      unifi_dns_record.srv["service"].port == 65535 &&
+      unifi_dns_record.srv["service"].priority == 65535 &&
+      unifi_dns_record.srv["service"].weight == 65535
+    )
+    error_message = "Valid explicit SRV port, priority and weight values must reach the provider unchanged."
+  }
+}
+
+run "srv_rejects_an_unowned_target" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = {
+      service = { name = "_minecraft._tcp.ha.example.net", target_record = "public.example.net", port = 30000 }
+    }
+  }
+  expect_failures = [var.srv_records]
+}
+
+run "srv_rejects_names_without_a_service_prefix" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = { service = { name = "ha.example.net", target_record = "ha", port = 30000 } }
+  }
+  expect_failures = [var.srv_records]
+}
+
+run "srv_rejects_wildcards" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = { service = { name = "_minecraft._tcp.*.example.net", target_record = "ha", port = 30000 } }
+  }
+  expect_failures = [var.srv_records]
+}
+
+run "srv_rejects_duplicate_canonical_owners" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = {
+      first  = { name = "_Minecraft._TCP.HA.Example.net.", target_record = "ha", port = 30000 }
+      second = { name = "_minecraft._tcp.ha.example.net", target_record = "ha", port = 30001 }
+    }
+  }
+  expect_failures = [var.srv_records]
+}
+
+run "srv_rejects_out_of_range_ports" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = { service = { name = "_minecraft._tcp.ha.example.net", target_record = "ha", port = 65536 } }
+  }
+  expect_failures = [var.srv_records]
+}
+
+run "srv_rejects_fractional_ports" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = { service = { name = "_minecraft._tcp.ha.example.net", target_record = "ha", port = 1.5 } }
+  }
+  expect_failures = [var.srv_records]
+}
+
+run "srv_rejects_negative_weights" {
+  command = plan
+  module {
+    source = "../modules/unifi/dns"
+  }
+  variables {
+    srv_records = {
+      service = { name = "_minecraft._tcp.ha.example.net", target_record = "ha", port = 30000, weight = -1 }
+    }
+  }
+  expect_failures = [var.srv_records]
+}
