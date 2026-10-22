@@ -551,7 +551,7 @@ class PrivateGatewayTests(unittest.TestCase):
             if policy["metadata"]["namespace"] == "private-home":
                 expected_ports.add("8123")
             else:
-                expected_ports.update({"8443", "8080"})
+                expected_ports.update({"8443", "8080", "5678"})
             self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
@@ -594,6 +594,39 @@ class PrivateGatewayTests(unittest.TestCase):
                 "k8s:app.kubernetes.io/name": "crafty-controller",
             }}],
             "toPorts": [{"ports": [{"port": "8443", "protocol": "TCP"}]}],
+        }])
+
+    def test_n8n_access_requires_admin_proxy_and_preserves_management(self):
+        policies = self.rendered("system-network-policies.yaml")
+        app = next(item for item in policies if item["kind"] == "NetworkPolicy" and
+                   item["metadata"]["name"] == "allow-n8n")
+        admin = next(item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
+                     item["metadata"]["name"] == "private-proxy" and
+                     item["metadata"]["namespace"] == "private-admin")
+        self.assertEqual(app["metadata"]["namespace"], "n8n")
+        self.assertEqual(app["spec"]["podSelector"], {"matchLabels": {"app.kubernetes.io/name": "n8n"}})
+        pod_ingress = [rule for rule in app["spec"]["ingress"] if any(
+            "namespaceSelector" in peer or "podSelector" in peer for peer in rule["from"]
+        )]
+        self.assertEqual(pod_ingress, [{
+            "from": [{
+                "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "private-admin"}},
+                "podSelector": {"matchLabels": admin["spec"]["endpointSelector"]["matchLabels"]},
+            }],
+            "ports": [{"protocol": "TCP", "port": 5678}],
+        }])
+        self.assertEqual([rule for rule in app["spec"]["ingress"] if rule not in pod_ingress], [{
+            "from": [{"ipBlock": {"cidr": cidr}} for cidr in ("10.0.80.0/24", "10.0.100.0/24")],
+            "ports": [{"protocol": "TCP", "port": 5678}],
+        }])
+        egress = [rule for rule in admin["spec"]["egress"] if any(
+            port["port"] == "5678" for block in rule["toPorts"] for port in block["ports"]
+        )]
+        self.assertEqual(egress, [{
+            "toEndpoints": [{"matchLabels": {
+                "k8s:io.kubernetes.pod.namespace": "n8n", "k8s:app.kubernetes.io/name": "n8n",
+            }}],
+            "toPorts": [{"ports": [{"port": "5678", "protocol": "TCP"}]}],
         }])
 
     def test_argocd_access_is_limited_to_admin_proxy_release_and_management(self):

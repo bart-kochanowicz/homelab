@@ -232,7 +232,7 @@ Test required access and denied traffic using fresh connections and Hubble verdi
 | Home `10.0.40.0/24` | Home Assistant TCP `8123`, Minecraft TCP `30000` |
 | n8n | Home Assistant on local or remote nodes, TCP `8123` |
 | Home gateway proxy | Home Assistant on local or remote nodes, TCP `8123` |
-| Admin gateway proxy | Crafty panel pods, TCP `8443`; ArgoCD server pods, TCP `8080` |
+| Admin gateway proxy | Crafty TCP `8443`; ArgoCD server TCP `8080`; n8n TCP `5678` |
 
 ArgoCD server ingress preserves same-namespace release traffic and direct Admin/VPN
 access on `8080`; only Prometheus in `monitoring` can scrape `8083`. Other ArgoCD
