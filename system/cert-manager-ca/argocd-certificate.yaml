@@ -3,16 +3,22 @@ kind: Certificate
 metadata:
   name: argocd-server
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   secretName: argocd-server-tls
-  duration: 2160h
-  renewBefore: 360h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
   issuerRef:
-    name: homelab-internal-ca
+    name: letsencrypt-production
     kind: ClusterIssuer
-  commonName: argocd-server.argocd.svc.cluster.local
+    group: cert-manager.io
   dnsNames:
-    - argocd-server
-    - argocd-server.argocd
-    - argocd-server.argocd.svc
-    - argocd-server.argocd.svc.cluster.local
+    - argocd.thecavespace.net
+  renewBeforePercentage: 33
+  revisionHistoryLimit: 2
+  usages:
+    - digital signature
+    - server auth

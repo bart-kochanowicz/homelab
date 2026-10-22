@@ -5,6 +5,9 @@ resources:
   - namespace.yaml
   - projects.yaml
   - argocd-cm.yaml
+  - gateway-service.yaml
+  - backend-tls-policy.yaml
+  - httproute.yaml
   - argocd-rbac-cm.yaml
   - argocd-sso-sealed-secret.yaml
   - argocd-bootstrap.yaml

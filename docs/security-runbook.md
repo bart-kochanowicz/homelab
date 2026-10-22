@@ -164,8 +164,7 @@ Helm chart without skipping missing schemas.
 ## Internal CA
 
 Keep the offline CA key under `.secrets/` with mode `0600` and a separate backup.
-Only its sealed form is tracked. Cert-manager renews `argocd-server-tls`;
-private clients must trust the public CA.
+Only its sealed form is tracked.
 
 To rotate the CA, generate a new key/certificate, seal the TLS secret for
 `cert-manager`, distribute the public CA, and commit the SealedSecret. Verify
@@ -256,6 +255,15 @@ endpoint and review Hubble flows. Audit mode resets on agent restart; finish
 the review and enforce the policy, or remove the live policy before restarting.
 The allowlist also preserves node-internal traffic, pod access to the API on TCP
 `6443`, CoreDNS upstream DNS, Hubble peer traffic and monitoring scrapes.
+
+## ArgoCD backend TLS
+
+Cert-manager issues `argocd-server-tls` through Let's Encrypt and Cloudflare DNS-01;
+ArgoCD reloads it without restarting. Both gateway backend paths verify
+`argocd.thecavespace.net` using system CAs. Native gRPC uses the HTTP/2
+`argocd-gateway-grpc` Service; UI, Dex and gRPC-Web use the existing Service.
+The `cert-manager-ca` Application owns the Certificate; `argocd-bootstrap` owns
+routing. Direct TLS clients must verify the certificate's public DNS name.
 
 ## Home Assistant backend TLS
 
