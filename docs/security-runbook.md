@@ -278,6 +278,9 @@ Check issuance with `cmctl status certificate n8n-backend --namespace n8n`.
 
 n8n serves HTTPS on `5678` from the read-only Secret mount `/etc/n8n/tls`.
 Direct TLS clients must verify `n8n.thecavespace.net`; plaintext HTTP no longer works.
+n8n's editor and webhook hostnames attach only to their named Admin listeners.
+Both routes verify the backend's `n8n.thecavespace.net` identity using system CAs.
+Their request timeout is disabled for long-running workflows and WebSockets.
 n8n 2.14.2 loads certificates at startup. The namespace-scoped Reloader restarts
 only n8n when this Secret changes, including changes missed while it was stopped.
 Each renewal briefly interrupts n8n. ArgoCD ignores only its reload hash variable;

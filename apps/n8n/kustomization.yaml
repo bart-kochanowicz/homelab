@@ -10,6 +10,8 @@ resources:
   - certificate.yaml
   - deployment.yaml
   - service.yaml
+  - backend-tls-policy.yaml
+  - httproute.yaml
 
 labels:
   - pairs:

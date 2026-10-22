@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -389,6 +390,46 @@ class PrivateGatewayTests(unittest.TestCase):
         for name in ("startupProbe", "livenessProbe", "readinessProbe"):
             self.assertEqual(container[name]["httpGet"], {"path": "/healthz", "port": "https", "scheme": "HTTPS"})
         self.assertIn({"name": "https", "containerPort": 5678, "protocol": "TCP"}, container["ports"])
+
+    def test_n8n_routes_match_application_urls_and_require_verified_admin_backend_tls(self):
+        resources = self.rendered("apps-n8n.yaml")
+        routes = {item["metadata"]["name"]: item for item in resources if item["kind"] == "HTTPRoute"}
+        deployment = next(item for item in resources if item["kind"] == "Deployment")
+        service = next(item for item in resources if item["kind"] == "Service")
+        certificate = next(item for item in resources if item["kind"] == "Certificate")
+        policy = next(item for item in resources if item["kind"] == "BackendTLSPolicy")
+        env = {item["name"]: item.get("value") for item in deployment["spec"]["template"]["spec"]["containers"][0]["env"]}
+        hosts = {
+            "n8n": urlsplit(env["N8N_EDITOR_BASE_URL"]).hostname,
+            "n8n-webhook": urlsplit(env["WEBHOOK_URL"]).hostname,
+        }
+        self.assertEqual(set(routes), set(hosts))
+        for name, route in routes.items():
+            with self.subTest(route=name):
+                self.assertEqual(route["metadata"]["namespace"], "n8n")
+                self.assertEqual(route["spec"]["hostnames"], [hosts[name]])
+                self.assertEqual(route["spec"]["parentRefs"], [{
+                    "name": "private-admin", "namespace": "private-admin", "sectionName": name,
+                }])
+                self.assertEqual(route["spec"]["rules"], [{
+                    "matches": [{"path": {"type": "PathPrefix", "value": "/"}}],
+                    "backendRefs": [{"name": service["metadata"]["name"], "port": 5678}],
+                    "timeouts": {"request": "0s"},
+                }])
+        self.assertEqual(service["metadata"]["namespace"], "n8n")
+        self.assertEqual(service["spec"]["type"], "ClusterIP")
+        self.assertEqual(policy["metadata"]["namespace"], "n8n")
+        self.assertEqual(policy["spec"]["targetRefs"], [{
+            "group": "", "kind": "Service", "name": service["metadata"]["name"],
+            "sectionName": service["spec"]["ports"][0]["name"],
+        }])
+        self.assertEqual(policy["spec"]["validation"], {
+            "hostname": env["N8N_HOST"], "wellKnownCACertificates": "System",
+        })
+        self.assertEqual(certificate["spec"]["dnsNames"], [env["N8N_HOST"]])
+        self.assertLess(int(certificate["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
+                        int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]))
+        self.assertLess(int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]), 0)
 
     def test_crafty_admin_route_requires_verified_tls_on_the_panel_port(self):
         resources = self.rendered("apps-crafty-controller.yaml")
