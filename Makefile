@@ -113,6 +113,7 @@ validate-helm: validate-kustomize
 		system/envoy-gateway-crds:argocd \
 		system/metallb:metallb-system \
 		system/home-assistant-reloader:home-assistant \
+		system/n8n-reloader:n8n \
 		system/sealed-secrets:sealed-secrets; do \
 		dir="$${spec%%:*}"; namespace="$${spec##*:}"; \
 		retry helm dependency build "$$dir" >/dev/null; \

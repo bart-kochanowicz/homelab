@@ -269,12 +269,19 @@ ArgoCD reloads it without restarting. Both gateway backend paths verify
 The `cert-manager-ca` Application owns the Certificate; `argocd-bootstrap` owns
 routing. Direct TLS clients must verify the certificate's public DNS name.
 
-## n8n backend certificate
+## n8n backend TLS
 
 The `n8n` Application owns Certificate `n8n-backend`; cert-manager writes its
 certificate and key to Secret `n8n-backend-tls`. It uses the existing Let's
 Encrypt issuer and Cloudflare DNS-01 solver for `n8n.thecavespace.net`.
 Check issuance with `cmctl status certificate n8n-backend --namespace n8n`.
+
+n8n serves HTTPS on `5678` from the read-only Secret mount `/etc/n8n/tls`.
+Direct TLS clients must verify `n8n.thecavespace.net`; plaintext HTTP no longer works.
+n8n 2.14.2 loads certificates at startup. The namespace-scoped Reloader restarts
+only n8n when this Secret changes, including changes missed while it was stopped.
+Each renewal briefly interrupts n8n. ArgoCD ignores only its reload hash variable;
+other drift heals. Network policies and the Reloader Application need manual sync.
 
 ## Home Assistant backend TLS
 

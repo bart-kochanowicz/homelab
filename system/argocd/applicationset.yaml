@@ -35,6 +35,14 @@ spec:
             - >-
               .spec.template.spec.containers[] | select(.name == "home-assistant") |
               .env[]? | select(.name == "STAKATER_HOME_ASSISTANT_BACKEND_TLS_SECRET")
+        - group: apps
+          kind: Deployment
+          name: n8n
+          namespace: n8n
+          jqPathExpressions:
+            - >-
+              .spec.template.spec.containers[] | select(.name == "n8n") |
+              .env[]? | select(.name == "STAKATER_N8N_BACKEND_TLS_SECRET")
       syncPolicy:
         automated:
           prune: true

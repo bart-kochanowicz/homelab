@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: n8n
   namespace: n8n
+  annotations:
+    secret.reloader.stakater.com/reload: n8n-backend-tls
   labels:
     app.kubernetes.io/name: n8n
     app.kubernetes.io/part-of: homelab
@@ -41,7 +43,7 @@ spec:
             drop:
               - ALL
         ports:
-        - name: http
+        - name: https
           containerPort: 5678
           protocol: TCP
         env:
@@ -51,6 +53,10 @@ spec:
           value: "Europe/Warsaw"
         - name: N8N_PROTOCOL
           value: "https"
+        - name: N8N_SSL_CERT
+          value: /etc/n8n/tls/tls.crt
+        - name: N8N_SSL_KEY
+          value: /etc/n8n/tls/tls.key
         - name: N8N_HOST
           value: "n8n.thecavespace.net"
         - name: N8N_PORT
@@ -79,17 +85,22 @@ spec:
           mountPath: /tmp
         - name: cache
           mountPath: /home/node/.cache
+        - name: backend-tls
+          mountPath: /etc/n8n/tls
+          readOnly: true
         startupProbe:
           httpGet:
             path: /healthz
-            port: http
+            port: https
+            scheme: HTTPS
           failureThreshold: 30
           periodSeconds: 10
           timeoutSeconds: 5
         livenessProbe:
           httpGet:
             path: /healthz
-            port: http
+            port: https
+            scheme: HTTPS
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
@@ -97,7 +108,8 @@ spec:
         readinessProbe:
           httpGet:
             path: /healthz
-            port: http
+            port: https
+            scheme: HTTPS
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -119,3 +131,7 @@ spec:
       - name: cache
         emptyDir:
           sizeLimit: 256Mi
+      - name: backend-tls
+        secret:
+          secretName: n8n-backend-tls
+          defaultMode: 0440
