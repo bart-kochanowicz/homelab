@@ -6,7 +6,6 @@ resources:
   - projects.yaml
   - argocd-cm.yaml
   - gateway-service.yaml
-  - backend-ca.yaml
   - backend-tls-policy.yaml
   - httproute.yaml
   - argocd-rbac-cm.yaml

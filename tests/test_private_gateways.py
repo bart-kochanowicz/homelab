@@ -414,16 +414,15 @@ class PrivateGatewayTests(unittest.TestCase):
         validation = policy["spec"]["validation"]
         certificate = next(item for item in self.rendered("system-cert-manager-ca.yaml") if
                            item["kind"] == "Certificate" and item["metadata"]["namespace"] == "argocd")
-        self.assertIn(validation["hostname"], certificate["spec"]["dnsNames"])
-        self.assertNotIn("wellKnownCACertificates", validation)
-        ca = next(item for item in resources if item["kind"] == "ConfigMap" and
-                  item["metadata"]["name"] == validation["caCertificateRefs"][0]["name"])
-        self.assertEqual(validation["caCertificateRefs"], [{
-            "group": "", "kind": "ConfigMap", "name": ca["metadata"]["name"],
-        }])
-        self.assertEqual(set(ca["data"]), {"ca.crt"})
-        self.assertIn("-----BEGIN CERTIFICATE-----", ca["data"]["ca.crt"])
-        self.assertNotIn("PRIVATE KEY", ca["data"]["ca.crt"])
+        self.assertEqual(validation, {"hostname": hostname, "wellKnownCACertificates": "System"})
+        self.assertEqual(certificate["spec"]["dnsNames"], [hostname])
+        self.assertEqual(certificate["spec"]["secretName"], "argocd-server-tls")
+        self.assertEqual(certificate["spec"]["issuerRef"], {
+            "name": "letsencrypt-production", "kind": "ClusterIssuer", "group": "cert-manager.io",
+        })
+        self.assertEqual(certificate["spec"]["privateKey"]["rotationPolicy"], "Always")
+        self.assertFalse(any(item["kind"] == "ConfigMap" and "ca.crt" in item.get("data", {})
+                             for item in resources))
         server_policy = next(item for item in self.rendered("system-network-policies.yaml") if
                              item["kind"] == "NetworkPolicy" and
                              item["metadata"]["name"] == "allow-argocd-server")

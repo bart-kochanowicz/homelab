@@ -19,8 +19,5 @@ spec:
       name: argocd-gateway-grpc
       sectionName: https
   validation:
-    hostname: argocd-server.argocd.svc.cluster.local
-    caCertificateRefs:
-      - group: ""
-        kind: ConfigMap
-        name: argocd-backend-ca
+    hostname: argocd.thecavespace.net
+    wellKnownCACertificates: System
