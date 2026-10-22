@@ -9,3 +9,4 @@ resources:
   - private-gateways.yaml
   - metallb.yaml
   - home-assistant-reloader.yaml
+  - n8n-reloader.yaml

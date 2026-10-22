@@ -269,83 +269,126 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(http["ssl_certificate"], mount["mountPath"] + "/tls.crt")
         self.assertEqual(http["ssl_key"], mount["mountPath"] + "/tls.key")
 
-    def test_reloader_is_namespaced_and_can_only_patch_home_assistant(self):
-        resources = self.rendered("helm-home-assistant-reloader.yaml")
-        self.assertFalse(any(item["kind"] in {"ClusterRole", "ClusterRoleBinding"} for item in resources))
-        self.assertTrue(all(item["metadata"]["namespace"] == "home-assistant" for item in resources))
-        deployment = next(item for item in resources if item["kind"] == "Deployment")
-        role = next(item for item in resources if item["kind"] == "Role")
-        binding = next(item for item in resources if item["kind"] == "RoleBinding")
-        pod = deployment["spec"]["template"]["spec"]
-        self.assertEqual(binding["roleRef"]["name"], role["metadata"]["name"])
-        self.assertEqual(binding["subjects"], [{
-            "kind": "ServiceAccount", "name": pod["serviceAccountName"], "namespace": "home-assistant",
-        }])
-        writes = [rule for rule in role["rules"] if
-                  "apps" in rule["apiGroups"] and set(rule["verbs"]) - {"get", "list", "watch"}]
-        self.assertEqual(writes, [{
-            "apiGroups": ["apps"], "resources": ["deployments"],
-            "resourceNames": ["home-assistant"], "verbs": ["patch"],
-        }])
-        for rule in role["rules"]:
-            self.assertFalse(any("*" in rule[field] for field in ("apiGroups", "resources", "verbs")))
-            if "secrets" in rule["resources"]:
-                self.assertEqual(set(rule["verbs"]), {"get", "list", "watch"})
-            if "configmaps" in rule["resources"] and "update" in rule["verbs"]:
-                self.assertEqual(rule["resourceNames"], ["reloader-meta-info"])
-        container = pod["containers"][0]
-        args = container["args"]
-        for flag in ("--resources-to-ignore=configmaps", "--ignored-workload-types=jobs,cronjobs",
-                     "--reload-strategy=env-vars", "--reload-on-create=true", "--sync-after-restart=true"):
-            self.assertIn(flag, args)
-        self.assertNotIn("--auto-reload-all=true", args)
-        namespace_env = next(item for item in container["env"] if item["name"] == "KUBERNETES_NAMESPACE")
-        self.assertEqual(namespace_env["valueFrom"]["fieldRef"]["fieldPath"], "metadata.namespace")
-        certificate = next(item for item in self.rendered("apps-home-assistant.yaml") if
-                           item["kind"] == "Certificate")
-        labels = certificate["spec"]["secretTemplate"]["labels"]
-        self.assertIn("--resource-label-selector=" + ",".join(f"{key}={value}" for key, value in labels.items()), args)
-        policy = next(item for item in self.rendered("system-network-policies.yaml") if
-                      item["metadata"]["name"] == "home-assistant-reloader")
-        for key, value in policy["spec"]["endpointSelector"]["matchLabels"].items():
-            self.assertEqual(deployment["spec"]["template"]["metadata"]["labels"][key], value)
-        self.assertEqual(policy["spec"]["egress"][0], {
-            "toEntities": ["kube-apiserver"],
-            "toPorts": [{"ports": [{"port": "6443", "protocol": "TCP"}]}],
-        })
-        self.assertEqual(len(policy["spec"]["egress"]), 2)
-        self.assertNotIn("ingress", policy["spec"])
+    def test_reloaders_are_namespaced_and_can_only_patch_their_application(self):
+        for namespace in ("home-assistant", "n8n"):
+            with self.subTest(namespace=namespace):
+                resources = self.rendered(f"helm-{namespace}-reloader.yaml")
+                self.assertFalse(any(item["kind"] in {"ClusterRole", "ClusterRoleBinding"} for item in resources))
+                self.assertTrue(all(item["metadata"]["namespace"] == namespace for item in resources))
+                deployment = next(item for item in resources if item["kind"] == "Deployment")
+                role = next(item for item in resources if item["kind"] == "Role")
+                binding = next(item for item in resources if item["kind"] == "RoleBinding")
+                pod = deployment["spec"]["template"]["spec"]
+                self.assertEqual(binding["roleRef"]["name"], role["metadata"]["name"])
+                self.assertEqual(binding["subjects"], [{
+                    "kind": "ServiceAccount", "name": pod["serviceAccountName"], "namespace": namespace,
+                }])
+                writes = [rule for rule in role["rules"] if
+                          "apps" in rule["apiGroups"] and set(rule["verbs"]) - {"get", "list", "watch"}]
+                self.assertEqual(writes, [{
+                    "apiGroups": ["apps"], "resources": ["deployments"],
+                    "resourceNames": [namespace], "verbs": ["patch"],
+                }])
+                for rule in role["rules"]:
+                    self.assertFalse(any("*" in rule[field] for field in ("apiGroups", "resources", "verbs")))
+                    if "secrets" in rule["resources"]:
+                        self.assertEqual(set(rule["verbs"]), {"get", "list", "watch"})
+                    if "configmaps" in rule["resources"] and "update" in rule["verbs"]:
+                        self.assertEqual(rule["resourceNames"], ["reloader-meta-info"])
+                container = pod["containers"][0]
+                args = container["args"]
+                for flag in ("--resources-to-ignore=configmaps", "--ignored-workload-types=jobs,cronjobs",
+                             "--reload-strategy=env-vars", "--reload-on-create=true", "--sync-after-restart=true"):
+                    self.assertIn(flag, args)
+                self.assertNotIn("--auto-reload-all=true", args)
+                namespace_env = next(item for item in container["env"] if item["name"] == "KUBERNETES_NAMESPACE")
+                self.assertEqual(namespace_env["valueFrom"]["fieldRef"]["fieldPath"], "metadata.namespace")
+                certificate = next(item for item in self.rendered(f"apps-{namespace}.yaml") if
+                                   item["kind"] == "Certificate")
+                labels = certificate["spec"]["secretTemplate"]["labels"]
+                self.assertIn("--resource-label-selector=" + ",".join(
+                    f"{key}={value}" for key, value in labels.items()), args)
+                policy = next(item for item in self.rendered("system-network-policies.yaml") if
+                              item["metadata"]["name"] == f"{namespace}-reloader")
+                for key, value in policy["spec"]["endpointSelector"]["matchLabels"].items():
+                    self.assertEqual(deployment["spec"]["template"]["metadata"]["labels"][key], value)
+                self.assertEqual(policy["spec"]["egress"][0], {
+                    "toEntities": ["kube-apiserver"],
+                    "toPorts": [{"ports": [{"port": "6443", "protocol": "TCP"}]}],
+                })
+                self.assertEqual(len(policy["spec"]["egress"]), 2)
+                self.assertNotIn("ingress", policy["spec"])
 
     def test_argocd_preserves_the_reload_hash_without_hiding_other_drift(self):
         resources = self.rendered("system-argocd.yaml")
         appset = next(item for item in resources if item["kind"] == "ApplicationSet")
         spec = appset["spec"]["template"]["spec"]
         self.assertIn("RespectIgnoreDifferences=true", spec["syncPolicy"]["syncOptions"])
-        self.assertEqual(len(spec["ignoreDifferences"]), 1)
-        rule = spec["ignoreDifferences"][0]
-        self.assertEqual({key: value for key, value in rule.items() if key != "jqPathExpressions"}, {
-            "group": "apps", "kind": "Deployment", "name": "home-assistant", "namespace": "home-assistant",
+        self.assertEqual(len(spec["ignoreDifferences"]), 2)
+        self.assertEqual({rule["name"] for rule in spec["ignoreDifferences"]}, {"home-assistant", "n8n"})
+        for rule in spec["ignoreDifferences"]:
+            name = rule["name"]
+            with self.subTest(application=name):
+                self.assertEqual({key: value for key, value in rule.items() if key != "jqPathExpressions"}, {
+                    "group": "apps", "kind": "Deployment", "name": name, "namespace": name,
+                })
+                deployment = next(item for item in self.rendered(f"apps-{name}.yaml") if
+                                  item["kind"] == "Deployment")
+                drifted = copy.deepcopy(deployment)
+                container = drifted["spec"]["template"]["spec"]["containers"][0]
+                secret = deployment["metadata"]["annotations"]["secret.reloader.stakater.com/reload"]
+                hash_env = "STAKATER_" + secret.replace("-", "_").upper() + "_SECRET"
+                container["env"].append({"name": hash_env, "value": "renewed-hash"})
+
+                def normalize(document):
+                    result = subprocess.run(["jq", "del(" + rule["jqPathExpressions"][0] + ")"],
+                                            input=json.dumps(document), check=True, capture_output=True,
+                                            text=True, timeout=15)
+                    return json.loads(result.stdout)
+
+                self.assertEqual(normalize(drifted), normalize(deployment))
+                container["image"] = "unexpected-image"
+                container["env"][0]["value"] = "unexpected-timezone"
+                self.assertNotEqual(normalize(drifted), normalize(deployment))
+                reloader = next(item for item in resources if item["kind"] == "Application" and
+                                item["metadata"]["name"] == f"{name}-reloader")
+                self.assertNotIn("automated", reloader["spec"]["syncPolicy"])
+                self.assertEqual(reloader["spec"]["destination"]["namespace"], name)
+
+    def test_n8n_native_tls_preserves_identity_data_and_certificate_projection(self):
+        resources = self.rendered("apps-n8n.yaml")
+        deployment = next(item for item in resources if item["kind"] == "Deployment")
+        certificate = next(item for item in resources if item["kind"] == "Certificate")
+        service = next(item for item in resources if item["kind"] == "Service")
+        pod = deployment["spec"]["template"]["spec"]
+        container = pod["containers"][0]
+        env = {item["name"]: item for item in container["env"]}
+        mount = next(item for item in container["volumeMounts"] if item["name"] == "backend-tls")
+        self.assertTrue(mount["readOnly"])
+        self.assertFalse({"subPath", "subPathExpr"} & set(mount))
+        volume = next(item for item in pod["volumes"] if item["name"] == mount["name"])
+        self.assertEqual(volume["secret"], {"secretName": certificate["spec"]["secretName"], "defaultMode": 0o440})
+        self.assertEqual(pod["securityContext"]["fsGroup"], 1000)
+        self.assertEqual(env["N8N_SSL_CERT"]["value"], mount["mountPath"] + "/tls.crt")
+        self.assertEqual(env["N8N_SSL_KEY"]["value"], mount["mountPath"] + "/tls.key")
+        self.assertEqual(certificate["spec"]["dnsNames"], [env["N8N_HOST"]["value"]])
+        self.assertEqual(certificate["spec"]["issuerRef"]["name"], "letsencrypt-production")
+        self.assertEqual(env["N8N_PROTOCOL"]["value"], "https")
+        self.assertEqual(env["N8N_PROXY_HOPS"]["value"], "1")
+        self.assertEqual(env["N8N_ENCRYPTION_KEY"]["valueFrom"], {
+            "secretKeyRef": {"name": "n8n-secret", "key": "N8N_ENCRYPTION_KEY"},
         })
-        deployment = next(item for item in self.rendered("apps-home-assistant.yaml") if
-                          item["kind"] == "Deployment")
-        drifted = copy.deepcopy(deployment)
-        container = drifted["spec"]["template"]["spec"]["containers"][0]
-        container["env"].append({"name": "STAKATER_HOME_ASSISTANT_BACKEND_TLS_SECRET", "value": "renewed-hash"})
-
-        def normalize(document):
-            result = subprocess.run(["jq", "del(" + rule["jqPathExpressions"][0] + ")"],
-                                    input=json.dumps(document), check=True, capture_output=True,
-                                    text=True, timeout=15)
-            return json.loads(result.stdout)
-
-        self.assertEqual(normalize(drifted), normalize(deployment))
-        container["image"] = "unexpected-image"
-        container["env"][0]["value"] = "unexpected-timezone"
-        self.assertNotEqual(normalize(drifted), normalize(deployment))
-        reloader = next(item for item in resources if item["kind"] == "Application" and
-                        item["metadata"]["name"] == "home-assistant-reloader")
-        self.assertNotIn("automated", reloader["spec"]["syncPolicy"])
-        self.assertEqual(reloader["spec"]["destination"]["namespace"], "home-assistant")
+        self.assertIn({"name": "n8n-data", "persistentVolumeClaim": {"claimName": "n8n-data"}}, pod["volumes"])
+        self.assertEqual(deployment["metadata"]["annotations"]["secret.reloader.stakater.com/reload"],
+                         certificate["spec"]["secretName"])
+        self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})
+        self.assertEqual(service["spec"]["type"], "ClusterIP")
+        self.assertEqual(service["spec"]["ports"], [{
+            "name": "https", "port": 5678, "targetPort": 5678, "protocol": "TCP",
+        }])
+        for name in ("startupProbe", "livenessProbe", "readinessProbe"):
+            self.assertEqual(container[name]["httpGet"], {"path": "/healthz", "port": "https", "scheme": "HTTPS"})
+        self.assertIn({"name": "https", "containerPort": 5678, "protocol": "TCP"}, container["ports"])
 
     def test_crafty_admin_route_requires_verified_tls_on_the_panel_port(self):
         resources = self.rendered("apps-crafty-controller.yaml")

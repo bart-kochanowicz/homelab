@@ -1,0 +1,34 @@
+reloader:
+  fullnameOverride: n8n-reloader
+  image:
+    tag: v1.4.22@sha256:def2480040adc164b3a57340e77674eadfd88fb7f0593df25e93297f29c7fd7c
+  reloader:
+    watchGlobally: false
+    ignoreConfigMaps: true
+    ignoreJobs: true
+    ignoreCronJobs: true
+    resourceLabelSelector: homelab/reload=n8n-tls
+    reloadOnCreate: true
+    syncAfterRestart: true
+    # The stable hash avoids another n8n restart when only Reloader restarts.
+    reloadStrategy: env-vars
+    readOnlyRootFileSystem: true
+    rbac:
+      enabled: false
+    deployment:
+      automountServiceAccountToken: true
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi

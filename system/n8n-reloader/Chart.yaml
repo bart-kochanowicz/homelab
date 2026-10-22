@@ -1,0 +1,9 @@
+apiVersion: v2
+name: homelab-n8n-reloader
+description: Restart n8n when its backend TLS certificate changes
+type: application
+version: 0.1.0
+dependencies:
+  - name: reloader
+    version: 2.2.18
+    repository: https://stakater.github.io/stakater-charts

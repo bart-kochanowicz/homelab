@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: n8n-reloader
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/bart-kochanowicz/homelab.git
+    targetRevision: main
+    path: system/n8n-reloader
+    helm:
+      releaseName: n8n-reloader
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: n8n
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - FailOnSharedResource=true
