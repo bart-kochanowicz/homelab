@@ -1,0 +1,25 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: private-admin-argocd
+  namespace: private-admin
+  labels:
+    app.kubernetes.io/name: private-admin
+    app.kubernetes.io/part-of: homelab
+spec:
+  secretName: private-admin-argocd-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - argocd.thecavespace.net
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  renewBeforePercentage: 33
+  revisionHistoryLimit: 2
+  usages:
+    - digital signature
+    - server auth

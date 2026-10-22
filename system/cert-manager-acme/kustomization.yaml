@@ -7,3 +7,4 @@ resources:
   - cluster-issuers.yaml
   - private-home-certificate.yaml
   - private-admin-certificate.yaml
+  - private-admin-argocd-certificate.yaml

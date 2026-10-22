@@ -148,8 +148,9 @@ class PrivateGatewayTests(unittest.TestCase):
                 self.assertEqual(listener["protocol"], "HTTPS")
                 self.assertEqual(listener["port"], 443)
                 self.assertEqual(listener["tls"]["mode"], "Terminate")
+                secret = f"{namespace}-argocd-tls" if listener["name"] == "argocd" else f"{namespace}-tls"
                 self.assertEqual(listener["tls"]["certificateRefs"], [
-                    {"group": "", "kind": "Secret", "name": f"{namespace}-tls"},
+                    {"group": "", "kind": "Secret", "name": secret},
                 ])
                 namespaces = listener["allowedRoutes"]["namespaces"]
                 self.assertEqual(namespaces["from"], "Selector")
@@ -162,15 +163,42 @@ class PrivateGatewayTests(unittest.TestCase):
 
     def test_proxies_do_not_trust_client_supplied_forwarding_headers(self):
         policies = self.resources_of_kind("ClientTrafficPolicy")
-        self.assertEqual(len(policies), 2)
+        self.assertEqual(len(policies), 3)
         for policy in policies:
             namespace = policy["metadata"]["namespace"]
+            target = {"group": "gateway.networking.k8s.io", "kind": "Gateway", "name": namespace}
+            if policy["metadata"]["name"] == "private-admin-argocd":
+                target["sectionName"] = "argocd"
             self.assertEqual(policy["spec"]["targetRefs"], [
-                {"group": "gateway.networking.k8s.io", "kind": "Gateway", "name": namespace},
+                target,
             ])
             detection = policy["spec"]["clientIPDetection"]
             self.assertEqual(detection, {"xForwardedFor": {"numTrustedHops": 0}})
-            self.assertEqual(policy["spec"]["tls"]["alpnProtocols"], ["h2", "http/1.1"])
+            expected_alpn = ["http/1.1"] if policy["metadata"]["name"] == "private-admin" else ["h2", "http/1.1"]
+            self.assertEqual(policy["spec"]["tls"]["alpnProtocols"], expected_alpn)
+
+    def test_http2_cannot_coalesce_between_separate_admin_listeners(self):
+        certificates = {(item["metadata"]["namespace"], item["spec"]["secretName"]): item
+                        for item in self.rendered("system-cert-manager-acme.yaml") if item["kind"] == "Certificate"}
+        policies = {}
+        for policy in self.resources_of_kind("ClientTrafficPolicy"):
+            for target in policy["spec"]["targetRefs"]:
+                policies[(policy["metadata"]["namespace"], target["name"], target.get("sectionName"))] = policy
+        for gateway in self.resources_of_kind("Gateway"):
+            namespace, name = gateway["metadata"]["namespace"], gateway["metadata"]["name"]
+            if len(gateway["spec"]["listeners"]) == 1:
+                continue
+            default = policies[(namespace, name, None)]
+            for listener in gateway["spec"]["listeners"]:
+                policy = policies.get((namespace, name, listener["name"]), default)
+                if "h2" not in policy["spec"]["tls"]["alpnProtocols"]:
+                    continue
+                with self.subTest(listener=listener["name"]):
+                    for ref in listener["tls"]["certificateRefs"]:
+                        certificate = certificates[(ref.get("namespace", namespace), ref["name"])]
+                        self.assertEqual(certificate["spec"]["dnsNames"], [listener["hostname"]],
+                                         "HTTP/2 listeners must not present certificates covering other admin origins")
+                        self.assertEqual(certificate["spec"]["issuerRef"]["name"], "letsencrypt-production")
 
     def test_home_assistant_route_only_uses_its_private_home_listener_and_service(self):
         resources = self.rendered("apps-home-assistant.yaml")
