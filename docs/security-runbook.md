@@ -269,6 +269,13 @@ ArgoCD reloads it without restarting. Both gateway backend paths verify
 The `cert-manager-ca` Application owns the Certificate; `argocd-bootstrap` owns
 routing. Direct TLS clients must verify the certificate's public DNS name.
 
+## n8n backend certificate
+
+The `n8n` Application owns Certificate `n8n-backend`; cert-manager writes its
+certificate and key to Secret `n8n-backend-tls`. It uses the existing Let's
+Encrypt issuer and Cloudflare DNS-01 solver for `n8n.thecavespace.net`.
+Check issuance with `cmctl status certificate n8n-backend --namespace n8n`.
+
 ## Home Assistant backend TLS
 
 Home Assistant serves HTTPS on `8123` using `home-assistant-backend-tls` mounted
