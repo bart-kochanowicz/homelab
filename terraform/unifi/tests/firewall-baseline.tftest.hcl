@@ -156,6 +156,8 @@ run "home_https_uses_only_its_private_gateway" {
         home-assistant    = { name = "ha.thecavespace.net", address = "10.0.70.200" }
         crafty-controller = { name = "crafty-controller.thecavespace.net", address = "10.0.70.201" }
         argocd            = { name = "argocd.thecavespace.net", address = "10.0.70.201" }
+        n8n               = { name = "n8n.thecavespace.net", address = "10.0.70.201" }
+        n8n-webhook       = { name = "n8n-webhook.thecavespace.net", address = "10.0.70.201" }
         home-assistant-backend = {
           name = "ha-backend.thecavespace.net", address = local.server_reservations["worker-01"].ip
         }
