@@ -120,6 +120,14 @@ spec:
               protocol: TCP
     - toEndpoints:
         - matchLabels:
+            k8s:io.kubernetes.pod.namespace: n8n
+            k8s:app.kubernetes.io/name: n8n
+      toPorts:
+        - ports:
+            - port: "5678"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system
             k8s:k8s-app: kube-dns
       toPorts:
