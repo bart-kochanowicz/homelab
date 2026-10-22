@@ -59,6 +59,8 @@ Certificates must be Ready. Keep CRD ownership separate from the controller char
   creates Service `externalIPs`.
 - Backend access needs explicit proxy egress and backend ingress rules.
   Keep `externalTrafficPolicy: Local` to preserve client IPs for admission.
+- Admin wildcard listeners use HTTP/1.1. ArgoCD enables HTTP/2 only with its
+  exact frontend certificate to prevent browser connection coalescing and 404s.
 - L2 advertisements list both nodes and `eno1`; speakers override Talos's default
   control-plane exclusion. Update those selectors when replacing nodes.
 
@@ -117,7 +119,9 @@ after recovery.
 
 `cert-manager-acme` requires manual ArgoCD sync. It owns the DNS-01 issuers,
 Cloudflare SealedSecret, and separate wildcard Certificates in `private-home`
-and `private-admin`. Its resources are protected from pruning and deletion.
+and `private-admin`, plus the exact ArgoCD frontend Certificate. Its resources
+are protected from pruning and deletion. Wait for frontend Certificates to be
+Ready before syncing `gateways`.
 Sync the issuers and SealedSecret selectively, validate issuance and renewal
 with a temporary Certificate using `letsencrypt-staging`, then sync the
 production Certificates. Staging certificates are not browser-trusted.
@@ -143,10 +147,10 @@ in that zone. Cert-manager owns transient challenge TXT records. Preserve
 public TXT/SOA resolution when configuring private DNS; no inbound WAN ports
 or public A/AAAA/CNAME records are needed for private services.
 
-Each gateway has its own TLS Secret and rotating ECDSA key. Only the wildcard
-appears in Certificate SANs, keeping private service names out of public
-Certificate Transparency logs. The wildcard does not authorize routes or DNS
-records. Renew and inspect Certificates with the pinned `cmctl` tool:
+Gateway TLS Secrets use rotating ECDSA keys. ArgoCD has an exact frontend
+certificate; other listeners use their gateway's wildcard. Public certificates
+expose their SANs in Certificate Transparency logs; they do not publish service
+DNS records or grant access. Renew and inspect Certificates with the pinned `cmctl` tool:
 
 ```bash
 cmctl status certificate private-home-wildcard --namespace private-home
