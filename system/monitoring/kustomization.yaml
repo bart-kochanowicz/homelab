@@ -5,6 +5,7 @@ namespace: monitoring
 
 resources:
   - namespace.yaml
+  - certificate.yaml
   - grafana-admin-sealed-secret.yaml
   - cilium-service-monitors.yaml
   - security-alerts.yaml
