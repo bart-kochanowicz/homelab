@@ -6,6 +6,8 @@ namespace: monitoring
 resources:
   - namespace.yaml
   - certificate.yaml
+  - backend-tls-policy.yaml
+  - httproute.yaml
   - grafana-admin-sealed-secret.yaml
   - cilium-service-monitors.yaml
   - security-alerts.yaml

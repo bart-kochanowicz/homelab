@@ -641,6 +641,41 @@ class PrivateGatewayTests(unittest.TestCase):
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
 
+    def test_grafana_route_uses_only_admin_listener_and_verified_backend(self):
+        resources = self.rendered("system-monitoring.yaml")
+        route = next(item for item in resources if item["kind"] == "HTTPRoute")
+        policy = next(item for item in resources if item["kind"] == "BackendTLSPolicy")
+        certificate = next(item for item in resources if item["kind"] == "Certificate")
+        service = next(item for item in resources if item["kind"] == "Service" and
+                       item["metadata"]["name"] == "kube-prometheus-stack-grafana")
+        config = next(item for item in resources if item["kind"] == "ConfigMap" and
+                      "grafana.ini" in item.get("data", {}))
+        settings = configparser.ConfigParser(interpolation=None)
+        settings.read_string(config["data"]["grafana.ini"])
+        hostname = urlsplit(settings["server"]["root_url"]).hostname
+        self.assertEqual(route["metadata"]["namespace"], service["metadata"]["namespace"])
+        self.assertEqual(route["spec"]["hostnames"], [hostname])
+        self.assertEqual(route["spec"]["parentRefs"], [{
+            "name": "private-admin", "namespace": "private-admin", "sectionName": "grafana",
+        }])
+        self.assertEqual(route["spec"]["rules"], [{
+            "matches": [{"path": {"type": "PathPrefix", "value": "/"}}],
+            "backendRefs": [{"name": service["metadata"]["name"], "port": service["spec"]["ports"][0]["port"]}],
+            "timeouts": {"request": "0s"},
+        }])
+        self.assertEqual(policy["metadata"]["namespace"], service["metadata"]["namespace"])
+        self.assertEqual(policy["spec"]["targetRefs"], [{
+            "group": "", "kind": "Service", "name": service["metadata"]["name"],
+            "sectionName": service["spec"]["ports"][0]["name"],
+        }])
+        self.assertEqual(policy["spec"]["validation"], {
+            "hostname": "grafana-backend.thecavespace.net", "wellKnownCACertificates": "System",
+        })
+        self.assertIn(policy["spec"]["validation"]["hostname"], certificate["spec"]["dnsNames"])
+        self.assertLess(int(certificate["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]),
+                        int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]))
+        self.assertLess(int(policy["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]), 0)
+
     def test_grafana_tls_preserves_verified_scraping_and_local_provisioning(self):
         resources = self.rendered("system-monitoring.yaml")
         deployment = next(item for item in resources if item["kind"] == "Deployment" and

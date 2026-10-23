@@ -280,6 +280,8 @@ and reloads them without restarting. Prometheus verifies `grafana-backend.thecav
 with its system CAs. Provisioning sidecars use that same name mapped to loopback
 inside the Grafana pod, preserving TLS verification for local reload calls.
 Check issuance with `cmctl status certificate grafana-backend --namespace monitoring`.
+The `grafana` HTTPRoute attaches only to the Admin gateway's named Grafana listener;
+its backend policy verifies the same backend name with system CAs.
 
 ## n8n backend TLS
 
