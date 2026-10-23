@@ -20,6 +20,10 @@ locals {
       name    = "n8n-webhook.thecavespace.net"
       address = "10.0.70.201"
     }
+    grafana = {
+      name    = "grafana.thecavespace.net"
+      address = "10.0.70.201"
+    }
     home-assistant-backend = {
       name    = "ha-backend.thecavespace.net"
       address = local.server_reservations["worker-01"].ip

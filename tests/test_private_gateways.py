@@ -656,11 +656,13 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(route["metadata"]["namespace"], service["metadata"]["namespace"])
         self.assertEqual(route["spec"]["hostnames"], [hostname])
         self.assertEqual(route["spec"]["parentRefs"], [{
+            "group": "gateway.networking.k8s.io", "kind": "Gateway",
             "name": "private-admin", "namespace": "private-admin", "sectionName": "grafana",
         }])
         self.assertEqual(route["spec"]["rules"], [{
             "matches": [{"path": {"type": "PathPrefix", "value": "/"}}],
-            "backendRefs": [{"name": service["metadata"]["name"], "port": service["spec"]["ports"][0]["port"]}],
+            "backendRefs": [{"group": "", "kind": "Service", "weight": 1,
+                             "name": service["metadata"]["name"], "port": service["spec"]["ports"][0]["port"]}],
             "timeouts": {"request": "0s"},
         }])
         self.assertEqual(policy["metadata"]["namespace"], service["metadata"]["namespace"])
