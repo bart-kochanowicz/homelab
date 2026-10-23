@@ -1,3 +1,4 @@
+import configparser
 import copy
 import ipaddress
 import json
@@ -639,6 +640,59 @@ class PrivateGatewayTests(unittest.TestCase):
             self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
+
+    def test_grafana_tls_preserves_verified_scraping_and_local_provisioning(self):
+        resources = self.rendered("system-monitoring.yaml")
+        deployment = next(item for item in resources if item["kind"] == "Deployment" and
+                          item["metadata"]["name"] == "kube-prometheus-stack-grafana")
+        certificate = next(item for item in resources if item["kind"] == "Certificate" and
+                           item["metadata"]["name"] == "grafana-backend")
+        config = next(item for item in resources if item["kind"] == "ConfigMap" and
+                      "grafana.ini" in item.get("data", {}))
+        settings = configparser.ConfigParser(interpolation=None)
+        settings.read_string(config["data"]["grafana.ini"])
+        self.assertEqual(settings["server"]["protocol"], "https")
+        self.assertEqual(settings["server"]["root_url"], "https://grafana.thecavespace.net/")
+        self.assertEqual(settings["server"]["certs_watch_interval"], "30s")
+        self.assertTrue(settings.getboolean("security", "cookie_secure"))
+        pod = deployment["spec"]["template"]["spec"]
+        grafana = next(item for item in pod["containers"] if item["name"] == "grafana")
+        mount = next(item for item in grafana["volumeMounts"] if item["name"] == "backend-tls")
+        self.assertTrue(mount["readOnly"])
+        self.assertFalse(mount.get("subPath") or mount.get("subPathExpr"))
+        volume = next(item for item in pod["volumes"] if item["name"] == mount["name"])
+        self.assertEqual(volume["secret"], {"secretName": certificate["spec"]["secretName"],
+                                            "defaultMode": 0o440})
+        self.assertEqual(pod["securityContext"]["fsGroup"], 472)
+        for key, filename in (("cert_file", "tls.crt"), ("cert_key", "tls.key")):
+            self.assertEqual(settings["server"][key], f'{mount["mountPath"]}/{filename}')
+        self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})
+        for probe in ("readinessProbe", "livenessProbe"):
+            self.assertEqual(grafana[probe]["httpGet"], {
+                "path": "/api/health", "port": 3000, "scheme": "HTTPS",
+            })
+        service = next(item for item in resources if item["kind"] == "Service" and
+                       item["metadata"]["name"] == deployment["metadata"]["name"])
+        self.assertEqual(service["spec"]["type"], "ClusterIP")
+        port = service["spec"]["ports"][0]
+        self.assertEqual((port["port"], port["appProtocol"]), (3000, "https"))
+        monitor = next(item for item in resources if item["kind"] == "ServiceMonitor" and
+                       item["metadata"]["name"] == service["metadata"]["name"])
+        prometheus = next(item for item in resources if item["kind"] == "Prometheus")
+        selected = prometheus["spec"]["serviceMonitorSelector"]["matchLabels"]
+        self.assertTrue(selected.items() <= monitor["metadata"]["labels"].items())
+        endpoint = monitor["spec"]["endpoints"][0]
+        self.assertEqual((endpoint["port"], endpoint["scheme"]), (port["name"], "https"))
+        self.assertEqual(endpoint["tlsConfig"], {"serverName": "grafana-backend.thecavespace.net"})
+        backend = endpoint["tlsConfig"]["serverName"]
+        self.assertIn(backend, certificate["spec"]["dnsNames"])
+        self.assertIn({"ip": "127.0.0.1", "hostnames": [backend]}, pod["hostAliases"])
+        for name, kind in (("grafana-sc-dashboard", "dashboards"),
+                           ("grafana-sc-datasources", "datasources")):
+            container = next(item for item in pod["containers"] if item["name"] == name)
+            env = {item["name"]: item.get("value") for item in container["env"]}
+            self.assertEqual(env["REQ_URL"], f'https://{backend}:3000/api/admin/provisioning/{kind}/reload')
+            self.assertNotEqual(env.get("REQ_SKIP_TLS_VERIFY", "false").lower(), "true")
 
     def test_grafana_ingress_preserves_scraping_and_excludes_other_clients(self):
         policies = self.rendered("system-network-policies.yaml")
