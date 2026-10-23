@@ -8,9 +8,53 @@ grafana:
     passwordKey: admin-password
   ingress:
     enabled: false
+  deploymentStrategy:
+    type: Recreate
+  # The chart's Helm test hardcodes HTTP on port 80.
+  testFramework:
+    enabled: false
+  grafana.ini:
+    server:
+      protocol: https
+      http_port: 3000
+      domain: grafana.thecavespace.net
+      root_url: https://grafana.thecavespace.net/
+      cert_file: /etc/grafana/tls/tls.crt
+      cert_key: /etc/grafana/tls/tls.key
+      certs_watch_interval: 30s
+    security:
+      cookie_secure: true
+  extraSecretMounts:
+    - name: backend-tls
+      secretName: grafana-backend-tls
+      mountPath: /etc/grafana/tls
+      defaultMode: 0440
+      readOnly: true
+  hostAliases:
+    - ip: 127.0.0.1
+      hostnames:
+        - grafana-backend.thecavespace.net
+  service:
+    port: 3000
+    portName: https
+    appProtocol: https
+  readinessProbe:
+    httpGet:
+      scheme: HTTPS
+  livenessProbe:
+    httpGet:
+      scheme: HTTPS
+  sidecar:
+    dashboards:
+      reloadURL: https://grafana-backend.thecavespace.net:3000/api/admin/provisioning/dashboards/reload
+    datasources:
+      reloadURL: https://grafana-backend.thecavespace.net:3000/api/admin/provisioning/datasources/reload
   serviceMonitor:
     labels:
       release: kube-prometheus-stack
+    scheme: https
+    tlsConfig:
+      serverName: grafana-backend.thecavespace.net
   persistence:
     enabled: true
     storageClassName: local-path

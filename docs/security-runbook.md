@@ -272,6 +272,15 @@ ArgoCD reloads it without restarting. Both gateway backend paths verify
 The `cert-manager-ca` Application owns the Certificate; `argocd-bootstrap` owns
 routing. Direct TLS clients must verify the certificate's public DNS name.
 
+## Grafana backend TLS
+
+Grafana serves HTTPS on Service port `3000` using `grafana-backend-tls` mounted
+read-only at `/etc/grafana/tls`. It checks certificate changes every 30 seconds
+and reloads them without restarting. Prometheus verifies `grafana-backend.thecavespace.net`
+with its system CAs. Provisioning sidecars use that same name mapped to loopback
+inside the Grafana pod, preserving TLS verification for local reload calls.
+Check issuance with `cmctl status certificate grafana-backend --namespace monitoring`.
+
 ## n8n backend TLS
 
 The `n8n` Application owns Certificate `n8n-backend`; cert-manager writes its
