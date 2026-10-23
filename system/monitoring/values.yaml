@@ -8,6 +8,9 @@ grafana:
     passwordKey: admin-password
   ingress:
     enabled: false
+  serviceMonitor:
+    labels:
+      release: kube-prometheus-stack
   persistence:
     enabled: true
     storageClassName: local-path
