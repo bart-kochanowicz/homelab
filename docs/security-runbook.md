@@ -232,11 +232,14 @@ Test required access and denied traffic using fresh connections and Hubble verdi
 | Home `10.0.40.0/24` | Home Assistant TCP `8123`, Minecraft TCP `30000` |
 | n8n | Home Assistant on local or remote nodes, TCP `8123` |
 | Home gateway proxy | Home Assistant on local or remote nodes, TCP `8123` |
-| Admin gateway proxy | Crafty TCP `8443`; ArgoCD server TCP `8080`; n8n TCP `5678` |
+| Admin gateway proxy | Crafty TCP `8443`; ArgoCD TCP `8080`; n8n TCP `5678`; Grafana TCP `3000` |
 
 ArgoCD server ingress preserves same-namespace release traffic and direct Admin/VPN
 access on `8080`; only Prometheus in `monitoring` can scrape `8083`. Other ArgoCD
 components and server egress are unchanged.
+
+Grafana ingress allows its Admin proxy, the selected monitoring Prometheus, and
+direct Admin/VPN clients on `3000`; its egress and other monitoring pods are unaffected.
 
 Home Assistant uses `hostNetwork`; its namespace policies cannot isolate it.
 Host rules apply to every process listening on the allowed node ports. n8n uses

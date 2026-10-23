@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - application-policies.yaml
   - argocd-server.yaml
+  - grafana.yaml
   - host-firewall.yaml
   - n8n-host-access.yaml
   - talos-worker-bootstrap.yaml
