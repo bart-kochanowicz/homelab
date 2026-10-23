@@ -635,10 +635,72 @@ class PrivateGatewayTests(unittest.TestCase):
             if policy["metadata"]["namespace"] == "private-home":
                 expected_ports.add("8123")
             else:
-                expected_ports.update({"8443", "8080", "5678"})
+                expected_ports.update({"8443", "8080", "5678", "3000"})
             self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)
+
+    def test_grafana_ingress_preserves_scraping_and_excludes_other_clients(self):
+        policies = self.rendered("system-network-policies.yaml")
+        grafana = next(item for item in policies if item["kind"] == "NetworkPolicy" and
+                       item["metadata"]["name"] == "grafana-server")
+        admin = next(item for item in policies if item["kind"] == "CiliumNetworkPolicy" and
+                     item["metadata"]["name"] == "private-proxy" and
+                     item["metadata"]["namespace"] == "private-admin")
+        self.assertEqual(grafana["metadata"]["namespace"], "monitoring")
+        deployment = next(item for item in self.rendered("system-monitoring.yaml") if
+                          item["kind"] == "Deployment" and
+                          item["metadata"]["name"] == "kube-prometheus-stack-grafana")
+        self.assertEqual(grafana["spec"]["podSelector"], deployment["spec"]["selector"])
+        self.assertEqual(grafana["spec"]["policyTypes"], ["Ingress"])
+        self.assertNotIn("egress", grafana["spec"])
+
+        def allows(namespace, labels, address, port):
+            for rule in grafana["spec"]["ingress"]:
+                if {"port": port, "protocol": "TCP"} not in rule["ports"]:
+                    continue
+                for peer in rule["from"]:
+                    if "ipBlock" in peer:
+                        if ipaddress.ip_address(address) in ipaddress.ip_network(peer["ipBlock"]["cidr"]):
+                            return True
+                    else:
+                        expected_namespace = peer["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"]
+                        expected_labels = peer["podSelector"]["matchLabels"]
+                        if namespace == expected_namespace and expected_labels.items() <= labels.items():
+                            return True
+            return False
+
+        proxy = admin["spec"]["endpointSelector"]["matchLabels"]
+        prometheus = {"app.kubernetes.io/name": "prometheus",
+                      "operator.prometheus.io/name": "kube-prometheus-stack-prometheus"}
+        cases = [
+            ("private-admin", proxy, "10.244.1.10", 3000, True),
+            ("private-home", proxy, "10.244.1.10", 3000, False),
+            ("private-admin", {}, "10.244.1.10", 3000, False),
+            ("monitoring", prometheus, "10.244.1.10", 3000, True),
+            ("n8n", prometheus, "10.244.1.10", 3000, False),
+            ("monitoring", {"app.kubernetes.io/name": "alertmanager"}, "10.244.1.10", 3000, False),
+            ("private-admin", proxy, "10.244.1.10", 6060, False),
+            ("monitoring", prometheus, "10.244.1.10", 9094, False),
+            (None, {}, "10.0.80.42", 3000, True),
+            (None, {}, "10.0.100.42", 3000, True),
+            (None, {}, "10.0.40.42", 3000, False),
+            (None, {}, "192.0.2.42", 3000, False),
+        ]
+        for namespace, labels, address, port, expected in cases:
+            with self.subTest(namespace=namespace, labels=labels, address=address, port=port):
+                self.assertEqual(allows(namespace, labels, address, port), expected)
+        egress = [rule for rule in admin["spec"]["egress"] if any(
+            port["port"] == "3000" for block in rule["toPorts"] for port in block["ports"]
+        )]
+        self.assertEqual(egress, [{
+            "toEndpoints": [{"matchLabels": {
+                "k8s:io.kubernetes.pod.namespace": "monitoring",
+                "k8s:app.kubernetes.io/instance": "kube-prometheus-stack",
+                "k8s:app.kubernetes.io/name": "grafana",
+            }}],
+            "toPorts": [{"ports": [{"port": "3000", "protocol": "TCP"}]}],
+        }])
 
     def test_crafty_panel_access_requires_admin_proxy_and_exact_backend(self):
         policies = self.rendered("system-network-policies.yaml")
