@@ -39,7 +39,7 @@ chmod 600 terraform.tfvars
 
 | Root | Inputs |
 | --- | --- |
-| `cloudflare` | Account ID and management API token with R2 read access; S3 keys are separate. |
+| `cloudflare` | Account ID and management API token with R2 read, Zone Read and DNS Read access for `thecavespace.net`; S3 keys are separate. |
 | `unifi` | Local credentials or API key; `controller.url=https://localhost:18443` and your site. |
 
 UniFi also requires Houston access to `192.168.1.1` and the verified
