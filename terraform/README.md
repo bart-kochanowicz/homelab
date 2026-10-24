@@ -2,12 +2,16 @@
 
 | Root | Manages | Garage state key |
 | --- | --- | --- |
-| [cloudflare](cloudflare/) | Private R2 state backups | `prod/homelab/terraform.tfstate` |
+| [cloudflare](cloudflare/) | Private R2 state backups and Brevo DNS | `prod/homelab/terraform.tfstate` |
 | [unifi](unifi/) | UniFi LANs, Wi-Fi, switch ports, firewall and VPN | `prod/unifi/terraform.tfstate` |
 
 Deployable roots live in `terraform/<name>/`; reusable modules in `modules/<name>/`.
-UniFi modules separate networks, reservations, port profiles, devices, Wi-Fi, firewall and VPN; Cloudflare uses R2.
+UniFi modules separate networks, reservations, port profiles, devices, Wi-Fi, firewall and VPN.
 Use the Terraform version in `aqua.yaml` and committed provider locks.
+
+Cloudflare manages Brevo domain verification, DKIM and DMARC for outbound alerts.
+DKIM CNAME records must remain DNS-only. DMARC uses `p=none` for reporting;
+it does not request rejection of unauthenticated mail.
 
 ## Plan and apply
 

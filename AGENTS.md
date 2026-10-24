@@ -9,7 +9,7 @@ and documentation. Document operational commands and non-obvious constraints.
 - `apps/`: Kubernetes applications registered through the ArgoCD ApplicationSet.
 - `system/`: platform manifests, Helm charts, and local ArgoCD bootstrap.
 - `talos/patches/`: Talos CNI configuration; generated machine configs are ignored.
-- `terraform/cloudflare/`: Cloudflare R2; `terraform/unifi/`: UniFi LAN configuration.
+- `terraform/cloudflare/`: Cloudflare R2 and DNS; `terraform/unifi/`: UniFi LAN configuration.
 - `terraform/modules/`: reusable Terraform modules; shared backend settings and
   operational guides live directly in `terraform/`.
 - `infra/ansible/`: Houston's Garage backend, Terraform CLI, and private runner.

@@ -1,5 +1,5 @@
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token with Workers R2 Storage Write permission"
+  description = "Cloudflare API token with R2 Storage Write, Zone Read and DNS Write permissions for thecavespace.net"
   type        = string
   sensitive   = true
 }
