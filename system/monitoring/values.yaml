@@ -81,6 +81,10 @@ prometheus:
 
 alertmanager:
   alertmanagerSpec:
+    useExistingSecret: true
+    configSecret: alertmanager-email
+    # Notification history must outlive the seven-day delivery check interval.
+    retention: 240h
     storage:
       volumeClaimTemplate:
         spec:

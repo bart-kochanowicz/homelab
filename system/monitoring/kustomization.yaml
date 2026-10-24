@@ -9,6 +9,7 @@ resources:
   - backend-tls-policy.yaml
   - httproute.yaml
   - grafana-admin-sealed-secret.yaml
+  - alertmanager-email-sealed-secret.yaml
   - cilium-service-monitors.yaml
   - security-alerts.yaml
 

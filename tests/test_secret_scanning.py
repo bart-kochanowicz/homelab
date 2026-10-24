@@ -16,6 +16,7 @@ SEALED_SECRET_PATHS = (
     "system/argocd/argocd-sso-sealed-secret.yaml",
     "system/argocd/homelab-config-repository.yaml",
     "system/monitoring/grafana-admin-sealed-secret.yaml",
+    "system/monitoring/alertmanager-email-sealed-secret.yaml",
 )
 
 

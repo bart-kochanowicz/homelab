@@ -20,4 +20,5 @@ paths = [
   '''^system/argocd/homelab-config-repository\.yaml$''',
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
   '''^system/monitoring/grafana-admin-sealed-secret\.yaml$''',
+  '''^system/monitoring/alertmanager-email-sealed-secret\.yaml$''',
 ]
