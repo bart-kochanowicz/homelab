@@ -1,4 +1,33 @@
-# Email notifications
+# Monitoring
+
+## Dashboards
+
+The `Homelab` folder contains Overview (readiness, GitOps, certificates and backup
+age), Resources (CPU, memory, requests, restarts and data disks), and Network
+(Cilium, Hubble and private gateway replicas). JSON files live in `dashboards/`;
+Kustomize packages them into a ConfigMap watched by Grafana's existing sidecar.
+Edit these files and merge through GitOps. Provisioned dashboards are read-only;
+export a UI copy as JSON to bring changes back into the repository. Chart-provided
+Kubernetes dashboards remain available alongside them.
+
+## Alerts
+
+Talos scheduler/controller-manager metrics listen on loopback. Their custom alerts
+check pod readiness on each control-plane node, not component internals. Node
+request alerts warn above 90% allocatable CPU or memory for 15 minutes; cluster-wide
+N+1 overcommit alerts are disabled because local-path workloads cannot fail over.
+Existing node pressure, filesystem, pod and Prometheus alerts remain enabled.
+
+Unexpected Cilium drops alert above 1 packet/second per reason for 10 minutes.
+Policy denials, load-balancer source rejection and unsupported L2/L3 protocols are
+visible on the Network dashboard but do not send emails. Cilium and ArgoCD use
+PodMonitors; missing scrapes alert separately. Backup age covers only the apps in
+`scripts/backup-pvcs.sh`, not Grafana or isolated manual backups.
+
+Run `make validate-monitoring` to render monitoring and test rules with the pinned
+`promtool`. Full repository validation also runs these tests.
+
+## Email notifications
 
 Alertmanager uses Brevo SMTP with verified STARTTLS. Recipient addresses and SMTP
 credentials are stored together in the `alertmanager-email` SealedSecret.

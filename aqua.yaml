@@ -18,3 +18,4 @@ packages:
   - name: bitnami-labs/sealed-secrets@v0.37.0
   - name: cert-manager/cmctl@v2.6.1
   - name: prometheus/alertmanager@v0.29.0
+  - name: prometheus/prometheus@v3.7.3

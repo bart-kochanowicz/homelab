@@ -18,7 +18,7 @@ KUSTOMIZE_DIRS := \
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-cert-manager validate-metallb validate-envoy-gateway \
-	validate-security validate-terraform-tests validate-terraform-layout validate-workflows
+	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring
 
 default: system
 
@@ -27,10 +27,10 @@ system:
 
 validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
-	validate-terraform-tests validate-workflows
+	validate-terraform-tests validate-workflows validate-monitoring
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -58,6 +58,11 @@ validate-terraform-tests: validate-format
 
 validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
 	python3 -m unittest discover -s tests -v
+
+validate-monitoring: validate-kustomize
+	yq '.spec' system/monitoring/security-alerts.yaml > .cache/monitoring-rules.yaml
+	promtool check rules .cache/monitoring-rules.yaml
+	promtool test rules tests/monitoring-rules.test.yaml
 
 validate-yaml:
 	find . -type f \( -name '*.yaml' -o -name '*.yml' \) \

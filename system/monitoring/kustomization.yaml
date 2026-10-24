@@ -10,8 +10,22 @@ resources:
   - httproute.yaml
   - grafana-admin-sealed-secret.yaml
   - alertmanager-email-sealed-secret.yaml
-  - cilium-service-monitors.yaml
+  - cilium-monitors.yaml
+  - argocd-pod-monitor.yaml
   - security-alerts.yaml
+
+configMapGenerator:
+  - name: homelab-dashboards
+    files:
+      - dashboards/overview.json
+      - dashboards/resources.json
+      - dashboards/network.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: /tmp/dashboards/Homelab
 
 helmCharts:
   - name: kube-prometheus-stack

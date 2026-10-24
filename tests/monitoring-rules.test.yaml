@@ -1,0 +1,214 @@
+rule_files:
+  - ../.cache/monitoring-rules.yaml
+evaluation_interval: 1m
+
+tests:
+  - name: Healthy components and expected firewall drops do not alert
+    interval: 1m
+    input_series:
+      - series: 'kube_node_role{node="control-plane",role="control-plane"}'
+        values: '1+0x30'
+      - series: 'kube_pod_info{namespace="kube-system",pod="kube-scheduler-control-plane",node="control-plane"}'
+        values: '1+0x30'
+      - series: 'kube_pod_info{namespace="kube-system",pod="kube-controller-manager-control-plane",node="control-plane"}'
+        values: '1+0x30'
+      - series: 'kube_pod_status_ready{namespace="kube-system",pod="kube-scheduler-control-plane",condition="true"}'
+        values: '1+0x30'
+      - series: 'kube_pod_status_ready{namespace="kube-system",pod="kube-controller-manager-control-plane",condition="true"}'
+        values: '1+0x30'
+      - series: 'hubble_drop_total{reason="POLICY_DENIED"}'
+        values: '0+6000x30'
+      - series: 'hubble_drop_total{reason="POLICY_DENY"}'
+        values: '0+6000x30'
+      - series: 'hubble_drop_total{reason="DENIED_BY_LB_SRC_RANGE_CHECK"}'
+        values: '0+6000x30'
+      - series: 'hubble_drop_total{reason="UNSUPPORTED_L2_PROTOCOL"}'
+        values: '0+6000x30'
+      - series: 'hubble_drop_total{reason="UNSUPPORTED_L3_PROTOCOL"}'
+        values: '0+6000x30'
+      - series: 'kube_node_status_allocatable{node="worker",resource="memory"}'
+        values: '100+0x30'
+      - series: 'kube_pod_container_resource_requests{node="worker",resource="memory"}'
+        values: '80+0x30'
+      - series: 'kube_node_status_allocatable{node="worker",resource="cpu"}'
+        values: '4+0x30'
+      - series: 'kube_pod_container_resource_requests{node="worker",resource="cpu"}'
+        values: '2+0x30'
+      - series: 'up{job="cilium-agent",pod="agent-1"}'
+        values: '1+0x30'
+      - series: 'up{job="cilium-agent",pod="agent-2"}'
+        values: '1+0x30'
+      - series: 'kube_daemonset_status_desired_number_scheduled{namespace="kube-system",daemonset="cilium"}'
+        values: '2+0x30'
+      - series: 'up{job="argocd-application-controller"}'
+        values: '1+0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: CiliumUnexpectedDrops
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: TalosSchedulerUnavailable
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: TalosControllerManagerUnavailable
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: NodeMemoryRequestsHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: NodeCpuRequestsHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: CiliumMetricsMissing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ArgoCDMetricsMissing
+        exp_alerts: []
+
+  - name: Sustained unexpected drops alert with the reason and recover
+    interval: 1m
+    input_series:
+      - series: 'hubble_drop_total{reason="CT_MAP_INSERTION_FAILED"}'
+        values: '0+120x20 2400+0x20'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="CiliumUnexpectedDrops",alertstate="firing"}) or vector(0)
+        eval_time: 5m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: ALERTS{alertname="CiliumUnexpectedDrops",alertstate="firing"}
+        eval_time: 20m
+        exp_samples:
+          - labels: 'ALERTS{alertname="CiliumUnexpectedDrops",alertstate="firing",reason="CT_MAP_INSERTION_FAILED",severity="warning"}'
+            value: 1
+      - expr: count(ALERTS{alertname="CiliumUnexpectedDrops",alertstate="firing"}) or vector(0)
+        eval_time: 30m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: Short unexpected drop bursts do not page
+    interval: 1m
+    input_series:
+      - series: 'hubble_drop_total{reason="CT_MAP_INSERTION_FAILED"}'
+        values: '0+120x4 480+0x25'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: CiliumUnexpectedDrops
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: CiliumUnexpectedDrops
+        exp_alerts: []
+
+  - name: Missing and unready control-plane pods are detected per node
+    interval: 1m
+    input_series:
+      - series: 'kube_node_role{node="control-plane",role="control-plane"}'
+        values: '1+0x10'
+      - series: 'kube_pod_info{namespace="kube-system",pod="kube-scheduler-control-plane",node="control-plane"}'
+        values: '1+0x10'
+      - series: 'kube_pod_status_ready{namespace="kube-system",pod="kube-scheduler-control-plane",condition="true"}'
+        values: '0+0x10'
+    promql_expr_test:
+      - expr: ALERTS{alertname=~"TalosSchedulerUnavailable|TalosControllerManagerUnavailable",alertstate="firing"}
+        eval_time: 6m
+        exp_samples:
+          - labels: 'ALERTS{alertname="TalosSchedulerUnavailable",alertstate="firing",node="control-plane",role="control-plane",severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="TalosControllerManagerUnavailable",alertstate="firing",node="control-plane",role="control-plane",severity="critical"}'
+            value: 1
+
+  - name: Capacity alerts retain the overloaded node and resource
+    interval: 1m
+    input_series:
+      - series: 'kube_node_status_allocatable{node="worker",resource="memory"}'
+        values: '100+0x20'
+      - series: 'kube_pod_container_resource_requests{node="worker",resource="memory",pod="app-a"}'
+        values: '60+0x20'
+      - series: 'kube_pod_container_resource_requests{node="worker",resource="memory",pod="app-b"}'
+        values: '35+0x20'
+      - series: 'kube_node_status_allocatable{node="worker",resource="cpu"}'
+        values: '4+0x20'
+      - series: 'kube_pod_container_resource_requests{node="worker",resource="cpu"}'
+        values: '3.8+0x20'
+      - series: 'kube_node_status_allocatable{node="other",resource="memory"}'
+        values: '1000+0x20'
+      - series: 'kube_pod_container_resource_requests{node="other",resource="memory"}'
+        values: '10+0x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname=~"NodeMemoryRequestsHigh|NodeCpuRequestsHigh",alertstate="firing"}
+        eval_time: 16m
+        exp_samples:
+          - labels: 'ALERTS{alertname="NodeMemoryRequestsHigh",alertstate="firing",node="worker",severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="NodeCpuRequestsHigh",alertstate="firing",node="worker",severity="warning"}'
+            value: 1
+
+  - name: Missing scrape discovery cannot look healthy
+    interval: 1m
+    input_series: []
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="CiliumMetricsMissing",alertstate="firing"})
+        eval_time: 11m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: count(ALERTS{alertname="ArgoCDMetricsMissing",alertstate="firing"})
+        eval_time: 11m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+
+  - name: Losing one of two Cilium scrapes is detected
+    interval: 1m
+    input_series:
+      - series: 'up{job="cilium-agent",pod="agent-1"}'
+        values: '1+0x20'
+      - series: 'kube_daemonset_status_desired_number_scheduled{namespace="kube-system",daemonset="cilium"}'
+        values: '2+0x20'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="CiliumMetricsMissing",alertstate="firing"})
+        eval_time: 11m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+
+  - name: ArgoCD and certificate alerts preserve the affected object
+    interval: 1m
+    input_series:
+      - series: 'argocd_app_info{name="example",health_status="Degraded",sync_status="OutOfSync"}'
+        values: '1+0x20'
+      - series: 'certmanager_certificate_ready_status{namespace="example",name="backend",condition="True"}'
+        values: '0+0x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname=~"ArgoCDApplicationOutOfSync|ArgoCDApplicationUnhealthy|CertificateNotReady",alertstate="firing"}
+        eval_time: 16m
+        exp_samples:
+          - labels: 'ALERTS{alertname="ArgoCDApplicationOutOfSync",alertstate="firing",name="example",health_status="Degraded",sync_status="OutOfSync",severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="ArgoCDApplicationUnhealthy",alertstate="firing",name="example",health_status="Degraded",sync_status="OutOfSync",severity="warning"}'
+            value: 1
+          - labels: 'ALERTS{alertname="CertificateNotReady",alertstate="firing",namespace="example",name="backend",condition="True",severity="warning"}'
+            value: 1
+
+  - name: Cilium uses the operator gauge rather than a nonexistent unmanaged counter
+    interval: 1m
+    input_series:
+      - series: 'cilium_operator_unmanaged_pods'
+        values: '0+0x2 1+0x15 0+0x15'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="CiliumUnmanagedEndpoints",alertstate="firing"}) or vector(0)
+        eval_time: 5m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: count(ALERTS{alertname="CiliumUnmanagedEndpoints",alertstate="firing"})
+        eval_time: 15m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: count(ALERTS{alertname="CiliumUnmanagedEndpoints",alertstate="firing"}) or vector(0)
+        eval_time: 25m
+        exp_samples:
+          - labels: '{}'
+            value: 0
