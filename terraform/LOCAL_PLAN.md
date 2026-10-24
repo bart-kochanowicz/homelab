@@ -1,8 +1,8 @@
 # Local plans on macOS
 
-After setup, open the SSH tunnel and run `terraform plan` inside either root.
-Terraform automatically reads `terraform.tfvars` and the backend settings
-saved by `init`. No wrapper or per-session environment variables are needed.
+Local plans use a read-only Garage profile and hold Houston's shared lock over
+SSH. Terraform reads provider inputs from `terraform.tfvars` and backend settings
+saved by `init`.
 
 ## One-time setup
 

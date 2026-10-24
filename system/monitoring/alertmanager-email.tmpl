@@ -1,0 +1,22 @@
+{{ define "cavespace.alerts-url" -}}
+https://grafana.thecavespace.net/alerting/groups?alertmanager=Alertmanager
+{{- end }}
+
+{{ define "cavespace.email" }}
+<h2>Cavespace alerts: {{ .Status | toUpper }}</h2>
+<p><a href="{{ template "cavespace.alerts-url" . }}">Open alert groups in Grafana</a></p>
+{{ range .Alerts }}
+<h3>{{ .Labels.alertname }} - {{ .Status | toUpper }}</h3>
+{{ with .Annotations.summary }}<p>{{ . }}</p>{{ end }}
+{{ with .Annotations.description }}<p>{{ . }}</p>{{ end }}
+<dl>
+{{ range .Labels.SortedPairs }}<dt>{{ .Name }}</dt><dd>{{ .Value }}</dd>{{ end }}
+</dl>
+{{ end }}
+{{ end }}
+
+{{ define "cavespace.heartbeat" }}
+<p>This is the scheduled Cavespace alert delivery check.</p>
+<p>Alertmanager can reach your mailbox through Brevo. This check repeats every seven days.</p>
+<p><a href="{{ template "cavespace.alerts-url" . }}">Open alert groups in Grafana</a></p>
+{{ end }}
