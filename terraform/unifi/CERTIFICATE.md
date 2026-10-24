@@ -4,7 +4,7 @@ Run from the repository root after [local setup](../LOCAL_PLAN.md#one-time-setup
 Install GitHub CLI and OpenSSL; `gh auth login` needs private automation
 repository access. The gateway generates the certificate; never copy its private key.
 
-## Download the approved certificate
+## Download the certificate
 
 ```bash
 mkdir -p .secrets/unifi
