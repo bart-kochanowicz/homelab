@@ -1,7 +1,7 @@
 # State backups and recovery
 
-Garage is primary; private R2 bucket `houston-terraform-state-backups` stores
-verified snapshots. Bucket Lock protects `backups/` from overwrite/deletion for
+Garage holds live state. Private R2 bucket `houston-terraform-state-backups` stores
+state archives. Bucket Lock protects `backups/` from overwrite/deletion for
 90 days; objects remain afterward. Bucket and lock have `prevent_destroy`.
 Keep resource blocks and lock rules; preserve snapshots elsewhere before removal.
 The provider does not refresh `r2.dev`: verify it is disabled and no public
@@ -51,7 +51,7 @@ With credentials loaded:
 ./scripts/backup-terraform-state.sh terraform/unifi prod/unifi
 ```
 
-Success prints the unique R2 object key and SHA256 after byte-for-byte readback.
+Each backup returns its R2 object key and SHA256 after byte-for-byte readback.
 An ambiguous upload is not retried; it may have succeeded. Failure retains private
 staging and prints its path. Keep it until the cause is understood.
 
@@ -74,8 +74,9 @@ read -r -p 'Matching receipt SHA256: ' RESTORE_SHA256
 The key excludes `s3://houston-terraform-state-backups/`. The script rejects
 production/empty snapshots, verifies the hash, restores to a fresh
 `checks/garage-restore/<uuid>/terraform.tfstate`, compares resources/outputs and
-requires an unchanged plan. Success prints the retained private workspace path;
-failure retains staging. This checks the marker, not production recovery.
+requires an unchanged plan. It prints the private workspace path and retains
+staging on failure. The diagnostic covers marker storage and restore mechanics;
+production recovery also needs the matching configuration and providers.
 
 For cleanup, set `RESTORE_DIRECTORY` to that printed module path and run as its
 owner. Review and approve only marker deletion; preserve needed files before

@@ -1,20 +1,44 @@
 # UniFi
 
-[networks.tf](networks.tf) declares LANs and port profiles. [main.tf](main.tf)
-connects the [network and port-profile modules](../modules/unifi/). Resources have
-`prevent_destroy`; DHCP advertises the gateway as DNS.
-`dns.tf` declares exact private A/SRV overrides. Home Assistant uses the Home
-gateway VIP; admin panels and n8n webhooks share the Admin VIP. Public DNS and
-ACME TXT records remain outside this module.
-`ha-backend.thecavespace.net` resolves to the reserved worker for direct TLS
-clients on port `8123`, including n8n; it does not grant additional access.
-The built-in `Default` LAN is read-only; `default_network_id` exposes its ID.
-Managed subnets and names must not conflict with `Default`.
-`network_ids` and `port_profile_ids` expose IDs keyed by logical name.
+Terraform configures the UCG-Fiber LANs and adopted switches/AP. See the
+[network layout](../../infra/unifi/README.md) for VLANs and subnets.
 
-Custom profiles exclude every LAN outside their native/tagged set. Declare all
-LAN IDs in `network_ids` or `reserved_network_ids` and re-plan when adding one.
-Port profile creation does not assign profiles to physical ports.
+| File | Configuration |
+| --- | --- |
+| [networks.tf](networks.tf) | LANs and port profiles |
+| [devices.tf](devices.tf) | Switch/AP ports |
+| [reservations.tf](reservations.tf) | Server addresses |
+| [dns.tf](dns.tf) | Private A/SRV records |
+| [wifi.tf](wifi.tf) | SSIDs and per-key VLANs |
+| [firewall.tf](firewall.tf) | Trust zones and allowed traffic |
+| [vpn.tf](vpn.tf) | WireGuard server and peers |
+
+## LANs and ports
+
+DHCP advertises the VLAN gateway as DNS. Networks, profiles, devices and WLANs
+have deletion protection. The built-in `Default` LAN and AP/QoS groups are
+read-only; managed names/subnets must not overlap Default. Outputs expose
+network/profile IDs by logical name.
+
+Trunks exclude every LAN outside their native/tagged set. Include all LANs in
+`network_ids` or `reserved_network_ids` when adding a network.
+
+| Device / port | Connection | Network |
+| --- | --- | --- |
+| Flex 5 / 1–2 | Admin devices | Admin 80 |
+| Flex 8 / 1 | Houston, `10.0.70.10` | Servers 70 |
+| Flex 8 / 7 | Worker, `10.0.70.12` | Servers 70 |
+| Flex 8 / 8 | Control plane, `10.0.70.11` | Servers 70 |
+| Voyager / 2 | Apple TV / LG TV switch | Home 40 |
+| Voyager / 4 | U7 Lite | Native Management 90, tagged client VLANs |
+| Voyager / 1 ↔ Flex 5 / 5 | Uplink | Native Parking 999, tagged 70/80/90 |
+| Flex 5 / 3 ↔ Flex 8 / 9 | Uplink | Native Parking 999, tagged 70/80/90 |
+
+Switch management is tagged on VLAN 90. AP management is native VLAN 90 without
+a Network Override. Unused ports use Parking with no tags; Voyager WAN port 7
+is unmanaged.
+
+## Wi-Fi and DNS
 
 | SSID | Security | Bands | VLAN |
 | --- | --- | --- | --- |
@@ -22,60 +46,55 @@ Port profile creation does not assign profiles to physical ports.
 | `cavespace-endeavour` | WPA3 | 2.4/5 GHz | Work 30 |
 | `cavespace-orbit` | WPA2 PPSK | 2.4/5 GHz | HOME 40, IOT 50, GUEST 60 |
 
-The wired Admin ports are USW Flex 2.5G 5 ports 1 and 2 (PC). AP/QoS groups are read-only.
-The unmanaged switch for Apple TV and LG TV uses Home on UCG-Fiber `voyager-01` port 2.
-Both switches use tagged Management 90. U7 Lite uses native Management 90 on
-`voyager-01` port 4, with no AP Network Override; client VLANs stay tagged.
-Houston uses native Servers 70 on Flex 8 port 1, with DHCP reservation `10.0.70.10`.
-The Talos worker uses native Servers 70 on Flex 8 port 7, reserved as `10.0.70.12`.
-The control plane uses the same network on Flex 8 port 8, reserved as `10.0.70.11`.
-Switch uplinks use native Parking 999 and tagged VLANs 70/80/90:
-`voyager-01:1` ↔ `Flex 5:5`, `Flex 5:3` ↔ `Flex 8:9`.
-Unused LAN ports use Parking with no tagged VLANs; WAN port 7 is unmanaged.
-Supply `infrastructure_macs` through ignored `terraform.tfvars`; Actions uses
-the JSON map `UNIFI_INFRASTRUCTURE_MACS`. UniFi device IDs equal their MACs and
-remain visible in import diagnostics and protected state.
-Local `terraform.tfvars` supplies `wifi_passphrases` (Apollo/Endeavour) and
-`wifi_ppsks` (`orbit/home`, `orbit/iot`, `orbit/guest`). Actions uses private
-`UNIFI_WIFI_PASSPHRASES` and `UNIFI_WIFI_PPSKS` secrets respectively.
-WPA3 passphrases are ephemeral/write-only; PPSKs persist in private plans,
-state and backups. Orbit uses explicit per-key VLANs and has client isolation
-disabled; the controller stores Default as its base network metadata.
+Orbit keys select individual VLANs. Client isolation is disabled; Default is
+the WLAN's base metadata. WPA3 passphrases are write-only; PPSKs remain in
+private plans, state and backups. Site mDNS proxy is disabled.
 
-[firewall.tf](firewall.tf) declares one trust zone per routed LAN, gateway services
-and the access matrix. Unlisted traffic between zones is denied for IPv4/IPv6;
-same-VLAN traffic requires endpoint protection. Server rules follow registered
-client MACs. Declared server reservations supply authoritative addresses and zones.
-Renew leases after reservation changes. WAN exposure settings
-and site mDNS belong to the [administrator](../../infra/unifi/docs/provider-exceptions.md).
-Check `firewall_policy_order`: allowances/replies must precede denies; the
-provider cannot reorder existing rules. See the [firewall module](../modules/unifi/firewall/).
-Cilium VXLAN carries inter-node pod traffic within Servers; Cilium policies
-control access inside the cluster.
+HA resolves to the Home VIP; administrative panels resolve to the Admin VIP.
+`ha-backend.thecavespace.net` resolves to the worker for HTTPS on `8123`;
+Minecraft A/SRV records select that worker on `30000`. Router and Cilium rules
+enforce access. Public DNS and ACME challenge records are outside this root.
 
-Guest has Internet access and required gateway services only; site mDNS proxy is disabled.
+## Firewall and VPN
 
-[vpn.tf](vpn.tf) declares `cavespace-wormhole`: WireGuard on WAN1 UDP 51820,
-`10.0.100.0/24`, in UniFi's built-in VPN zone. Explicit rules grant this pool
-Admin permissions; clients use split routes to administrative destinations.
-UniFi owns VPN membership and its WAN handshake rule. The WireGuard provider
-derives the server public key from its existing private key.
-Server private keys persist in protected state/backups; device private keys stay
-on their devices. Add/revoke peers through `vpn_peers` and reviewed apply.
+Each LAN has a trust zone. Rules allow specific connections and stateful replies;
+other inter-zone IPv4/IPv6 traffic is denied. Same-VLAN traffic bypasses this
+firewall. Server rules follow reservation MACs/addresses; renew leases after
+changes. Cilium controls Kubernetes traffic. Guest has Internet and required
+gateway services only.
 
-Supply `vpn_public_ip` and `vpn_peer_public_keys` through ignored `terraform.tfvars`
-locally. Actions uses `UNIFI_VPN_PUBLIC_IP` and the JSON map
-`UNIFI_VPN_PEER_PUBLIC_KEYS`. Client settings include the WAN endpoint; retrieve
-them locally and retain the device's existing `PrivateKey`:
+Allow/reply rules must precede denies. `firewall_policy_order` checks indices;
+the provider cannot reorder existing rules. Correct the order in UniFi when
+needed. See [provider constraints](../../infra/unifi/docs/provider-exceptions.md).
+
+`cavespace-wormhole` uses WAN1 UDP `51820`, pool `10.0.100.0/24` and the built-in
+VPN zone. Clients have Admin access through split routes; ordinary Internet
+traffic stays outside the tunnel. UniFi owns the handshake rule and VPN zone
+membership. WAN/PPPoE, LEOX and mDNS are administrator-managed.
+
+Client private keys stay on devices; server private keys remain in protected
+state/backups. Add/revoke `vpn_peers` through [plan and apply](../README.md#plan-and-apply).
+Get client settings locally and retain the device's existing `PrivateKey`:
 
 ```bash
 terraform output -json wireguard_clients | jq -r '."macbook-01"'
 ```
 
-Network policies require manual ArgoCD sync. Test VPN access from an external
-network, with other VPNs disabled; validate coexistence separately. Re-read client
-settings after registered server address changes.
+Settings include the WAN endpoint; refresh them after server address changes.
+Test remote access from an external network with other VPNs disabled.
 
-- [Plan and apply](../README.md#plan-and-apply)
-- [Local plans](../LOCAL_PLAN.md) and [controller certificate](CERTIFICATE.md)
-- [Provider constraints](../../infra/unifi/docs/provider-exceptions.md)
+## Private inputs
+
+Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
+
+| Input | Actions secret |
+| --- | --- |
+| `infrastructure_macs` | `UNIFI_INFRASTRUCTURE_MACS` |
+| `wifi_passphrases` | `UNIFI_WIFI_PASSPHRASES` |
+| `wifi_ppsks` | `UNIFI_WIFI_PPSKS` |
+| `vpn_public_ip` | `UNIFI_VPN_PUBLIC_IP` |
+| `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
+
+Device MACs appear in import diagnostics and state. [Local plans](../LOCAL_PLAN.md)
+use the [controller certificate](CERTIFICATE.md). Network-policy changes also
+need a manual ArgoCD sync.
