@@ -6,6 +6,7 @@ KUSTOMIZE_DIRS := \
 	apps/n8n \
 	system/app-namespaces \
 	system/argocd \
+	system/backups \
 	system/cert-manager-acme \
 	system/cert-manager-ca \
 	system/gateway-api-crds \
@@ -30,7 +31,7 @@ validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-terraform-tests validate-workflows validate-monitoring
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool restic; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 

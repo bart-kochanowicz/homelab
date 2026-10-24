@@ -5,6 +5,15 @@ metadata:
   namespace: argocd
 spec:
   description: Namespace-scoped homelab applications
+  syncWindows:
+    - kind: deny
+      schedule: '0 3 * * *'
+      duration: 30m
+      timeZone: Europe/Warsaw
+      applications:
+        - home-assistant
+        - n8n
+      manualSync: false
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
@@ -44,6 +53,14 @@ metadata:
   namespace: argocd
 spec:
   description: Explicitly scoped cluster platform components
+  syncWindows:
+    - kind: deny
+      schedule: '0 3 * * *'
+      duration: 30m
+      timeZone: Europe/Warsaw
+      applications:
+        - monitoring
+      manualSync: false
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
@@ -165,6 +182,49 @@ spec:
       kind: Role
     - group: rbac.authorization.k8s.io
       kind: RoleBinding
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: backups
+  namespace: argocd
+spec:
+  description: Read-only PVC helpers and scoped Houston backup access
+  sourceRepos:
+    - https://github.com/bart-kochanowicz/homelab.git
+  destinations:
+    - namespace: home-assistant
+      server: https://kubernetes.default.svc
+    - namespace: n8n
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceBlacklist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: Pod
+    - group: ""
+      kind: ServiceAccount
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: coordination.k8s.io
+      kind: Lease
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+  syncWindows:
+    - kind: deny
+      schedule: '0 3 * * *'
+      duration: 30m
+      timeZone: Europe/Warsaw
+      applications:
+        - backups
+      manualSync: false
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject

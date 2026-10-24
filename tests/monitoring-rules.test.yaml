@@ -3,6 +3,61 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
+  - name: Uninitialized backup Leases mean missing rather than stale
+    interval: 1m
+    input_series:
+      - series: 'kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"}'
+        values: '0+0x1500'
+      - series: 'kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-failure"}'
+        values: '0+0x1500'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="HoustonPvcBackupMissing",alertstate="firing"})
+        eval_time: 25h
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: count(ALERTS{alertname=~"HoustonPvcBackupStale|HoustonPvcBackupFailed",alertstate="firing"}) or vector(0)
+        eval_time: 25h
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: A missed daily backup becomes stale after 36 hours
+    interval: 1m
+    input_series:
+      - series: 'kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"}'
+        values: '60+0x2280'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="HoustonPvcBackupStale",alertstate="firing"}) or vector(0)
+        eval_time: 35h
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: count(ALERTS{alertname="HoustonPvcBackupStale",alertstate="firing"})
+        eval_time: 38h
+        exp_samples:
+          - labels: '{}'
+            value: 1
+
+  - name: Backup failures clear only after a newer verified success
+    interval: 1m
+    input_series:
+      - series: 'kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"}'
+        values: '1000+0x6 2000+0x10'
+      - series: 'kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-failure"}'
+        values: '1500+0x17'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing"})
+        eval_time: 6m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+      - expr: count(ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing"}) or vector(0)
+        eval_time: 10m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
   - name: Healthy components and expected firewall drops do not alert
     interval: 1m
     input_series:

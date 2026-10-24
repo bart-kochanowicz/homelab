@@ -1,0 +1,4 @@
+---
+- name: Configure the private backup service when enabled
+  ansible.builtin.import_tasks: configure.yml
+  when: houston_backups_enabled | bool

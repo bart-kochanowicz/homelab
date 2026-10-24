@@ -1,7 +1,7 @@
 {
   "uid": "homelab-overview",
   "title": "Homelab / Overview",
-  "description": "Cluster readiness, GitOps, certificates and workstation backup age. This is infrastructure health, not an end-to-end application availability check.",
+  "description": "Cluster readiness, GitOps, certificates and Houston backup age. This is infrastructure health, not an end-to-end application availability check.",
   "tags": [
     "homelab"
   ],
@@ -169,9 +169,9 @@
     },
     {
       "id": 3,
-      "title": "Workstation backup age",
+      "title": "Houston backup age",
       "type": "stat",
-      "description": "Last successful run of backup-pvcs.sh: Crafty, HA and n8n. Grafana and one-off backups are not covered by this timestamp.",
+      "description": "Last verified Houston backup of Home Assistant, n8n and Grafana. Empty until all three archives pass verification.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -198,7 +198,7 @@
               },
               {
                 "color": "orange",
-                "value": 7
+                "value": 1.5
               }
             ]
           }
@@ -208,7 +208,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(time() - max(kube_lease_renew_time{namespace=\"monitoring\",lease=\"workstation-pvc-backup-success\"})) / 86400",
+          "expr": "(time() - max(kube_lease_renew_time{namespace=\"monitoring\",lease=\"houston-pvc-backup-success\"} > 0)) / 86400",
           "legendFormat": "",
           "range": false,
           "instant": true

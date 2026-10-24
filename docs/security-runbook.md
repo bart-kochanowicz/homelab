@@ -169,38 +169,10 @@ server. Disable local admin again after recovery.
 
 ## Backups and storage
 
-`scripts/backup-pvcs.sh` backs up Crafty, Home Assistant and n8n to encrypted
-restic archives. Grafana is not included in that script; Prometheus data is
-disposable. Each application is scaled down during its copy, so use a maintenance
-window and prevent ArgoCD self-heal from restoring replicas during the operation.
-
-```bash
-export RESTIC_REPOSITORY="$HOME/Backups/homelab/restic"
-export RESTIC_PASSWORD_FILE="$HOME/.config/restic/homelab-password"
-export RESTORE_TEST_DIR="$HOME/Backups/homelab/restore-tests"
-./scripts/backup-pvcs.sh
-```
-
-Repository paths must be absolute or use a restic backend URI. The script checks
-repository integrity and records results in `.backups/last-successful-backup`
-and the `workstation-pvc-backup-success` / `workstation-pvc-backup-failure` Leases
-in `monitoring`. A failed attempt preserves the previous success marker. If the
-API is unreachable, Lease updates fail; alerts then rely on the age of the last success.
-
-Restore an archive into a new local directory without modifying Kubernetes:
-
-```bash
-./scripts/restore-pvc.sh crafty-controller crafty-controller crafty-data
-./scripts/restore-pvc.sh home-assistant home-assistant home-assistant-config
-./scripts/restore-pvc.sh n8n n8n n8n-data
-```
-
-Check the restored files and application databases before using them for recovery.
-An in-place restore overwrites files on the live PVC and stops the application:
-
-```bash
-CONFIRM_IN_PLACE_RESTORE=yes ./scripts/restore-pvc.sh --in-place n8n n8n n8n-data
-```
+[Houston backups](backups.md) cover Home Assistant, n8n and Grafana.
+Archives are encrypted on Houston's SSD; Prometheus history is disposable.
+Restores into a live PVC require explicit approval and a maintenance window.
+The backup identity cannot write PVC contents or create restore pods.
 
 Namespaces and PVCs have ArgoCD `Prune=false,Delete=false`; ApplicationSets
 preserve their resources. Namespace deletion still cascades to workloads and PVCs.
@@ -213,7 +185,7 @@ the PV's node/path, PV deletion and removal of the directory through Talos acces
 Prometheus collects metrics; Grafana provides dashboards and the Alertmanager
 view. [Email notifications](../system/monitoring/README.md) use Brevo for incident,
 recovery and weekly delivery-check messages. Backup alerts cover failures,
-missing successes and copies older than seven days.
+missing successes and copies older than 36 hours.
 
 Credentials and state belong in private directories with mode `700`, files with
 mode `600`, and encrypted backups. Commit Kubernetes credentials as SealedSecrets.

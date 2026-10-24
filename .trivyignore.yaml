@@ -1,6 +1,12 @@
 # Reviewed 2026-10-01 against pinned source and rendered manifests.
 # Review evidence and scope: docs/exception-register.md.
 misconfigurations:
+  - id: KSV-0053
+    paths:
+      - "system/backups/rbac.yaml"
+      - "system-backups.yaml"
+    expired_at: 2026-12-31
+    statement: Backup exec is restricted to named tokenless helpers with read-only PVCs and no host access.
   - id: KSV-0009
     paths:
       - "apps/home-assistant/deployment.yaml"

@@ -10,6 +10,7 @@ labelled `houston-data`, mounted at `/srv/terraform`.
 | `storage` | SSD mount by UUID and scheduled TRIM |
 | `garage` | Garage 2.4.1, `terraform-state` bucket and S3 credentials |
 | `terraform_cli` | Terraform 1.16.4, shared lock and backup tools |
+| `backups` | Scoped Kubernetes client, encrypted PVC copies and systemd recovery |
 | `github_runner` | Private runner 2.337.0 and its systemd service |
 
 ## Configure the host
@@ -47,6 +48,7 @@ mode `600`, owned by `capcom`. See [local plans](../../terraform/LOCAL_PLAN.md).
 | `garage` | Garage objects, metadata and service credentials |
 | `workspaces` | Operator checkouts, `700 capcom:capcom` |
 | `runner/{home,work,tmp,app-<version>}` | Private runner files |
+| `backups` | Application archives, recovery state and cache, `700 backup-svc:backup-svc` |
 | `backup-staging` | Per-operation directories, `1770 root:terraform-ops` |
 | `tools` | Root-owned executables and release archives |
 
@@ -101,6 +103,33 @@ Existing registrations need no token. Check `github-runner.service` and the
 runner's online status in GitHub if registration is incomplete. For a version
 change, stop and unregister the idle runner, then apply the new pin with a fresh
 token. Follow [GitHub's runner update requirements](https://docs.github.com/en/actions/reference/runners/self-hosted-runners#runner-software-updates-on-self-hosted-runners).
+
+## Application backups
+
+The opt-in `backups` role installs restic and checksum-pinned kubectl, checks the
+scoped client certificate, and initializes only an empty repository. Configuration
+uses an ignored mode-600 variables file, for example `.secrets/houston-backups.yml`:
+
+```yaml
+houston_backups_enabled: true
+houston_backup_kubeconfig_source: /absolute/private/path/houston-backup.kubeconfig
+houston_backup_password_source: /absolute/private/path/restic-password
+houston_backup_timer_enabled: false
+houston_backup_prune_enabled: false
+```
+
+From the repository root:
+
+```bash
+ANSIBLE_CONFIG=infra/ansible/ansible.cfg ansible-playbook \
+  infra/ansible/playbooks/houston.yml --tags backups --ask-become-pass \
+  -e @.secrets/houston-backups.yml
+```
+
+Keep scheduling and deletion disabled until a timed backup, isolated restore and
+retention dry-run have passed. Then enable both flags through the same playbook.
+A credential validation failure leaves the existing password intact and scheduling
+stopped; fix the cause and rerun. See [backup operations](../../docs/backups.md).
 
 ## Recovery
 

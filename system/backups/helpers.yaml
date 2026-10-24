@@ -1,0 +1,203 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-backup
+  namespace: home-assistant
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-backup
+  namespace: home-assistant
+  labels:
+    app.kubernetes.io/name: pvc-backup
+    app.kubernetes.io/part-of: homelab
+spec:
+  serviceAccountName: pvc-backup
+  automountServiceAccountToken: false
+  restartPolicy: Always
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+    runAsGroup: 0
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: archive
+      image: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
+      command: ["sleep", "2147483647"]
+      securityContext:
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 5m
+          memory: 8Mi
+        limits:
+          cpu: 250m
+          memory: 32Mi
+      readinessProbe:
+        exec:
+          command: ["test", "-r", "/data"]
+        periodSeconds: 30
+      volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: true
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: home-assistant-config
+        readOnly: true
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pvc-backup-isolation
+  namespace: home-assistant
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pvc-backup
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-backup
+  namespace: n8n
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-backup
+  namespace: n8n
+  labels:
+    app.kubernetes.io/name: pvc-backup
+    app.kubernetes.io/part-of: homelab
+spec:
+  serviceAccountName: pvc-backup
+  automountServiceAccountToken: false
+  restartPolicy: Always
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: archive
+      image: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
+      command: ["sleep", "2147483647"]
+      securityContext:
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 5m
+          memory: 8Mi
+        limits:
+          cpu: 250m
+          memory: 32Mi
+      readinessProbe:
+        exec:
+          command: ["test", "-r", "/data"]
+        periodSeconds: 30
+      volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: true
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: n8n-data
+        readOnly: true
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pvc-backup-isolation
+  namespace: n8n
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pvc-backup
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-backup
+  namespace: monitoring
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-backup
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: pvc-backup
+    app.kubernetes.io/part-of: homelab
+spec:
+  serviceAccountName: pvc-backup
+  automountServiceAccountToken: false
+  restartPolicy: Always
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    runAsGroup: 472
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: archive
+      image: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
+      command: ["sleep", "2147483647"]
+      securityContext:
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 5m
+          memory: 8Mi
+        limits:
+          cpu: 250m
+          memory: 32Mi
+      readinessProbe:
+        exec:
+          command: ["test", "-r", "/data"]
+        periodSeconds: 30
+      volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: true
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: kube-prometheus-stack-grafana
+        readOnly: true
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pvc-backup-isolation
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pvc-backup
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []

@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backups
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: backups
+    app.kubernetes.io/part-of: homelab
+spec:
+  project: backups
+  source:
+    repoURL: https://github.com/bart-kochanowicz/homelab.git
+    targetRevision: main
+    path: system/backups
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  ignoreDifferences:
+    - group: coordination.k8s.io
+      kind: Lease
+      namespace: monitoring
+      jsonPointers:
+        - /spec/renewTime
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - RespectIgnoreDifferences=true
+      - FailOnSharedResource=true

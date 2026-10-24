@@ -145,57 +145,59 @@ spec:
           annotations:
             summary: A cert-manager certificate is not ready
             description: 'Inspect {{ $labels.namespace }}/{{ $labels.name }}, its CertificateRequest and DNS-01 challenges.'
-        - alert: WorkstationPvcBackupFailed
+        - alert: HoustonPvcBackupFailed
           expr: |
             (
               kube_lease_renew_time{
                 namespace="monitoring",
-                lease="workstation-pvc-backup-failure"
+                lease="houston-pvc-backup-failure"
               }
               > ignoring(lease)
               kube_lease_renew_time{
                 namespace="monitoring",
-                lease="workstation-pvc-backup-success"
+                lease="houston-pvc-backup-success"
               }
             )
             or
             (
               kube_lease_renew_time{
                 namespace="monitoring",
-                lease="workstation-pvc-backup-failure"
-              }
+                lease="houston-pvc-backup-failure"
+              } > 0
               unless on(namespace)
               kube_lease_renew_time{
                 namespace="monitoring",
-                lease="workstation-pvc-backup-success"
+                lease="houston-pvc-backup-success"
               }
             )
           for: 5m
           labels:
             severity: critical
           annotations:
-            summary: The latest workstation PVC backup failed
-        - alert: WorkstationPvcBackupMissing
+            summary: The latest Houston PVC backup failed
+        - alert: HoustonPvcBackupMissing
           expr: |
             absent(
               kube_lease_renew_time{
                 namespace="monitoring",
-                lease="workstation-pvc-backup-success"
+                lease="houston-pvc-backup-success"
               }
             )
+            or kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"} == 0
           for: 24h
           labels:
             severity: warning
           annotations:
-            summary: No successful workstation PVC backup has been recorded
-        - alert: WorkstationPvcBackupStale
+            summary: No successful Houston PVC backup has been recorded
+        - alert: HoustonPvcBackupStale
           expr: |
             time() - kube_lease_renew_time{
               namespace="monitoring",
-              lease="workstation-pvc-backup-success"
-            } > 604800
+              lease="houston-pvc-backup-success"
+            } > 129600
+            and kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"} > 0
           for: 1h
           labels:
             severity: warning
           annotations:
-            summary: The latest successful workstation PVC backup is over seven days old
+            summary: The latest successful Houston PVC backup is over 36 hours old
