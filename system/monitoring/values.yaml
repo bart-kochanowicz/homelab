@@ -46,6 +46,10 @@ grafana:
       scheme: HTTPS
   sidecar:
     dashboards:
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+        allowUiUpdates: false
       reloadURL: https://grafana-backend.thecavespace.net:3000/api/admin/provisioning/dashboards/reload
     datasources:
       reloadURL: https://grafana-backend.thecavespace.net:3000/api/admin/provisioning/datasources/reload
@@ -102,6 +106,16 @@ kubeStateMetrics:
 
 kubeProxy:
   enabled: false
+
+# Talos keeps these metrics on loopback; readiness is checked through kube-state-metrics.
+# This cluster uses node-local volumes and does not provide N+1 workload failover.
+defaultRules:
+  rules:
+    kubeSchedulerAlerting: false
+    kubeControllerManager: false
+  disabled:
+    KubeCPUOvercommit: true
+    KubeMemoryOvercommit: true
 
 prometheusOperator:
   enabled: true

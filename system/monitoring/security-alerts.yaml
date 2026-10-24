@@ -23,27 +23,112 @@ spec:
             severity: warning
           annotations:
             summary: Cilium has endpoints that are not ready
+        - alert: CiliumMetricsMissing
+          expr: |
+            sum(up{job="cilium-agent"})
+              < scalar(kube_daemonset_status_desired_number_scheduled{namespace="kube-system",daemonset="cilium"})
+            or absent(up{job="cilium-agent"})
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cilium metrics are missing from one or more agents
+            description: Check the cilium-agent PodMonitor and Prometheus targets before trusting network alerts.
         - alert: CiliumUnmanagedEndpoints
-          expr: sum(cilium_unmanaged_pods_total) > 0
+          expr: cilium_operator_unmanaged_pods > 0
           for: 10m
           labels:
             severity: warning
           annotations:
             summary: Cilium has detected unmanaged pods
-        - alert: CiliumPolicyDrops
-          expr: sum(rate(hubble_drop_total[5m])) > 0
+            description: Inspect the operator's unmanaged pod list and CNI setup before restarting workloads.
+        - alert: CiliumUnexpectedDrops
+          expr: |
+            sum by (reason) (
+              rate(hubble_drop_total{
+                reason!~"POLICY_DENIED|POLICY_DENY|DENIED_BY_LB_SRC_RANGE_CHECK|UNSUPPORTED_L2_PROTOCOL|UNSUPPORTED_L3_PROTOCOL"
+              }[5m])
+            ) > 1
           for: 10m
           labels:
             severity: warning
           annotations:
-            summary: Cilium is dropping traffic
+            summary: Cilium is dropping over one packet per second for an unexpected reason
+            description: 'Drop reason: {{ $labels.reason }}. Inspect Hubble flows and the Network dashboard; expected policy and unsupported-protocol drops are excluded.'
+        - alert: TalosSchedulerUnavailable
+          expr: |
+            kube_node_role{role="control-plane"}
+            unless on (node)
+            max by (node) (
+              kube_pod_info{namespace="kube-system",pod=~"kube-scheduler-.+"}
+              and on (namespace, pod)
+              (kube_pod_status_ready{namespace="kube-system",condition="true"} == 1)
+            )
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A control-plane node has no ready scheduler pod
+            description: 'Check kube-scheduler on {{ $labels.node }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+        - alert: TalosControllerManagerUnavailable
+          expr: |
+            kube_node_role{role="control-plane"}
+            unless on (node)
+            max by (node) (
+              kube_pod_info{namespace="kube-system",pod=~"kube-controller-manager-.+"}
+              and on (namespace, pod)
+              (kube_pod_status_ready{namespace="kube-system",condition="true"} == 1)
+            )
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A control-plane node has no ready controller-manager pod
+            description: 'Check kube-controller-manager on {{ $labels.node }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+        - alert: NodeMemoryRequestsHigh
+          expr: |
+            sum by (node) (kube_pod_container_resource_requests{resource="memory",node!=""})
+            / sum by (node) (kube_node_status_allocatable{resource="memory"}) > 0.9
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod memory requests exceed 90% of a node's allocatable memory
+            description: 'Review memory requests and scheduling capacity on {{ $labels.node }}. This is reserved capacity, not measured memory use.'
+        - alert: NodeCpuRequestsHigh
+          expr: |
+            sum by (node) (kube_pod_container_resource_requests{resource="cpu",node!=""})
+            / sum by (node) (kube_node_status_allocatable{resource="cpu"}) > 0.9
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod CPU requests exceed 90% of a node's allocatable CPU
+            description: 'Review CPU requests and scheduling capacity on {{ $labels.node }}. This is reserved capacity, not measured CPU use.'
+        - alert: ArgoCDMetricsMissing
+          expr: absent(up{job="argocd-application-controller"}) or max(up{job="argocd-application-controller"}) == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: ArgoCD application metrics are unavailable
+            description: Check the application-controller PodMonitor and Prometheus targets; application health alerts depend on this scrape.
         - alert: ArgoCDApplicationOutOfSync
-          expr: count(argocd_app_info{sync_status!="Synced"}) > 0
+          expr: argocd_app_info{sync_status!="Synced"} == 1
           for: 15m
           labels:
             severity: warning
           annotations:
             summary: An ArgoCD application is out of sync
+            description: '{{ $labels.name }} has been {{ $labels.sync_status }} for 15 minutes. Check its diff before syncing manually managed applications.'
+        - alert: ArgoCDApplicationUnhealthy
+          expr: argocd_app_info{health_status=~"Degraded|Missing|Unknown"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: An ArgoCD application is unhealthy
+            description: '{{ $labels.name }} has health status {{ $labels.health_status }}. Inspect its resources and events in ArgoCD.'
         - alert: CertificateExpiringSoon
           expr: certmanager_certificate_expiration_timestamp_seconds - time() < 1209600
           for: 1h
@@ -51,6 +136,15 @@ spec:
             severity: warning
           annotations:
             summary: A cert-manager certificate expires in less than 14 days
+            description: 'Check renewal of {{ $labels.namespace }}/{{ $labels.name }} and its ACME challenges.'
+        - alert: CertificateNotReady
+          expr: certmanager_certificate_ready_status{condition="True"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: A cert-manager certificate is not ready
+            description: 'Inspect {{ $labels.namespace }}/{{ $labels.name }}, its CertificateRequest and DNS-01 challenges.'
         - alert: WorkstationPvcBackupFailed
           expr: |
             (
