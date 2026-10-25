@@ -5,6 +5,7 @@ Crafty/Minecraft and disposable Prometheus data are excluded. Repositories live 
 Houston's SSD at `/srv/terraform/backups/restic/{home-assistant,n8n,monitoring}`.
 `system/backups/values.yaml` lists the PVCs, database names and filesystem users;
 one Helm template generates the shared configuration for all three applications.
+Empty resource objects match K8up's stored defaults and prevent ArgoCD drift.
 Retention keeps 7 daily, 4 weekly and 3 monthly snapshots; pruning runs Sunday at
 05:00. Sunday checks at 04:00 read and verify every stored data block.
 

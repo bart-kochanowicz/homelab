@@ -11,6 +11,8 @@ k8up:
       cpu: 1000m
       memory: 512Mi
   envVars:
+  - name: BACKUP_PROMURL
+    value: ''
   - name: BACKUP_GLOBAL_CONCURRENT_BACKUP_JOBS_LIMIT
     value: '1'
   - name: BACKUP_GLOBAL_CONCURRENT_CHECK_JOBS_LIMIT

@@ -25,6 +25,7 @@ PodMonitors; missing scrapes alert separately. Backup age comes from completed K
 and Grafana. Failures and stalled preparation alert separately; a success older
 than 36 hours warns that the daily schedule was missed. Job completion measures
 backup execution; isolated restore tests remain a separate operational check.
+K8up status is scraped from Kubernetes; its Pushgateway output is disabled.
 
 Run `make validate-monitoring` to render monitoring and test rules with the pinned
 `promtool`. Full repository validation also runs these tests.

@@ -217,9 +217,10 @@ spec:
     name: backup-job
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
+  resourceRequirementsTemplate: {}
   backup:
     schedule: 0 3 * * *
-    concurrentRunsAllowed: false
+    resources: {}
     activeDeadlineSeconds: 1200
     volumes:
     - name: repo-ca
@@ -232,6 +233,7 @@ spec:
         app.kubernetes.io/part-of: homelab-backup
   check:
     schedule: 0 4 * * 0
+    resources: {}
     activeDeadlineSeconds: 1800
     volumes:
     - name: repo-ca
@@ -241,6 +243,7 @@ spec:
       name: backup-check
   prune:
     schedule: 0 5 * * 0
+    resources: {}
     activeDeadlineSeconds: 1800
     volumes:
     - name: repo-ca
