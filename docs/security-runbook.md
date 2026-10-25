@@ -186,6 +186,15 @@ the PV's node/path, PV deletion and removal of the directory through Talos acces
 NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
 bind when their first consumer is scheduled.
 
+The worker requires `talos/patches/worker-nvme.yaml`: Talos exposes `/var/mnt`
+read-only to kubelet, so the NVMe directory needs its own writable bind mount.
+For an existing worker, apply during a maintenance window; kubelet restarts:
+
+```bash
+talosctl -n 10.0.70.12 patch machineconfig \
+  --patch @talos/patches/worker-nvme.yaml --mode=no-reboot
+```
+
 ## Monitoring and credentials
 
 Prometheus collects metrics; Grafana provides dashboards and the Alertmanager

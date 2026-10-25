@@ -32,6 +32,8 @@ the current `KUBECONFIG`. The Kubernetes API is `https://10.0.70.11:6443`.
 Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
 `--config-patch @talos/patches/network.yaml` and
 `--config-patch-control-plane @talos/patches/service-accounts.yaml`.
+Use `--config-patch-worker @talos/patches/worker-nvme.yaml` for the worker's
+NVMe storage mount.
 Apply `talos/patches/dns.yaml` as JSON Patch. Nodes use Servers VLAN 70; the API's
 ServiceAccount issuer and audience are independent of node addresses.
 
