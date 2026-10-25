@@ -6,4 +6,5 @@ resources:
   - rbac.yaml
   - configmap.yaml
   - storageclass.yaml
+  - storageclass-nvme.yaml
   - deployment.yaml

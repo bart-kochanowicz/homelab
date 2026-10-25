@@ -181,6 +181,11 @@ Local-path volumes use `Retain`, directory mode `0770` and application-specific
 ownership. Removing retained data requires a backup, PVC deletion, inspection of
 the PV's node/path, PV deletion and removal of the directory through Talos access.
 
+`local-path` stores worker volumes on SATA at `/var/mnt/minecraft`.
+`local-path-nvme` stores worker volumes under `/var/mnt/nvme`, sharing Talos's
+NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
+bind when their first consumer is scheduled.
+
 ## Monitoring and credentials
 
 Prometheus collects metrics; Grafana provides dashboards and the Alertmanager
