@@ -33,11 +33,9 @@ spec:
         - -ec
         args:
         - |
-          mkdir -p /staging/data
           tar -C /data --exclude='./home-assistant_v2.db' --exclude='./home-assistant_v2.db-*' --exclude='./home-assistant.log*' -cf /staging/files.tar .
-          tar -C /staging/data -xf /staging/files.tar
-          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/home-assistant_v2.db '.backup /staging/data/home-assistant_v2.db'
-          tar -C /staging/data -cf /staging/application.tar .
+          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/home-assistant_v2.db '.backup /staging/home-assistant_v2.db'
+          tar -C /staging -cf /staging/application.tar files.tar home-assistant_v2.db
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -133,11 +131,9 @@ spec:
         - -ec
         args:
         - |
-          mkdir -p /staging/data
           tar -C /data --exclude='./database.sqlite' --exclude='./database.sqlite-*' --exclude='./n8nEventLog*.log' -cf /staging/files.tar .
-          tar -C /staging/data -xf /staging/files.tar
-          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/database.sqlite '.backup /staging/data/database.sqlite'
-          tar -C /staging/data -cf /staging/application.tar .
+          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/database.sqlite '.backup /staging/database.sqlite'
+          tar -C /staging -cf /staging/application.tar files.tar database.sqlite
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -233,11 +229,9 @@ spec:
         - -ec
         args:
         - |
-          mkdir -p /staging/data
           tar -C /data --exclude='./grafana.db' --exclude='./grafana.db-*' -cf /staging/files.tar .
-          tar -C /staging/data -xf /staging/files.tar
-          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/grafana.db '.backup /staging/data/grafana.db'
-          tar -C /staging/data -cf /staging/application.tar .
+          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/grafana.db '.backup /staging/grafana.db'
+          tar -C /staging -cf /staging/application.tar files.tar grafana.db
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

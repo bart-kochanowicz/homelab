@@ -7,7 +7,8 @@ Retention keeps 7 daily, 4 weekly and 3 monthly snapshots; pruning runs Sunday a
 05:00. Sunday checks at 04:00 read and verify every stored data block.
 
 Each backup mounts the application's PVC read-only, uses SQLite's online backup
-command and prepares a tar archive before streaming it to restic. Applications
+command and prepares a tar archive containing the database and a `files.tar`
+archive of the remaining files before streaming it to restic. Applications
 keep running. Database copies are transactional; other files are copied during
 normal operation and do not form an atomic application-wide snapshot. Preparation
 uses at most 4 GiB of temporary node storage and does not change PVC ownership.
@@ -58,7 +59,9 @@ restore_dir=$(mktemp -d "${TMPDIR:-/tmp}/n8n-restore.XXXXXX")
 restic --cacert system/backups/ca.crt snapshots
 restic --cacert system/backups/ca.crt dump SNAPSHOT_ID /n8n-archive.tar > "$restore_dir/archive.tar"
 mkdir "$restore_dir/data"
-tar -xf "$restore_dir/archive.tar" -C "$restore_dir/data"
+tar -xf "$restore_dir/archive.tar" -C "$restore_dir"
+cp "$restore_dir/database.sqlite" "$restore_dir/data/"
+tar -xf "$restore_dir/files.tar" -C "$restore_dir/data"
 sqlite3 "$restore_dir/data/database.sqlite" 'PRAGMA integrity_check;'
 unset RESTIC_REST_PASSWORD
 ```

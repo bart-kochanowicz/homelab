@@ -42,9 +42,11 @@ class PvcBackupTests(unittest.TestCase):
 
     def prepare(self, namespace, source, staging):
         init = self.prebackups[namespace]["spec"]["pod"]["spec"]["initContainers"][0]
-        command = re.sub(r"/data(?=/|\s|$)", str(source), init["args"][0])
-        command = command.replace("/staging", str(staging))
-        return subprocess.run(["sh", "-ec", command], capture_output=True, text=True, timeout=30)
+        paths = {"data": str(source), "staging": str(staging)}
+        command = re.sub(r"(?<![\w/])/(data|staging)(?=/|\s|$)",
+                         lambda match: paths[match[1]], init["args"][0])
+        return subprocess.run(["sh", "-ec", command], env=os.environ | {"COPYFILE_DISABLE": "1"},
+                              capture_output=True, text=True, timeout=30)
 
     def archive_path(self, namespace, staging):
         command = shlex.split(self.prebackups[namespace]["spec"]["backupCommand"])
@@ -120,6 +122,8 @@ class PvcBackupTests(unittest.TestCase):
                 restored.mkdir()
                 with tarfile.open(restored_tar) as bundle:
                     bundle.extractall(restored, filter="data")
+                with tarfile.open(restored / "files.tar") as files:
+                    files.extractall(restored, filter="data")
                 self.assert_database(namespace, restored)
                 self.assertEqual((restored / "config.yaml").read_text(),
                                  "fixture: application configuration\n")
@@ -148,9 +152,11 @@ class PvcBackupTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         with tarfile.open(self.archive_path("home-assistant", staging)) as bundle:
             names = {name.removeprefix("./") for name in bundle.getnames()}
-        self.assertIn(DATABASES["home-assistant"], names)
+        self.assertEqual(names, {DATABASES["home-assistant"], "files.tar"})
+        with tarfile.open(staging / "files.tar") as files:
+            names = {name.removeprefix("./") for name in files.getnames()}
         self.assertIn(".storage/settings.json", names)
-        self.assertFalse({DATABASES["home-assistant"] + suffix for suffix in ("-wal", "-shm")} & names)
+        self.assertFalse({DATABASES["home-assistant"] + suffix for suffix in ("", "-wal", "-shm")} & names)
         self.assertFalse({"home-assistant.log", "home-assistant.log.1"} & names)
 
     def test_preparation_is_tokenless_and_only_init_containers_can_access_live_pvcs(self):
