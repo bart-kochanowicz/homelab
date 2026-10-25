@@ -120,3 +120,4 @@ spec:
         loadBalancerSourceRanges:
           - 10.0.80.0/24
           - 10.0.100.0/24
+          - 10.0.70.10/32

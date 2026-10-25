@@ -72,10 +72,10 @@ class PrivateGatewayTests(unittest.TestCase):
         classes = {item["metadata"]["name"]: item for item in self.resources_of_kind("GatewayClass")}
         allowed = {
             "private-home": {"10.0.40.42", "10.0.80.42", "10.0.100.42"},
-            "private-admin": {"10.0.80.42", "10.0.100.42"},
+            "private-admin": {"10.0.70.10", "10.0.80.42", "10.0.100.42"},
         }
         clients = {"10.0.30.42", "10.0.40.42", "10.0.50.42", "10.0.60.42",
-                   "10.0.70.11", "10.0.70.42", "10.0.80.42", "10.0.90.42",
+                   "10.0.70.10", "10.0.70.11", "10.0.70.42", "10.0.80.42", "10.0.90.42",
                    "10.0.100.42", "10.244.1.42", "192.0.2.42"}
         for config in self.resources_of_kind("EnvoyProxy"):
             name = config["metadata"]["name"]
@@ -175,7 +175,7 @@ class PrivateGatewayTests(unittest.TestCase):
                 target,
             ])
             detection = policy["spec"]["clientIPDetection"]
-            self.assertEqual(detection, {"xForwardedFor": {"numTrustedHops": 0}})
+            self.assertEqual(detection, {"directSourceIP": {}})
             expected_alpn = ["http/1.1"] if policy["metadata"]["name"] == "private-admin" else ["h2", "http/1.1"]
             self.assertEqual(policy["spec"]["tls"]["alpnProtocols"], expected_alpn)
 

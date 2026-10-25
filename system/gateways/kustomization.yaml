@@ -4,5 +4,6 @@ resources:
   - gateway-classes.yaml
   - envoy-proxies.yaml
   - client-traffic-policies.yaml
+  - security-policies.yaml
   - private-home.yaml
   - private-admin.yaml

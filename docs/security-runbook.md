@@ -11,6 +11,13 @@ announces their virtual IPs on the Servers VLAN:
 | Home | `10.0.70.200` | Home Assistant from Home, Admin and WireGuard |
 | Admin | `10.0.70.201` | Administrative panels and webhooks from Admin and WireGuard |
 
+Houston (`10.0.70.10`) may reach only Crafty's `/api/v2/servers` API and its
+subpaths through Admin. Envoy checks source IP, hostname and path together;
+API authentication remains required. Verify authorization before widening
+Service or Cilium source ranges. SecurityPolicy resources belong to the platform.
+Both gateways use the TCP peer address for client IP detection; forwarded
+headers from clients are not trusted for access decisions.
+
 UniFi provides private DNS and routes traffic between VLANs. Talos uses
 `10.0.70.1` as upstream DNS so CoreDNS can resolve these records too.
 `talos/patches/dns.yaml` is a JSON Patch: strategic merge appends resolvers
