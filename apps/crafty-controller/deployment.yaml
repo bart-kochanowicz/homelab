@@ -56,9 +56,8 @@ spec:
             - name: crafty-data
               mountPath: /crafty/logs
               subPath: logs
-            - name: crafty-data
+            - name: crafty-servers
               mountPath: /crafty/servers
-              subPath: servers
             - name: crafty-data
               mountPath: /crafty/config
               subPath: config
@@ -88,3 +87,6 @@ spec:
         - name: crafty-data
           persistentVolumeClaim:
             claimName: crafty-data
+        - name: crafty-servers
+          persistentVolumeClaim:
+            claimName: crafty-servers

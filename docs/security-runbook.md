@@ -186,6 +186,10 @@ the PV's node/path, PV deletion and removal of the directory through Talos acces
 NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
 bind when their first consumer is scheduled.
 
+Crafty mounts `crafty-servers` at `/crafty/servers` on NVMe. Its backups and
+panel configuration remain on the SATA-backed `crafty-data` claim. Both are
+local volumes; a worker failure makes both unavailable.
+
 The worker requires `talos/patches/worker-nvme.yaml`: Talos exposes `/var/mnt`
 read-only to kubelet, so the NVMe directory needs its own writable bind mount.
 For an existing worker, apply during a maintenance window; kubelet restarts:
