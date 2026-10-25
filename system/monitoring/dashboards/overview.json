@@ -171,7 +171,7 @@
       "id": 3,
       "title": "Houston backup age",
       "type": "stat",
-      "description": "Last verified Houston backup of Home Assistant, n8n and Grafana. Empty until all three archives pass verification.",
+      "description": "Age of the oldest completed K8up backup across Home Assistant, n8n and Grafana. Empty until all three namespaces have a successful backup. Restore testing is separate.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -208,7 +208,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(time() - max(kube_lease_renew_time{namespace=\"monitoring\",lease=\"houston-pvc-backup-success\"} > 0)) / 86400",
+          "expr": "((time() - min(homelab:backup_last_success_timestamp_seconds)) / 86400) and on() (count(homelab:backup_last_success_timestamp_seconds) == 3)",
           "legendFormat": "",
           "range": false,
           "instant": true

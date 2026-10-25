@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmCharts:
+  - name: k8up
+    repo: https://k8up-io.github.io/k8up
+    version: 4.10.0
+    releaseName: k8up
+    namespace: backup-system
+    valuesFile: values.yaml
+    skipHooks: true
+patches:
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: k8up-edit
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: k8up-view

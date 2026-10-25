@@ -1,0 +1,226 @@
+---
+- name: Require the verified SSD, supported host and explicit credential paths
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == 'Debian'
+      - ansible_distribution_major_version == '13'
+      - ansible_architecture == 'x86_64'
+      - houston_ssd_uuid.stdout | default('') | length > 0
+      - houston_ssd_uuid.stdout == houston_mounted_uuid.stdout
+      - >-
+        ansible_mounts | selectattr('mount', 'equalto', '/srv/terraform')
+        | selectattr('fstype', 'equalto', 'ext4') | list | length == 1
+      - restic_server_certificate_source is match('^/')
+      - restic_server_private_key_source is match('^/')
+      - restic_server_htpasswd_source is match('^/')
+    fail_msg: Use the Houston SSD preflight and absolute paths to the private TLS and authentication files.
+
+- name: Check credential source files on the controller
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - "{{ restic_server_certificate_source }}"
+    - "{{ restic_server_private_key_source }}"
+    - "{{ restic_server_htpasswd_source }}"
+  delegate_to: localhost
+  become: false
+  register: restic_server_source_files
+  no_log: true
+
+- name: Require regular nonempty source files with private keys and hashes protected
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not item.stat.islnk | default(false)
+      - item.stat.size | default(0) > 0
+      - item.item == restic_server_certificate_source or item.stat.mode | default('') == '0600'
+    fail_msg: TLS key and htpasswd sources must be nonempty mode-0600 regular files without symlinks.
+  loop: "{{ restic_server_source_files.results }}"
+  no_log: true
+
+- name: Require a TLS certificate for the private endpoint
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -in
+      - "{{ restic_server_certificate_source }}"
+      - -noout
+      - -checkip
+      - "{{ item }}"
+  loop:
+    - 10.0.70.10
+    - 127.0.0.1
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require more than one day of remaining certificate validity
+  ansible.builtin.command:
+    argv: [openssl, x509, -in, "{{ restic_server_certificate_source }}", -noout, -checkend, '86400']
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Read the TLS certificate public key
+  ansible.builtin.command:
+    argv: [openssl, x509, -in, "{{ restic_server_certificate_source }}", -pubkey, -noout]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  changed_when: false
+  register: restic_server_certificate_public_key
+  no_log: true
+
+- name: Read the TLS private key public component
+  ansible.builtin.command:
+    argv: [openssl, pkey, -in, "{{ restic_server_private_key_source }}", -pubout]
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  changed_when: false
+  register: restic_server_private_public_key
+  no_log: true
+
+- name: Require a matching TLS certificate and private key
+  ansible.builtin.assert:
+    that: restic_server_certificate_public_key.stdout == restic_server_private_public_key.stdout
+    fail_msg: The TLS certificate and private key do not match.
+  no_log: true
+
+- name: Read the bcrypt authentication file from the controller
+  ansible.builtin.slurp:
+    src: "{{ restic_server_htpasswd_source }}"
+  delegate_to: localhost
+  become: false
+  register: restic_server_htpasswd
+  no_log: true
+
+- name: Restrict authentication to the three application repositories
+  ansible.builtin.assert:
+    that:
+      - >-
+        (restic_server_htpasswd.content | b64decode).splitlines()
+        | reject('equalto', '') | map('regex_replace', ':.*$', '')
+        | sort == ['home-assistant', 'monitoring', 'n8n']
+      - >-
+        (restic_server_htpasswd.content | b64decode).splitlines()
+        | select('match', '^[a-z0-9-]+:\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$')
+        | list | length == 3
+    fail_msg: Supply exactly one bcrypt entry each for home-assistant, monitoring and n8n.
+  no_log: true
+
+- name: Create the unprivileged repository account
+  ansible.builtin.user:
+    name: restic-svc
+    system: true
+    home: /srv/terraform/backups/restic
+    create_home: false
+    shell: /usr/sbin/nologin
+    password_lock: true
+
+- name: Create root-owned storage and executable parents
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /srv/terraform/backups
+    - /srv/terraform/tools
+
+- name: Create the private repository directory on the SSD
+  ansible.builtin.file:
+    path: /srv/terraform/backups/restic
+    state: directory
+    owner: restic-svc
+    group: restic-svc
+    mode: '0700'
+
+- name: Create the protected service configuration directory
+  ansible.builtin.file:
+    path: /etc/restic-server
+    state: directory
+    owner: root
+    group: restic-svc
+    mode: '0750'
+
+- name: Install the server certificate, key and bcrypt authentication file
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/etc/restic-server/{{ item.name }}"
+    owner: root
+    group: restic-svc
+    mode: '0640'
+  loop:
+    - src: "{{ restic_server_certificate_source }}"
+      name: server.crt
+    - src: "{{ restic_server_private_key_source }}"
+      name: server.key
+    - src: "{{ restic_server_htpasswd_source }}"
+      name: htpasswd
+  no_log: true
+  notify: Restart restic server
+
+- name: Download the pinned checksum-verified release
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/restic/rest-server/releases/download/v{{ restic_server_version }}/rest-server_{{ restic_server_version }}_linux_amd64.tar.gz
+    dest: "/srv/terraform/tools/rest-server_{{ restic_server_version }}_linux_amd64.tar.gz"
+    checksum: "sha256:{{ restic_server_archive_sha256 }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Extract the verified release into the root-owned tools directory
+  ansible.builtin.unarchive:
+    src: "/srv/terraform/tools/rest-server_{{ restic_server_version }}_linux_amd64.tar.gz"
+    dest: /srv/terraform/tools
+    remote_src: true
+    creates: "/srv/terraform/tools/rest-server_{{ restic_server_version }}_linux_amd64/rest-server"
+    owner: root
+    group: root
+  when: not ansible_check_mode
+  notify: Restart restic server
+
+- name: Make the verified release binary executable
+  ansible.builtin.file:
+    path: "/srv/terraform/tools/rest-server_{{ restic_server_version }}_linux_amd64/rest-server"
+    owner: root
+    group: root
+    mode: '0755'
+  when: not ansible_check_mode
+  notify: Restart restic server
+
+- name: Link the executable to the standard command path
+  ansible.builtin.file:
+    src: "/srv/terraform/tools/rest-server_{{ restic_server_version }}_linux_amd64/rest-server"
+    dest: /usr/local/bin/rest-server
+    owner: root
+    group: root
+    state: link
+  when: not ansible_check_mode
+  notify: Restart restic server
+
+- name: Install the bounded private restic service
+  ansible.builtin.template:
+    src: restic-server.service.j2
+    dest: /etc/systemd/system/restic-server.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart restic server
+
+- name: Start the restic storage endpoint at boot
+  ansible.builtin.systemd_service:
+    name: restic-server.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode

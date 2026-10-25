@@ -15,17 +15,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
-  ignoreDifferences:
-    - group: coordination.k8s.io
-      kind: Lease
-      namespace: monitoring
-      jsonPointers:
-        - /spec/renewTime
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=false
-      - RespectIgnoreDifferences=true
       - FailOnSharedResource=true

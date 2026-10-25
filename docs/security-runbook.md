@@ -169,10 +169,11 @@ server. Disable local admin again after recovery.
 
 ## Backups and storage
 
-[Houston backups](backups.md) cover Home Assistant, n8n and Grafana.
-Archives are encrypted on Houston's SSD; Prometheus history is disposable.
-Restores into a live PVC require explicit approval and a maintenance window.
-The backup identity cannot write PVC contents or create restore pods.
+[Application backups](backups.md) use K8up and encrypted restic repositories on
+Houston's SSD. HA, n8n and Grafana are copied daily without stopping applications;
+Crafty/Minecraft is excluded. Restore commands, credentials and retention are
+specified in that guide. In-place recovery requires an explicit maintenance
+window and protection from ArgoCD self-heal.
 
 Namespaces and PVCs have ArgoCD `Prune=false,Delete=false`; ApplicationSets
 preserve their resources. Namespace deletion still cascades to workloads and PVCs.

@@ -3,10 +3,9 @@
 misconfigurations:
   - id: KSV-0053
     paths:
-      - "system/backups/rbac.yaml"
-      - "system-backups.yaml"
+      - "system-backup-operator.yaml"
     expired_at: 2026-12-31
-    statement: Backup exec is restricted to named tokenless helpers with read-only PVCs and no host access.
+    statement: K8up streams prepared archives through namespaced pods/exec; the executor role is bound only by backup jobs.
   - id: KSV-0009
     paths:
       - "apps/home-assistant/deployment.yaml"

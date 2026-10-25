@@ -145,59 +145,82 @@ spec:
           annotations:
             summary: A cert-manager certificate is not ready
             description: 'Inspect {{ $labels.namespace }}/{{ $labels.name }}, its CertificateRequest and DNS-01 challenges.'
+    - name: homelab.backups
+      rules:
+        - record: homelab:backup_last_success_timestamp_seconds
+          expr: |
+            max by (namespace) (
+              k8up_backup_condition_transition_time_seconds{
+                namespace=~"home-assistant|n8n|monitoring",
+                type="Completed",status="True",reason="Succeeded"
+              }
+            )
+        - record: homelab:backup_last_failure_timestamp_seconds
+          expr: |
+            max by (namespace) (
+              k8up_backup_condition_transition_time_seconds{
+                namespace=~"home-assistant|n8n|monitoring",
+                type="Completed",status="True",reason!="Succeeded"
+              }
+              or
+              k8up_backup_condition_transition_time_seconds{
+                namespace=~"home-assistant|n8n|monitoring",
+                type="PreBackupPodReady",status="False",
+                reason!~"Waiting|Ready|NoPreBackupPodsFound|Finished|Succeeded"
+              }
+            )
         - alert: HoustonPvcBackupFailed
           expr: |
             (
-              kube_lease_renew_time{
-                namespace="monitoring",
-                lease="houston-pvc-backup-failure"
-              }
-              > ignoring(lease)
-              kube_lease_renew_time{
-                namespace="monitoring",
-                lease="houston-pvc-backup-success"
-              }
+              homelab:backup_last_failure_timestamp_seconds
+              > on(namespace) homelab:backup_last_success_timestamp_seconds
             )
             or
             (
-              kube_lease_renew_time{
-                namespace="monitoring",
-                lease="houston-pvc-backup-failure"
-              } > 0
-              unless on(namespace)
-              kube_lease_renew_time{
-                namespace="monitoring",
-                lease="houston-pvc-backup-success"
-              }
+              homelab:backup_last_failure_timestamp_seconds
+              unless on(namespace) homelab:backup_last_success_timestamp_seconds
             )
           for: 5m
           labels:
             severity: critical
           annotations:
             summary: The latest Houston PVC backup failed
+            description: 'Inspect K8up Backup resources in {{ $labels.namespace }}, including the PreBackupPod initialization.'
         - alert: HoustonPvcBackupMissing
           expr: |
-            absent(
-              kube_lease_renew_time{
-                namespace="monitoring",
-                lease="houston-pvc-backup-success"
-              }
-            )
-            or kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"} == 0
+            kube_namespace_created{namespace=~"home-assistant|n8n|monitoring"}
+            unless on(namespace) homelab:backup_last_success_timestamp_seconds
           for: 24h
           labels:
             severity: warning
           annotations:
             summary: No successful Houston PVC backup has been recorded
+            description: 'No completed K8up backup is available for {{ $labels.namespace }}.'
         - alert: HoustonPvcBackupStale
-          expr: |
-            time() - kube_lease_renew_time{
-              namespace="monitoring",
-              lease="houston-pvc-backup-success"
-            } > 129600
-            and kube_lease_renew_time{namespace="monitoring",lease="houston-pvc-backup-success"} > 0
+          expr: time() - homelab:backup_last_success_timestamp_seconds > 129600
           for: 1h
           labels:
             severity: warning
           annotations:
             summary: The latest successful Houston PVC backup is over 36 hours old
+            description: 'Check the daily K8up schedule and Backup resources in {{ $labels.namespace }}.'
+        - alert: HoustonPvcBackupStuck
+          expr: |
+            (
+              time() - k8up_backup_created_timestamp_seconds{
+                namespace=~"home-assistant|n8n|monitoring"
+              } > 1800
+              unless on(namespace, name)
+              k8up_backup_condition_transition_time_seconds{type="Completed",status="True"}
+            )
+            unless on(namespace, name)
+            k8up_backup_condition_transition_time_seconds{
+              type="PreBackupPodReady",status="False",
+              reason!~"Waiting|Ready|NoPreBackupPodsFound|Finished|Succeeded"
+            }
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: A Houston PVC backup has not finished after 30 minutes
+            description: 'Inspect K8up Backup {{ $labels.namespace }}/{{ $labels.name }} and its initialization pods.'

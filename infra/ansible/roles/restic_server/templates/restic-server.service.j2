@@ -1,0 +1,35 @@
+[Unit]
+Description=Private encrypted backup repository endpoint
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/srv/terraform
+ConditionPathIsMountPoint=/srv/terraform
+
+[Service]
+Type=simple
+User=restic-svc
+Group=restic-svc
+ExecStartPre=/usr/bin/mountpoint --quiet /srv/terraform
+ExecStart=/usr/local/bin/rest-server --listen 10.0.70.10:8444 --path /srv/terraform/backups/restic --private-repos --htpasswd-file /etc/restic-server/htpasswd --tls --tls-cert /etc/restic-server/server.crt --tls-key /etc/restic-server/server.key --tls-min-ver 1.3 --max-size 96636764160
+Restart=on-failure
+RestartSec=10
+UMask=0077
+MemoryMax=256M
+CPUQuota=100%
+IOWeight=20
+Nice=10
+TasksMax=128
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/terraform/backups/restic
+RestrictAddressFamilies=AF_UNIX AF_INET
+IPAddressDeny=any
+IPAddressAllow=10.0.70.11/32
+IPAddressAllow=10.0.70.12/32
+IPAddressAllow=127.0.0.1/32
+IPAddressAllow=10.0.70.10/32
+
+[Install]
+WantedBy=multi-user.target

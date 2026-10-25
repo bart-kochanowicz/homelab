@@ -104,6 +104,45 @@ nodeExporter:
 kubeStateMetrics:
   enabled: true
 
+kube-state-metrics:
+  rbac:
+    extraRules:
+      - apiGroups: [k8up.io]
+        resources: [backups]
+        verbs: [list, watch]
+  customResourceState:
+    enabled: true
+    config:
+      kind: CustomResourceStateMetrics
+      spec:
+        resources:
+          - groupVersionKind:
+              group: k8up.io
+              version: v1
+              kind: Backup
+            metricNamePrefix: k8up_backup
+            labelsFromPath:
+              namespace: [metadata, namespace]
+              name: [metadata, name]
+            metrics:
+              - name: created_timestamp_seconds
+                help: Creation time of a K8up backup request.
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [metadata, creationTimestamp]
+              - name: condition_transition_time_seconds
+                help: Transition time of a K8up backup condition.
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, conditions]
+                    labelsFromPath:
+                      type: [type]
+                      status: [status]
+                      reason: [reason]
+                    valueFrom: [lastTransitionTime]
+
 kubeProxy:
   enabled: false
 

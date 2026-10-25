@@ -1,0 +1,362 @@
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: backup-job
+  namespace: home-assistant
+  labels:
+    app.kubernetes.io/name: backup-job
+  annotations:
+    homelab.security/automount-reviewed: 'true'
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: restic
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+---
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: backup-job
+  namespace: n8n
+  labels:
+    app.kubernetes.io/name: backup-job
+  annotations:
+    homelab.security/automount-reviewed: 'true'
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: restic
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+---
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: backup-job
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: backup-job
+  annotations:
+    homelab.security/automount-reviewed: 'true'
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: restic
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+---
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: backup-check
+  namespace: home-assistant
+  labels:
+    app.kubernetes.io/name: backup-job
+  annotations:
+    homelab.security/automount-reviewed: 'true'
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: restic
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+      initContainers:
+      - name: read-data
+        image: ghcr.io/k8up-io/k8up:v2.16.1@sha256:f59bfa37c51511d5ad67e53816fb55c62d0e6411890e59bb6b965923129f30b5
+        command:
+        - /usr/local/bin/restic
+        args:
+        - --cacert
+        - /etc/restic-ca/ca.crt
+        - check
+        - --read-data
+        env:
+        - name: RESTIC_REPOSITORY
+          value: rest:https://10.0.70.10:8444/home-assistant/
+        - name: RESTIC_REST_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: username
+        - name: RESTIC_REST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: http-password
+        - name: RESTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: repo-password
+        - name: RESTIC_CACHE_DIR
+          value: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        volumeMounts:
+        - name: repo-ca
+          mountPath: /etc/restic-ca
+          readOnly: true
+        - name: check-cache
+          mountPath: /tmp
+      volumes:
+      - name: check-cache
+        emptyDir:
+          sizeLimit: 1Gi
+---
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: backup-check
+  namespace: n8n
+  labels:
+    app.kubernetes.io/name: backup-job
+  annotations:
+    homelab.security/automount-reviewed: 'true'
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: restic
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+      initContainers:
+      - name: read-data
+        image: ghcr.io/k8up-io/k8up:v2.16.1@sha256:f59bfa37c51511d5ad67e53816fb55c62d0e6411890e59bb6b965923129f30b5
+        command:
+        - /usr/local/bin/restic
+        args:
+        - --cacert
+        - /etc/restic-ca/ca.crt
+        - check
+        - --read-data
+        env:
+        - name: RESTIC_REPOSITORY
+          value: rest:https://10.0.70.10:8444/n8n/
+        - name: RESTIC_REST_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: username
+        - name: RESTIC_REST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: http-password
+        - name: RESTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: repo-password
+        - name: RESTIC_CACHE_DIR
+          value: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        volumeMounts:
+        - name: repo-ca
+          mountPath: /etc/restic-ca
+          readOnly: true
+        - name: check-cache
+          mountPath: /tmp
+      volumes:
+      - name: check-cache
+        emptyDir:
+          sizeLimit: 1Gi
+---
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: backup-check
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: backup-job
+  annotations:
+    homelab.security/automount-reviewed: 'true'
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: restic
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+      initContainers:
+      - name: read-data
+        image: ghcr.io/k8up-io/k8up:v2.16.1@sha256:f59bfa37c51511d5ad67e53816fb55c62d0e6411890e59bb6b965923129f30b5
+        command:
+        - /usr/local/bin/restic
+        args:
+        - --cacert
+        - /etc/restic-ca/ca.crt
+        - check
+        - --read-data
+        env:
+        - name: RESTIC_REPOSITORY
+          value: rest:https://10.0.70.10:8444/monitoring/
+        - name: RESTIC_REST_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: username
+        - name: RESTIC_REST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: http-password
+        - name: RESTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8up-repo
+              key: repo-password
+        - name: RESTIC_CACHE_DIR
+          value: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        volumeMounts:
+        - name: repo-ca
+          mountPath: /etc/restic-ca
+          readOnly: true
+        - name: check-cache
+          mountPath: /tmp
+      volumes:
+      - name: check-cache
+        emptyDir:
+          sizeLimit: 1Gi

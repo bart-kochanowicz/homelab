@@ -18,7 +18,7 @@ KUSTOMIZE_DIRS := \
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
-	validate-cert-manager validate-metallb validate-envoy-gateway \
+	validate-cert-manager validate-metallb validate-envoy-gateway validate-backups \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring
 
 default: system
@@ -31,7 +31,7 @@ validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-terraform-tests validate-workflows validate-monitoring
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool restic; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool sqlite3 restic; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -95,6 +95,7 @@ validate-kustomize:
 		kubectl kustomize "$$dir" > ".cache/rendered/$$(echo "$$dir" | tr / -).yaml"; \
 	done
 	kubectl kustomize --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
+	kubectl kustomize --enable-helm system/backup-operator > .cache/rendered/system-backup-operator.yaml
 
 validate-helm: validate-kustomize
 	@set -e; retry() { \
@@ -172,7 +173,17 @@ validate-envoy-gateway: validate-helm
 		-schema-location '.cache/envoy-gateway-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
 		.cache/envoy-gateway-resources.yaml
 
-validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-metallb validate-envoy-gateway
+validate-backups: validate-kustomize
+	@rm -rf .cache/backup-schemas && mkdir -p .cache/backup-schemas
+	helm show crds k8up --repo https://k8up-io.github.io/k8up --version 4.10.0 > .cache/backup-crds.yaml
+	yq -o=json --split-exp '".cache/backup-schemas/" + .title' \
+		'select(.kind == "CustomResourceDefinition") | .spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
+		.cache/backup-crds.yaml
+	yq 'select(.apiVersion == "k8up.io/v1")' .cache/rendered/system-backups.yaml > .cache/backup-resources.yaml
+	kubeconform -strict -summary \
+		-schema-location '.cache/backup-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' .cache/backup-resources.yaml
+
+validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manager validate-metallb validate-envoy-gateway validate-backups
 	kubeconform -strict -summary -ignore-missing-schemas .cache/rendered/*.yaml
 	kube-linter lint --config .kube-linter.yaml \
 		--ignore-paths '.cache/rendered/helm-cilium.yaml' \

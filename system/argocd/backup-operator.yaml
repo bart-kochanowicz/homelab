@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backup-operator
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/bart-kochanowicz/homelab.git
+    targetRevision: main
+    path: system/backup-operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backup-system
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backup-crds
+  namespace: argocd
+spec:
+  project: backup-crds
+  source:
+    repoURL: https://github.com/k8up-io/k8up.git
+    targetRevision: k8up-4.10.0
+    path: charts/k8up/crds
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    syncOptions:
+      - Replace=true

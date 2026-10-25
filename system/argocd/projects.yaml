@@ -5,15 +5,6 @@ metadata:
   namespace: argocd
 spec:
   description: Namespace-scoped homelab applications
-  syncWindows:
-    - kind: deny
-      schedule: '0 3 * * *'
-      duration: 30m
-      timeZone: Europe/Warsaw
-      applications:
-        - home-assistant
-        - n8n
-      manualSync: false
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
@@ -53,17 +44,11 @@ metadata:
   namespace: argocd
 spec:
   description: Explicitly scoped cluster platform components
-  syncWindows:
-    - kind: deny
-      schedule: '0 3 * * *'
-      duration: 30m
-      timeZone: Europe/Warsaw
-      applications:
-        - monitoring
-      manualSync: false
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
+    - namespace: backup-system
+      server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
     - namespace: cert-manager
@@ -186,49 +171,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: backups
-  namespace: argocd
-spec:
-  description: Read-only PVC helpers and scoped Houston backup access
-  sourceRepos:
-    - https://github.com/bart-kochanowicz/homelab.git
-  destinations:
-    - namespace: home-assistant
-      server: https://kubernetes.default.svc
-    - namespace: n8n
-      server: https://kubernetes.default.svc
-    - namespace: monitoring
-      server: https://kubernetes.default.svc
-    - namespace: argocd
-      server: https://kubernetes.default.svc
-  clusterResourceBlacklist:
-    - group: "*"
-      kind: "*"
-  namespaceResourceWhitelist:
-    - group: ""
-      kind: Pod
-    - group: ""
-      kind: ServiceAccount
-    - group: rbac.authorization.k8s.io
-      kind: Role
-    - group: rbac.authorization.k8s.io
-      kind: RoleBinding
-    - group: coordination.k8s.io
-      kind: Lease
-    - group: networking.k8s.io
-      kind: NetworkPolicy
-  syncWindows:
-    - kind: deny
-      schedule: '0 3 * * *'
-      duration: 30m
-      timeZone: Europe/Warsaw
-      applications:
-        - backups
-      manualSync: false
----
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
   name: monitoring-crds
   namespace: argocd
 spec:
@@ -256,6 +198,64 @@ spec:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
     - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+  namespaceResourceBlacklist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: backups
+  namespace: argocd
+spec:
+  description: Application backup definitions
+  sourceRepos:
+    - https://github.com/bart-kochanowicz/homelab.git
+  destinations:
+    - namespace: home-assistant
+      server: https://kubernetes.default.svc
+    - namespace: n8n
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: backup-system
+      server: https://kubernetes.default.svc
+  clusterResourceBlacklist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: bitnami.com
+      kind: SealedSecret
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: cilium.io
+      kind: CiliumNetworkPolicy
+    - group: k8up.io
+      kind: Schedule
+    - group: k8up.io
+      kind: PreBackupPod
+    - group: k8up.io
+      kind: PodConfig
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: backup-crds
+  namespace: argocd
+spec:
+  description: Pinned backup operator CRDs
+  sourceRepos:
+    - https://github.com/k8up-io/k8up.git
+  destinations:
+    - namespace: "*"
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: apiextensions.k8s.io

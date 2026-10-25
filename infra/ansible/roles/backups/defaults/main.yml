@@ -1,6 +1,0 @@
----
-houston_backups_enabled: false
-houston_backup_timer_enabled: false
-houston_backup_prune_enabled: false
-houston_backup_kubeconfig_source: ''
-houston_backup_password_source: ''
