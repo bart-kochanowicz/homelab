@@ -17,21 +17,17 @@ DATABASES = {"home-assistant": "home-assistant_v2.db",
              "n8n": "database.sqlite", "monitoring": "grafana.db"}
 
 
-def read_resources(paths):
-    result = subprocess.run(
-        ["yq", "-o=json", "-I=0", "select(.kind != null)", *map(str, paths)],
-        capture_output=True, text=True, check=True,
-    )
-    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
-
-
 class PvcBackupTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        for tool in ("sqlite3", "restic", "tar", "yq"):
+        for tool in ("sqlite3", "restic", "tar", "yq", "helm"):
             if not shutil.which(tool):
                 raise RuntimeError(f"Install {tool} before running backup tests")
-        cls.resources = read_resources(sorted((ROOT / "system/backups").glob("*.yaml")))
+        rendered = subprocess.run(["helm", "template", "backups", str(ROOT / "system/backups")],
+                                  capture_output=True, text=True, check=True)
+        parsed = subprocess.run(["yq", "-o=json", "-I=0", "select(.kind != null)"],
+                                input=rendered.stdout, capture_output=True, text=True, check=True)
+        cls.resources = [json.loads(line) for line in parsed.stdout.splitlines() if line.strip()]
         cls.prebackups = {item["metadata"]["namespace"]: item for item in cls.resources
                           if item["kind"] == "PreBackupPod"}
 

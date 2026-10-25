@@ -6,7 +6,6 @@ KUSTOMIZE_DIRS := \
 	apps/n8n \
 	system/app-namespaces \
 	system/argocd \
-	system/backups \
 	system/cert-manager-acme \
 	system/cert-manager-ca \
 	system/gateway-api-crds \
@@ -73,6 +72,7 @@ validate-yaml:
 		-not -path './.backups/*' \
 		-not -path './thoughts/*' \
 		-not -path '*/charts/*' \
+		-not -path './system/backups/templates/*' \
 		-not -path '*/.terraform/*' \
 		-not -path './talos/controlplane.yaml' \
 		-not -path './talos/worker.yaml' \
@@ -96,6 +96,8 @@ validate-kustomize:
 	done
 	kubectl kustomize --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
 	kubectl kustomize --enable-helm system/backup-operator > .cache/rendered/system-backup-operator.yaml
+	helm lint system/backups
+	helm template backups system/backups --namespace monitoring > .cache/rendered/system-backups.yaml
 
 validate-helm: validate-kustomize
 	@set -e; retry() { \

@@ -15,105 +15,86 @@
       - restic_server_htpasswd_source is match('^/')
     fail_msg: Use the Houston SSD preflight and absolute paths to the private TLS and authentication files.
 
-- name: Check credential source files on the controller
-  ansible.builtin.stat:
-    path: "{{ item }}"
-    follow: false
-  loop:
-    - "{{ restic_server_certificate_source }}"
-    - "{{ restic_server_private_key_source }}"
-    - "{{ restic_server_htpasswd_source }}"
+- name: Validate storage credentials on the controller
   delegate_to: localhost
   become: false
-  register: restic_server_source_files
   no_log: true
-
-- name: Require regular nonempty source files with private keys and hashes protected
-  ansible.builtin.assert:
-    that:
-      - item.stat.isreg | default(false)
-      - not item.stat.islnk | default(false)
-      - item.stat.size | default(0) > 0
-      - item.item == restic_server_certificate_source or item.stat.mode | default('') == '0600'
-    fail_msg: TLS key and htpasswd sources must be nonempty mode-0600 regular files without symlinks.
-  loop: "{{ restic_server_source_files.results }}"
-  no_log: true
-
-- name: Require a TLS certificate for the private endpoint
-  ansible.builtin.command:
-    argv:
-      - openssl
-      - x509
-      - -in
-      - "{{ restic_server_certificate_source }}"
-      - -noout
-      - -checkip
-      - "{{ item }}"
-  loop:
-    - 10.0.70.10
-    - 127.0.0.1
-  delegate_to: localhost
-  become: false
   check_mode: false
-  changed_when: false
-  no_log: true
+  block:
+    - name: Check credential source files on the controller
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - "{{ restic_server_certificate_source }}"
+        - "{{ restic_server_private_key_source }}"
+        - "{{ restic_server_htpasswd_source }}"
+      register: restic_server_source_files
 
-- name: Require more than one day of remaining certificate validity
-  ansible.builtin.command:
-    argv: [openssl, x509, -in, "{{ restic_server_certificate_source }}", -noout, -checkend, '86400']
-  delegate_to: localhost
-  become: false
-  check_mode: false
-  changed_when: false
-  no_log: true
+    - name: Require regular nonempty source files with private keys and hashes protected
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not item.stat.islnk | default(false)
+          - item.stat.size | default(0) > 0
+          - item.item == restic_server_certificate_source or item.stat.mode | default('') == '0600'
+        fail_msg: TLS key and htpasswd sources must be nonempty mode-0600 regular files without symlinks.
+      loop: "{{ restic_server_source_files.results }}"
 
-- name: Read the TLS certificate public key
-  ansible.builtin.command:
-    argv: [openssl, x509, -in, "{{ restic_server_certificate_source }}", -pubkey, -noout]
-  delegate_to: localhost
-  become: false
-  check_mode: false
-  changed_when: false
-  register: restic_server_certificate_public_key
-  no_log: true
+    - name: Require a TLS certificate for the private endpoint
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - x509
+          - -in
+          - "{{ restic_server_certificate_source }}"
+          - -noout
+          - -checkip
+          - "{{ item }}"
+      loop:
+        - 10.0.70.10
+        - 127.0.0.1
+      changed_when: false
 
-- name: Read the TLS private key public component
-  ansible.builtin.command:
-    argv: [openssl, pkey, -in, "{{ restic_server_private_key_source }}", -pubout]
-  delegate_to: localhost
-  become: false
-  check_mode: false
-  changed_when: false
-  register: restic_server_private_public_key
-  no_log: true
+    - name: Require more than one day of remaining certificate validity
+      ansible.builtin.command:
+        argv: [openssl, x509, -in, "{{ restic_server_certificate_source }}", -noout, -checkend, '86400']
+      changed_when: false
 
-- name: Require a matching TLS certificate and private key
-  ansible.builtin.assert:
-    that: restic_server_certificate_public_key.stdout == restic_server_private_public_key.stdout
-    fail_msg: The TLS certificate and private key do not match.
-  no_log: true
+    - name: Read the TLS certificate public key
+      ansible.builtin.command:
+        argv: [openssl, x509, -in, "{{ restic_server_certificate_source }}", -pubkey, -noout]
+      changed_when: false
+      register: restic_server_certificate_public_key
 
-- name: Read the bcrypt authentication file from the controller
-  ansible.builtin.slurp:
-    src: "{{ restic_server_htpasswd_source }}"
-  delegate_to: localhost
-  become: false
-  register: restic_server_htpasswd
-  no_log: true
+    - name: Read the TLS private key public component
+      ansible.builtin.command:
+        argv: [openssl, pkey, -in, "{{ restic_server_private_key_source }}", -pubout]
+      changed_when: false
+      register: restic_server_private_public_key
 
-- name: Restrict authentication to the three application repositories
-  ansible.builtin.assert:
-    that:
-      - >-
-        (restic_server_htpasswd.content | b64decode).splitlines()
-        | reject('equalto', '') | map('regex_replace', ':.*$', '')
-        | sort == ['home-assistant', 'monitoring', 'n8n']
-      - >-
-        (restic_server_htpasswd.content | b64decode).splitlines()
-        | select('match', '^[a-z0-9-]+:\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$')
-        | list | length == 3
-    fail_msg: Supply exactly one bcrypt entry each for home-assistant, monitoring and n8n.
-  no_log: true
+    - name: Require a matching TLS certificate and private key
+      ansible.builtin.assert:
+        that: restic_server_certificate_public_key.stdout == restic_server_private_public_key.stdout
+        fail_msg: The TLS certificate and private key do not match.
+
+    - name: Read the bcrypt authentication file from the controller
+      ansible.builtin.slurp:
+        src: "{{ restic_server_htpasswd_source }}"
+      register: restic_server_htpasswd
+
+    - name: Restrict authentication to the three application repositories
+      ansible.builtin.assert:
+        that:
+          - >-
+            (restic_server_htpasswd.content | b64decode).splitlines()
+            | reject('equalto', '') | map('regex_replace', ':.*$', '')
+            | sort == ['home-assistant', 'monitoring', 'n8n']
+          - >-
+            (restic_server_htpasswd.content | b64decode).splitlines()
+            | select('match', '^[a-z0-9-]+:\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$')
+            | list | length == 3
+        fail_msg: Supply exactly one bcrypt entry each for home-assistant, monitoring and n8n.
 
 - name: Create the unprivileged repository account
   ansible.builtin.user:

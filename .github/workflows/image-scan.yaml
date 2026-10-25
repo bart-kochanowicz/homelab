@@ -25,9 +25,13 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t images < <(
-            rg --no-filename '^[[:space:]]*image:' apps system \
-              -g '*.yaml' -g '!**/charts/**' |
-              awk '{print $2}' | sort -u
+            {
+              rg --no-filename '^[[:space:]]*image:' apps system \
+                -g '*.yaml' -g '!**/charts/**' -g '!system/backups/templates/**' |
+                awk 'NF > 1 {print $2}'
+              helm template backups system/backups |
+                yq '.. | select(tag == "!!map") | select(has("image")) | .image | select(tag == "!!str")'
+            } | sort -u
           )
           failed=0
           for image in "${images[@]}"; do
