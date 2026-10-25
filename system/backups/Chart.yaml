@@ -1,0 +1,5 @@
+apiVersion: v2
+name: backups
+description: Private application backups managed by K8up
+type: application
+version: 1.0.0

@@ -1,0 +1,4 @@
+---
+- name: Configure the private restic storage service when enabled
+  ansible.builtin.import_tasks: configure.yml
+  when: restic_server_enabled | bool

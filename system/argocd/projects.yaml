@@ -47,6 +47,8 @@ spec:
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
+    - namespace: backup-system
+      server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
     - namespace: cert-manager
@@ -196,6 +198,64 @@ spec:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
     - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+  namespaceResourceBlacklist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: backups
+  namespace: argocd
+spec:
+  description: Application backup definitions
+  sourceRepos:
+    - https://github.com/bart-kochanowicz/homelab.git
+  destinations:
+    - namespace: home-assistant
+      server: https://kubernetes.default.svc
+    - namespace: n8n
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: backup-system
+      server: https://kubernetes.default.svc
+  clusterResourceBlacklist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: bitnami.com
+      kind: SealedSecret
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: cilium.io
+      kind: CiliumNetworkPolicy
+    - group: k8up.io
+      kind: Schedule
+    - group: k8up.io
+      kind: PreBackupPod
+    - group: k8up.io
+      kind: PodConfig
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: backup-crds
+  namespace: argocd
+spec:
+  description: Pinned backup operator CRDs
+  sourceRepos:
+    - https://github.com/k8up-io/k8up.git
+  destinations:
+    - namespace: "*"
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: apiextensions.k8s.io

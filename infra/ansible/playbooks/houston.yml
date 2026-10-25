@@ -54,3 +54,5 @@
       tags: terraform_cli
     - role: github_runner
       tags: github_runner
+    - role: restic_server
+      tags: restic_server

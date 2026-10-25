@@ -3,6 +3,104 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
+  - name: Backup success is required in every application namespace
+    interval: 1m
+    input_series:
+      - series: 'kube_namespace_created{namespace="home-assistant"}'
+        values: '1+0x1500'
+      - series: 'kube_namespace_created{namespace="n8n"}'
+        values: '1+0x1500'
+      - series: 'kube_namespace_created{namespace="monitoring"}'
+        values: '1+0x1500'
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="home-assistant",name="ha-success",type="Completed",status="True",reason="Succeeded"}'
+        values: '60+60x1500'
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="n8n",name="n8n-success",type="Completed",status="True",reason="Succeeded"}'
+        values: '60+60x1500'
+    promql_expr_test:
+      - expr: ALERTS{alertname="HoustonPvcBackupMissing",alertstate="firing"}
+        eval_time: 25h
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonPvcBackupMissing",alertstate="firing",namespace="monitoring",severity="warning"}'
+            value: 1
+      - expr: count(ALERTS{alertname=~"HoustonPvcBackupStale|HoustonPvcBackupFailed",alertstate="firing"}) or vector(0)
+        eval_time: 25h
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: A missed daily backup becomes stale after 36 hours
+    interval: 1m
+    input_series:
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="home-assistant",name="old-success",type="Completed",status="True",reason="Succeeded"}'
+        values: '60+0x2280'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="HoustonPvcBackupStale",alertstate="firing"}) or vector(0)
+        eval_time: 35h
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: ALERTS{alertname="HoustonPvcBackupStale",alertstate="firing"}
+        eval_time: 38h
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonPvcBackupStale",alertstate="firing",namespace="home-assistant",severity="warning"}'
+            value: 1
+
+  - name: Backup failures clear only after a newer successful backup
+    interval: 1m
+    input_series:
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="n8n",name="success",type="Completed",status="True",reason="Succeeded"}'
+        values: '1000+0x6 2000+0x10'
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="n8n",name="failure",type="Completed",status="True",reason="Failed"}'
+        values: '1500+0x17'
+    promql_expr_test:
+      - expr: ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing"}
+        eval_time: 6m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing",namespace="n8n",severity="critical"}'
+            value: 1
+      - expr: count(ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing"}) or vector(0)
+        eval_time: 10m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: Failed initialization alerts even when no backup Job was created
+    interval: 1m
+    input_series:
+      - series: 'k8up_backup_created_timestamp_seconds{namespace="monitoring",name="failed-init"}'
+        values: '60+0x40'
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="monitoring",name="failed-init",type="PreBackupPodReady",status="False",reason="Failed"}'
+        values: '120+0x40'
+    promql_expr_test:
+      - expr: ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing"}
+        eval_time: 6m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing",namespace="monitoring",severity="critical"}'
+            value: 1
+      - expr: count(ALERTS{alertname="HoustonPvcBackupStuck",alertstate="firing"}) or vector(0)
+        eval_time: 40m
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  - name: Unfinished backup requests cannot disappear behind absent Job metrics
+    interval: 1m
+    input_series:
+      - series: 'k8up_backup_created_timestamp_seconds{namespace="n8n",name="waiting-init"}'
+        values: '60+0x40'
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="n8n",name="waiting-init",type="PreBackupPodReady",status="Unknown",reason="Waiting"}'
+        values: '120+0x40'
+      - series: 'k8up_backup_created_timestamp_seconds{namespace="home-assistant",name="completed"}'
+        values: '60+0x40'
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="home-assistant",name="completed",type="Completed",status="True",reason="Succeeded"}'
+        values: '120+0x40'
+    promql_expr_test:
+      - expr: ALERTS{alertname="HoustonPvcBackupStuck",alertstate="firing"}
+        eval_time: 40m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonPvcBackupStuck",alertstate="firing",namespace="n8n",name="waiting-init",severity="warning"}'
+            value: 1
+
   - name: Healthy components and expected firewall drops do not alert
     interval: 1m
     input_series:

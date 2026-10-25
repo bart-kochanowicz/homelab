@@ -1,0 +1,5 @@
+---
+restic_server_enabled: false
+restic_server_certificate_source: ''
+restic_server_private_key_source: ''
+restic_server_htpasswd_source: ''

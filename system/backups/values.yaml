@@ -1,0 +1,22 @@
+images:
+  sqlite: docker.io/keinos/sqlite3:3.53.4@sha256:6addaf450aea7e098e7d6f059d43501c317ec70494c1ace3cc94bfe1631cbfa5
+  archive: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
+  k8up: ghcr.io/k8up-io/k8up:v2.16.1@sha256:f59bfa37c51511d5ad67e53816fb55c62d0e6411890e59bb6b965923129f30b5
+applications:
+- namespace: home-assistant
+  pvc: home-assistant-config
+  database: home-assistant_v2.db
+  uid: 0
+  gid: 0
+  excludeLog: home-assistant.log*
+- namespace: n8n
+  pvc: n8n-data
+  database: database.sqlite
+  uid: 1000
+  gid: 1000
+  excludeLog: n8nEventLog*.log
+- namespace: monitoring
+  pvc: kube-prometheus-stack-grafana
+  database: grafana.db
+  uid: 472
+  gid: 472

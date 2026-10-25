@@ -10,6 +10,7 @@ labelled `houston-data`, mounted at `/srv/terraform`.
 | `storage` | SSD mount by UUID and scheduled TRIM |
 | `garage` | Garage 2.4.1, `terraform-state` bucket and S3 credentials |
 | `terraform_cli` | Terraform 1.16.4, shared lock and backup tools |
+| `restic_server` | Private TLS endpoint for encrypted application backup repositories |
 | `github_runner` | Private runner 2.337.0 and its systemd service |
 
 ## Configure the host
@@ -47,6 +48,7 @@ mode `600`, owned by `capcom`. See [local plans](../../terraform/LOCAL_PLAN.md).
 | `garage` | Garage objects, metadata and service credentials |
 | `workspaces` | Operator checkouts, `700 capcom:capcom` |
 | `runner/{home,work,tmp,app-<version>}` | Private runner files |
+| `backups/restic` | Encrypted application repositories, `700 restic-svc:restic-svc` |
 | `backup-staging` | Per-operation directories, `1770 root:terraform-ops` |
 | `tools` | Root-owned executables and release archives |
 
@@ -101,6 +103,36 @@ Existing registrations need no token. Check `github-runner.service` and the
 runner's online status in GitHub if registration is incomplete. For a version
 change, stop and unregister the idle runner, then apply the new pin with a fresh
 token. Follow [GitHub's runner update requirements](https://docs.github.com/en/actions/reference/runners/self-hosted-runners#runner-software-updates-on-self-hosted-runners).
+
+## Application backup storage
+
+The opt-in `restic_server` role installs checksum-pinned REST-server 0.14.0.
+It listens on `10.0.70.10:8444` with TLS 1.3 and bcrypt authentication; systemd
+allows connections only from the two cluster nodes and Houston itself. Private
+repositories isolate the `home-assistant`, `n8n` and `monitoring` users. A native
+90 GiB limit covers **all repositories combined**, leaving SSD space for Garage.
+K8up manages backup scheduling, retention and checks in Kubernetes; Houston needs
+no Kubernetes credentials. Retention requires deletion, so append-only is disabled.
+
+Supply absolute paths in an ignored mode-600 `.secrets/houston-restic.yml`:
+
+```yaml
+restic_server_enabled: true
+restic_server_certificate_source: /absolute/private/path/server.crt
+restic_server_private_key_source: /absolute/private/path/server.key
+restic_server_htpasswd_source: /absolute/private/path/htpasswd
+```
+
+The key and htpasswd files must have mode `600`. The certificate must cover
+`10.0.70.10` and `127.0.0.1` (SSH restores); distribute its trusted CA to the backup clients.
+From the repository root:
+
+```bash
+ANSIBLE_CONFIG=infra/ansible/ansible.cfg ansible-playbook \
+  infra/ansible/playbooks/houston.yml --tags restic_server --ask-become-pass \
+  -e @.secrets/houston-restic.yml
+ssh houston-01 'systemctl status restic-server.service'
+```
 
 ## Recovery
 

@@ -26,5 +26,8 @@ jobs:
       - name: Install yamllint
         run: pipx install yamllint==1.37.1
 
+      - name: Install SQLite
+        run: sudo apt-get update && sudo apt-get install -y sqlite3
+
       - name: Validate repository
         run: make validate

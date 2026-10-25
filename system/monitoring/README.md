@@ -21,8 +21,10 @@ Existing node pressure, filesystem, pod and Prometheus alerts remain enabled.
 Unexpected Cilium drops alert above 1 packet/second per reason for 10 minutes.
 Policy denials, load-balancer source rejection and unsupported L2/L3 protocols are
 visible on the Network dashboard but do not send emails. Cilium and ArgoCD use
-PodMonitors; missing scrapes alert separately. Backup age covers only the apps in
-`scripts/backup-pvcs.sh`, not Grafana or isolated manual backups.
+PodMonitors; missing scrapes alert separately. Backup age comes from completed K8up Backup resources for Home Assistant, n8n
+and Grafana. Failures and stalled preparation alert separately; a success older
+than 36 hours warns that the daily schedule was missed. Job completion measures
+backup execution; isolated restore tests remain a separate operational check.
 
 Run `make validate-monitoring` to render monitoring and test rules with the pinned
 `promtool`. Full repository validation also runs these tests.

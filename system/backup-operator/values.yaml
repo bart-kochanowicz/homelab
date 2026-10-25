@@ -1,0 +1,38 @@
+image:
+  tag: v2.16.1@sha256:f59bfa37c51511d5ad67e53816fb55c62d0e6411890e59bb6b965923129f30b5
+k8up:
+  timezone: Europe/Warsaw
+  skipWithoutAnnotation: true
+  globalResources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  envVars:
+  - name: BACKUP_GLOBAL_CONCURRENT_BACKUP_JOBS_LIMIT
+    value: '1'
+  - name: BACKUP_GLOBAL_CONCURRENT_CHECK_JOBS_LIMIT
+    value: '1'
+  - name: BACKUP_GLOBAL_CONCURRENT_PRUNE_JOBS_LIMIT
+    value: '1'
+podAnnotations:
+  homelab.security/automount-reviewed: 'true'
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+metrics:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kube-prometheus-stack

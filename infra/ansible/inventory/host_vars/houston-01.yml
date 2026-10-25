@@ -10,3 +10,5 @@ github_runner_version: "2.337.0"
 github_runner_archive_sha256: 70920811a4f8ad4328818682bca5c6469c1c942fab52448868071d0063816613
 github_runner_binary_sha256: f4584cf5ef53ebc8507e9edfad07973e389ff6488906a1abe5f698aa86b295cf
 github_runner_repository_url: https://github.com/bart-kochanowicz/homelab-automation
+restic_server_version: "0.14.0"
+restic_server_archive_sha256: 4c9c95bc079a0334e81fad379b19dc5c3353c71c2c88d652cafce2081c2b1c66

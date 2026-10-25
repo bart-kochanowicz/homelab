@@ -27,6 +27,8 @@ resources:
   - metallb-config.yaml
   - gateways.yaml
   - monitoring.yaml
+  - backup-operator.yaml
+  - backups.yaml
   - network-policies.yaml
   - home-assistant-reloader.yaml
   - n8n-reloader.yaml
