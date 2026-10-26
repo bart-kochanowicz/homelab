@@ -8,6 +8,6 @@ resources:
   - service-account.yaml
   - pvc.yaml
   - servers-pvc.yaml
-  - runtime-pvc.yaml
+  - data-nvme-pvc.yaml
   - deployment.yaml
   - service.yaml

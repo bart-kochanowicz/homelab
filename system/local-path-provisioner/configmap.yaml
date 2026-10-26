@@ -51,8 +51,7 @@ data:
       *_monitoring_alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0)
         chown 1000:2000 "$VOL_DIR"
         ;;
-      */crafty-controller/crafty-servers/*|*_crafty-controller_crafty-servers|\
-      */crafty-controller/crafty-runtime/*|*_crafty-controller_crafty-runtime)
+      */crafty-controller/*|*_crafty-controller_*)
         chown 1000:0 "$VOL_DIR"
         ;;
       *)

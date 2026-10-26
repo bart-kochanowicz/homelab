@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: crafty-runtime
+  name: crafty-data-nvme
   namespace: crafty-controller
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
@@ -14,4 +14,4 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 120Gi
