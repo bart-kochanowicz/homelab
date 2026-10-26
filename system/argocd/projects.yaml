@@ -153,6 +153,8 @@ spec:
       kind: EnvoyProxy
     - group: gateway.envoyproxy.io
       kind: ClientTrafficPolicy
+    - group: gateway.envoyproxy.io
+      kind: SecurityPolicy
     - group: policy
       kind: PodDisruptionBudget
     - group: gateway.networking.k8s.io

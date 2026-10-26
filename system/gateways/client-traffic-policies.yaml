@@ -9,8 +9,7 @@ spec:
       kind: Gateway
       name: private-home
   clientIPDetection:
-    xForwardedFor:
-      numTrustedHops: 0
+    directSourceIP: {}
   tls:
     alpnProtocols: [h2, http/1.1]
 ---
@@ -25,8 +24,7 @@ spec:
       kind: Gateway
       name: private-admin
   clientIPDetection:
-    xForwardedFor:
-      numTrustedHops: 0
+    directSourceIP: {}
   tls:
     alpnProtocols: [http/1.1]
 ---
@@ -42,7 +40,6 @@ spec:
       name: private-admin
       sectionName: argocd
   clientIPDetection:
-    xForwardedFor:
-      numTrustedHops: 0
+    directSourceIP: {}
   tls:
     alpnProtocols: [h2, http/1.1]
