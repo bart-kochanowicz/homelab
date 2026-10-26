@@ -182,6 +182,10 @@ Crafty/Minecraft is excluded. Restore commands, credentials and retention are
 specified in that guide. In-place recovery requires an explicit maintenance
 window and protection from ArgoCD self-heal.
 
+`system/backups/values.yaml` selects source claims explicitly. Keep these aligned
+with application mounts and manually sync the `backups` ArgoCD Application after
+changes.
+
 Namespaces and PVCs have ArgoCD `Prune=false,Delete=false`; ApplicationSets
 preserve their resources. Namespace deletion still cascades to workloads and PVCs.
 Local-path volumes use `Retain`, directory mode `0770` and application-specific
