@@ -189,9 +189,10 @@ ownership. Removing retained data requires a backup, PVC deletion, inspection of
 the PV's node/path, PV deletion and removal of the directory through Talos access.
 
 `local-path` stores worker volumes on SATA at `/var/mnt/minecraft`.
-`local-path-nvme` stores worker volumes under `/var/mnt/nvme`, sharing Talos's
+The default class, `local-path-nvme`, stores worker volumes under `/var/mnt/nvme`, sharing Talos's
 NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
-bind when their first consumer is scheduled.
+bind when their first consumer is scheduled. The default class applies only
+to claims without an explicit storage class; existing claims keep their disks.
 
 Crafty mounts `crafty-servers` at `/crafty/servers` on NVMe. Its backups and
 panel configuration remain on the SATA-backed `crafty-data` claim. Both are
