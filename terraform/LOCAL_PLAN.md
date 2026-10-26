@@ -45,6 +45,12 @@ chmod 600 terraform.tfvars
 UniFi also requires Houston access to `192.168.1.1` and the verified
 [controller certificate in Keychain](unifi/CERTIFICATE.md).
 
+For `terraform/crafty`, use the same Garage tunnel and initialization after its
+first Actions apply. No `.tfvars` file is needed: load the dedicated API token
+into `TF_VAR_crafty_token` from an ignored private file. The default endpoint is
+`https://crafty-controller.thecavespace.net`; HTTPS must be reachable through
+Admin or WireGuard. Unset the token after planning.
+
 ## Terminal 1: tunnel
 
 Keep this session open; wait for `Local plan session ready`. It holds Houston's

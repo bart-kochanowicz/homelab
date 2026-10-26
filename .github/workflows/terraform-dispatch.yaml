@@ -10,7 +10,7 @@ on:
       terraform_root:
         description: Infrastructure to plan and review
         type: choice
-        options: [all, cloudflare, unifi]
+        options: [all, cloudflare, unifi, crafty]
         default: all
 
 permissions:
@@ -34,6 +34,7 @@ jobs:
       validation_run_id: ${{ steps.plan.outputs.validation_run_id }}
       cloudflare: ${{ steps.plan.outputs.cloudflare }}
       unifi: ${{ steps.plan.outputs.unifi }}
+      crafty: ${{ steps.plan.outputs.crafty }}
     steps:
       - name: Create private plans and link their review logs
         id: plan
@@ -81,8 +82,8 @@ jobs:
           export SOURCE_SHA VALIDATION_RUN_ID
           printf 'source_sha=%s\nvalidation_run_id=%s\n' "$SOURCE_SHA" "$VALIDATION_RUN_ID" >> "$GITHUB_OUTPUT"
           case "$ROOT" in
-            all) roots=(cloudflare unifi) ;;
-            cloudflare|unifi) roots=("$ROOT") ;;
+            all) roots=(cloudflare unifi crafty) ;;
+            cloudflare|unifi|crafty) roots=("$ROOT") ;;
             *) exit 1 ;;
           esac
           runs=()
@@ -121,13 +122,14 @@ jobs:
     environment: terraform-production
     timeout-minutes: 45
     steps:
-      - name: "Apply saved plans (cloudflare:${{ needs.plan.outputs.cloudflare }}, unifi:${{ needs.plan.outputs.unifi }})"
+      - name: "Apply saved plans (cloudflare:${{ needs.plan.outputs.cloudflare }}, unifi:${{ needs.plan.outputs.unifi }}, crafty:${{ needs.plan.outputs.crafty }})"
         env:
           GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
           SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
           VALIDATION_RUN_ID: ${{ needs.plan.outputs.validation_run_id }}
           CLOUDFLARE_PLAN: ${{ needs.plan.outputs.cloudflare }}
           UNIFI_PLAN: ${{ needs.plan.outputs.unifi }}
+          CRAFTY_PLAN: ${{ needs.plan.outputs.crafty }}
         run: |
           set +x
           set -euo pipefail
@@ -159,8 +161,12 @@ jobs:
             printf '%s\n' 'Source main changed. Start a new review workflow.' >&2
             exit 1
           }
-          for TERRAFORM_ROOT in cloudflare unifi; do
-            if [[ "$TERRAFORM_ROOT" == cloudflare ]]; then PLAN_RUN_ID=$CLOUDFLARE_PLAN; else PLAN_RUN_ID=$UNIFI_PLAN; fi
+          for TERRAFORM_ROOT in cloudflare unifi crafty; do
+            case "$TERRAFORM_ROOT" in
+              cloudflare) PLAN_RUN_ID=$CLOUDFLARE_PLAN ;;
+              unifi) PLAN_RUN_ID=$UNIFI_PLAN ;;
+              crafty) PLAN_RUN_ID=$CRAFTY_PLAN ;;
+            esac
             [[ -n "$PLAN_RUN_ID" ]] || continue
             [[ "$PLAN_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             export TERRAFORM_ROOT PLAN_RUN_ID
