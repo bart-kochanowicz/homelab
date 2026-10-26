@@ -194,9 +194,10 @@ NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
 bind when their first consumer is scheduled. The default class applies only
 to claims without an explicit storage class; existing claims keep their disks.
 
-Crafty mounts `crafty-servers` at `/crafty/servers` on NVMe. Its backups and
-panel configuration remain on the SATA-backed `crafty-data` claim. Both are
-local volumes; a worker failure makes both unavailable.
+Crafty stores servers, panel configuration, logs and imports in the shared
+`crafty-data-nvme` claim (120Gi), mounted through separate subdirectories.
+Only `/crafty/backups` uses the SATA-backed `crafty-data` claim. Both are local
+volumes; a worker failure makes both unavailable.
 
 The worker requires `talos/patches/worker-nvme.yaml`: Talos exposes `/var/mnt`
 read-only to kubelet, so the NVMe directory needs its own writable bind mount.
