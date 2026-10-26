@@ -5,6 +5,10 @@ applications; Cilium handles networking and firewall policies. Envoy Gateway and
 MetalLB provide separate Home and Admin HTTPS entry points. Terraform manages
 UniFi and Cloudflare; Ansible manages Houston, the Terraform host.
 
+<p align="center">
+  <img src="docs/images/homelab.jpg" width="520" alt="Homelab rack with two Lenovo ThinkCentre nodes and a Dell Wyse 3040.">
+</p>
+
 Home Assistant uses host networking for LAN discovery. Minecraft is available
 only from Home, Admin and WireGuard, on TCP `30000`.
 
