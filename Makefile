@@ -48,6 +48,8 @@ validate-format: validate-terraform-layout
 	terraform -chdir=terraform/cloudflare validate -no-color
 	terraform -chdir=terraform/unifi init -backend=false -input=false -lockfile=readonly
 	terraform -chdir=terraform/unifi validate -no-color
+	terraform -chdir=terraform/crafty init -backend=false -input=false -lockfile=readonly
+	terraform -chdir=terraform/crafty validate -no-color
 	terraform -chdir=terraform/examples/garage-backend init -backend=false -input=false
 	terraform -chdir=terraform/examples/garage-backend validate -no-color
 	terraform -chdir=terraform/examples/garage-restore init -backend=false -input=false

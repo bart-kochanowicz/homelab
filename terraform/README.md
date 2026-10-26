@@ -4,6 +4,7 @@
 | --- | --- | --- |
 | [cloudflare](cloudflare/) | Private R2 state backups and Brevo DNS | `prod/homelab/terraform.tfstate` |
 | [unifi](unifi/) | LANs, Wi-Fi, ports, DNS, firewall and VPN | `prod/unifi/terraform.tfstate` |
+| [crafty](crafty/) | Minecraft server API configuration | `prod/crafty/terraform.tfstate` |
 
 Deployable roots live in `terraform/<name>/`; shared modules live in `modules/`.
 Each root has its own state. Tool versions come from `aqua.yaml` and committed
@@ -15,7 +16,7 @@ Successful `main` validation starts the
 [Terraform workflow](https://github.com/bart-kochanowicz/homelab/actions/workflows/terraform-dispatch.yaml).
 Houston creates plans in the private automation repository. Review the linked
 plan logs, then use **Review deployments → Approve and deploy** to apply those
-saved plans. Manual runs select `all`, `cloudflare` or `unifi`. Changed source,
+saved plans. Manual runs select `all`, `cloudflare`, `unifi` or `crafty`. Changed source,
 changed state or an expired plan requires a new plan and approval.
 
 The runner reads [private Actions credentials](https://github.com/bart-kochanowicz/homelab-automation#github-configuration).
