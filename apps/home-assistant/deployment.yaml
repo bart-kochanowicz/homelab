@@ -82,7 +82,7 @@ spec:
       volumes:
       - name: config
         persistentVolumeClaim:
-          claimName: home-assistant-config
+          claimName: home-assistant-data-nvme
       - name: config-file
         configMap:
           name: home-assistant-config
