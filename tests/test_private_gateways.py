@@ -380,7 +380,14 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(env["N8N_ENCRYPTION_KEY"]["valueFrom"], {
             "secretKeyRef": {"name": "n8n-secret", "key": "N8N_ENCRYPTION_KEY"},
         })
-        self.assertIn({"name": "n8n-data", "persistentVolumeClaim": {"claimName": "n8n-data"}}, pod["volumes"])
+        claim = next(item for item in resources if item["kind"] == "PersistentVolumeClaim")
+        self.assertEqual(claim["spec"]["storageClassName"], "local-path-nvme")
+        self.assertIn({"name": "n8n-data", "persistentVolumeClaim": {"claimName": claim["metadata"]["name"]}},
+                      pod["volumes"])
+        backup = next(item for item in self.rendered("system-backups.yaml") if
+                      item["kind"] == "PreBackupPod" and item["metadata"]["namespace"] == "n8n")
+        source = next(item for item in backup["spec"]["pod"]["spec"]["volumes"] if item["name"] == "data")
+        self.assertEqual(source["persistentVolumeClaim"]["claimName"], claim["metadata"]["name"])
         self.assertEqual(deployment["metadata"]["annotations"]["secret.reloader.stakater.com/reload"],
                          certificate["spec"]["secretName"])
         self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})
