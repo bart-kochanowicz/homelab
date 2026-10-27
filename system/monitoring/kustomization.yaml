@@ -5,6 +5,7 @@ namespace: monitoring
 
 resources:
   - namespace.yaml
+  - grafana-pvc.yaml
   - certificate.yaml
   - backend-tls-policy.yaml
   - httproute.yaml
