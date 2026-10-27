@@ -169,7 +169,7 @@
     },
     {
       "id": 3,
-      "title": "Houston backup age",
+      "title": "Daily Houston backup age",
       "type": "stat",
       "description": "Age of the oldest completed K8up backup across Home Assistant, n8n and Grafana. Empty until all three namespaces have a successful backup. Restore testing is separate.",
       "datasource": {
@@ -208,7 +208,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((time() - min(homelab:backup_last_success_timestamp_seconds)) / 86400) and on() (count(homelab:backup_last_success_timestamp_seconds) == 3)",
+          "expr": "((time() - min(homelab:backup_last_success_timestamp_seconds{namespace!=\"crafty-controller\"})) / 86400) and on() (count(homelab:backup_last_success_timestamp_seconds{namespace!=\"crafty-controller\"}) == 3)",
           "legendFormat": "",
           "range": false,
           "instant": true

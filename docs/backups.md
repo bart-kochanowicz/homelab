@@ -1,13 +1,16 @@
 # Application backups
 
 K8up backs up Home Assistant, n8n and Grafana daily at **03:00 Europe/Warsaw**.
+The Crafty panel is copied on Mondays at 03:00, retaining the latest snapshot and
+four weekly snapshots. K8up requires a positive daily retention value; zero defaults
+to 14 days. With weekly backups, the latest snapshot also belongs to a retained week.
 [Crafty/Minecraft](../terraform/crafty/README.md) uses native ZIP backups on the
 worker's SATA disk; disposable Prometheus data is excluded. K8up repositories live on
-Houston's SSD at `/srv/terraform/backups/restic/{home-assistant,n8n,monitoring}`.
+Houston's SSD at `/srv/terraform/backups/restic/{home-assistant,n8n,monitoring,crafty-controller}`.
 `system/backups/values.yaml` lists the PVCs, database names and filesystem users;
-one Helm template generates the shared configuration for all three applications.
+one Helm template generates their shared configuration.
 Empty resource objects match K8up's stored defaults and prevent ArgoCD drift.
-Retention keeps 7 daily, 4 weekly and 3 monthly snapshots; pruning runs Sunday at
+Daily applications retain 7 daily, 4 weekly and 3 monthly snapshots; pruning runs Sunday at
 05:00. Sunday checks at 04:00 read and verify every stored data block.
 
 Each backup mounts the application's PVC read-only, uses SQLite's online backup
@@ -16,6 +19,11 @@ archive of the remaining files before streaming it to restic. Applications
 keep running. Database copies are transactional; other files are copied during
 normal operation and do not form an atomic application-wide snapshot. Preparation
 uses at most 4 GiB of temporary node storage and does not change PVC ownership.
+
+Crafty's preparation mounts only the `app-config` subdirectory of `crafty-data-nvme`.
+It copies `db/crafty.sqlite` through SQLite's backup API. Runtime `session.lock` and
+recreated `db/servers` statistics/cache data are excluded; game files use Crafty's
+separate SATA backups. Restore the panel configuration and game directories together.
 
 ## Storage and credentials
 
@@ -32,6 +40,11 @@ copy of repository passwords, TLS keys and the offline CA key. Losing a reposito
 password prevents recovery. `system/backups/ca.crt` is public trust material.
 Renew the server certificate before expiry, preserving its IP SAN and distributing
 new CA trust before a CA change.
+
+For an HTTP-password rotation, prepare the bcrypt file and matching SealedSecret.
+Apply Houston's credentials while backup jobs are idle, then sync `backups` and
+verify access and an existing snapshot restore. Keep repository encryption passwords
+unchanged so existing snapshots remain readable.
 
 Install CRDs before the operator. The operator chart skips Helm hooks because
 its legacy cleanup hook removes old executor RBAC across namespaces. Sync backup

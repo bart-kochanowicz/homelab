@@ -20,4 +20,5 @@ ATM10 uses a native ZIP backup policy on the worker's SATA disk. The schedule
 runs on Mondays at 03:00 Europe/Warsaw and keeps the four latest archives.
 Crafty stops the game for each copy and restarts it only if it was running;
 the panel stays up. Terraform manages the existing policy and its schedule.
-These backups cover the game directory, not the panel database or configuration.
+The game policy covers the server directory. [K8up](../../docs/backups.md) copies
+the panel database and configuration separately to Houston.

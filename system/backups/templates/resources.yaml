@@ -35,7 +35,8 @@ spec:
         - -ec
         args:
         - |
-          tar -C /data --exclude='./{{ $app.database }}' --exclude='./{{ $app.database }}-*'{{ if $app.excludeLog }} --exclude='./{{ $app.excludeLog }}'{{ end }} -cf /staging/files.tar .
+          tar -C /data --exclude='./{{ $app.database }}' --exclude='./{{ $app.database }}-*'{{ if $app.excludeLog }} --exclude='./{{ $app.excludeLog }}'{{ end }}{{ range $path := $app.excludePaths }} --exclude='./{{ $path }}'{{ end }} -cf /staging/files.tar .
+          mkdir -p "/staging/$(dirname '{{ $app.database }}')"
           sqlite3 -readonly -bail -cmd '.timeout 60000' /data/{{ $app.database }} '.backup /staging/{{ $app.database }}'
           tar -C /staging -cf /staging/application.tar files.tar {{ $app.database }}
         securityContext:
@@ -57,6 +58,9 @@ spec:
         - name: data
           mountPath: /data
           readOnly: true
+{{- with $app.subPath }}
+          subPath: {{ . }}
+{{- end }}
         - name: staging
           mountPath: /staging
       containers:
@@ -219,7 +223,7 @@ spec:
   failedJobsHistoryLimit: 1
   resourceRequirementsTemplate: {}
   backup:
-    schedule: 0 3 * * *
+    schedule: {{ $app.schedule | default "0 3 * * *" | quote }}
     resources: {}
     activeDeadlineSeconds: 1200
     volumes:
@@ -250,9 +254,7 @@ spec:
       configMap:
         name: houston-backup-ca
     retention:
-      keepDaily: 7
-      keepWeekly: 4
-      keepMonthly: 3
+{{ $app.retention | default (dict "keepDaily" 7 "keepWeekly" 4 "keepMonthly" 3) | toYaml | indent 6 }}
       hostnames:
       - {{ $app.namespace }}
       tags:

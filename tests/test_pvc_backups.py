@@ -14,7 +14,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 DATABASES = {"home-assistant": "home-assistant_v2.db",
-             "n8n": "database.sqlite", "monitoring": "grafana.db"}
+             "n8n": "database.sqlite", "monitoring": "grafana.db",
+             "crafty-controller": "db/crafty.sqlite"}
 
 
 class PvcBackupTests(unittest.TestCase):
@@ -54,6 +55,7 @@ class PvcBackupTests(unittest.TestCase):
         source, staging = self.root / namespace / "source", self.root / namespace / "staging"
         source.mkdir(parents=True)
         staging.mkdir()
+        (source / DATABASES[namespace]).parent.mkdir(parents=True, exist_ok=True)
         (source / ".storage").mkdir()
         (source / ".storage/settings.json").write_text('{"fixture": "nested configuration"}\n')
         (source / "config.yaml").write_text("fixture: application configuration\n")
@@ -88,16 +90,16 @@ class PvcBackupTests(unittest.TestCase):
             with self.subTest(namespace=namespace):
                 source, staging = self.source(namespace)
                 self.open_wal(namespace, source)
-                originals = {path: path.read_bytes() for path in source.iterdir()
+                originals = {path: path.read_bytes() for path in source.rglob("*")
                              if path.is_file() and not path.name.endswith("-shm")}
-                for path in source.iterdir():
+                for path in source.rglob("*"):
                     path.chmod(0o555 if path.is_dir() else 0o444)
                 source.chmod(0o555)
                 try:
                     prepared = self.prepare(namespace, source, staging)
                 finally:
                     source.chmod(0o700)
-                    for path in source.iterdir():
+                    for path in source.rglob("*"):
                         path.chmod(0o700 if path.is_dir() else 0o600)
                 self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
                 for path, contents in originals.items():
@@ -203,6 +205,35 @@ class PvcBackupTests(unittest.TestCase):
         self.assertIn(".storage/settings.json", names)
         self.assertFalse({DATABASES["home-assistant"] + suffix for suffix in ("", "-wal", "-shm")} & names)
         self.assertFalse({"home-assistant.log", "home-assistant.log.1"} & names)
+
+    def test_crafty_copy_excludes_disposable_stats_and_the_runtime_lock(self):
+        source, staging = self.source("crafty-controller")
+        self.open_wal("crafty-controller", source)
+        (source / "db/servers/example").mkdir(parents=True)
+        (source / "db/servers/example/crafty_server_stats.sqlite").write_bytes(b"live stats fixture")
+        (source / "session.lock").write_text("runtime lock fixture")
+        prepared = self.prepare("crafty-controller", source, staging)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+        with tarfile.open(staging / "files.tar") as files:
+            names = {name.removeprefix("./") for name in files.getnames()}
+        self.assertNotIn("session.lock", names)
+        self.assertFalse(any(name.startswith("db/servers") for name in names))
+        self.assertFalse({"db/crafty.sqlite" + suffix for suffix in ("", "-wal", "-shm")} & names)
+
+    def test_crafty_preparation_mounts_only_panel_configuration_and_keeps_four_weekly_copies(self):
+        spec = self.prebackups["crafty-controller"]["spec"]["pod"]["spec"]
+        source = next(volume for volume in spec["volumes"] if "persistentVolumeClaim" in volume)
+        self.assertEqual(source["persistentVolumeClaim"]["claimName"], "crafty-data-nvme")
+        mount = next(mount for mount in spec["initContainers"][0]["volumeMounts"]
+                     if mount["name"] == source["name"])
+        self.assertEqual(mount["subPath"], "app-config")
+        schedule = next(item["spec"] for item in self.resources if item["kind"] == "Schedule"
+                        and item["metadata"]["namespace"] == "crafty-controller")
+        self.assertEqual(schedule["backup"]["schedule"], "0 3 * * 1")
+        self.assertEqual(schedule["prune"]["retention"], {
+            "keepDaily": 1, "keepWeekly": 4,
+            "hostnames": ["crafty-controller"], "tags": ["homelab"],
+        })
 
     def test_preparation_is_tokenless_and_only_init_containers_can_access_live_pvcs(self):
         self.assertEqual(set(self.prebackups), set(DATABASES))

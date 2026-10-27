@@ -151,7 +151,7 @@ spec:
           expr: |
             max by (namespace) (
               k8up_backup_condition_transition_time_seconds{
-                namespace=~"home-assistant|n8n|monitoring",
+                namespace=~"home-assistant|n8n|monitoring|crafty-controller",
                 type="Completed",status="True",reason="Succeeded"
               }
             )
@@ -159,12 +159,12 @@ spec:
           expr: |
             max by (namespace) (
               k8up_backup_condition_transition_time_seconds{
-                namespace=~"home-assistant|n8n|monitoring",
+                namespace=~"home-assistant|n8n|monitoring|crafty-controller",
                 type="Completed",status="True",reason!="Succeeded"
               }
               or
               k8up_backup_condition_transition_time_seconds{
-                namespace=~"home-assistant|n8n|monitoring",
+                namespace=~"home-assistant|n8n|monitoring|crafty-controller",
                 type="PreBackupPodReady",status="False",
                 reason!~"Waiting|Ready|NoPreBackupPodsFound|Finished|Succeeded"
               }
@@ -188,7 +188,7 @@ spec:
             description: 'Inspect K8up Backup resources in {{ $labels.namespace }}, including the PreBackupPod initialization.'
         - alert: HoustonPvcBackupMissing
           expr: |
-            kube_namespace_created{namespace=~"home-assistant|n8n|monitoring"}
+            kube_namespace_created{namespace=~"home-assistant|n8n|monitoring|crafty-controller"}
             unless on(namespace) homelab:backup_last_success_timestamp_seconds
           for: 24h
           labels:
@@ -197,18 +197,26 @@ spec:
             summary: No successful Houston PVC backup has been recorded
             description: 'No completed K8up backup is available for {{ $labels.namespace }}.'
         - alert: HoustonPvcBackupStale
-          expr: time() - homelab:backup_last_success_timestamp_seconds > 129600
+          expr: time() - homelab:backup_last_success_timestamp_seconds{namespace!="crafty-controller"} > 129600
           for: 1h
           labels:
             severity: warning
           annotations:
             summary: The latest successful Houston PVC backup is over 36 hours old
             description: 'Check the daily K8up schedule and Backup resources in {{ $labels.namespace }}.'
+        - alert: HoustonWeeklyPvcBackupStale
+          expr: time() - homelab:backup_last_success_timestamp_seconds{namespace="crafty-controller"} > 691200
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: The latest successful Crafty panel backup is over eight days old
+            description: Check the Monday 03:00 K8up schedule and Backup resources in crafty-controller.
         - alert: HoustonPvcBackupStuck
           expr: |
             (
               time() - k8up_backup_created_timestamp_seconds{
-                namespace=~"home-assistant|n8n|monitoring"
+                namespace=~"home-assistant|n8n|monitoring|crafty-controller"
               } > 1800
               unless on(namespace, name)
               k8up_backup_condition_transition_time_seconds{type="Completed",status="True"}

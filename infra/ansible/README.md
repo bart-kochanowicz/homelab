@@ -109,7 +109,7 @@ token. Follow [GitHub's runner update requirements](https://docs.github.com/en/a
 The opt-in `restic_server` role installs checksum-pinned REST-server 0.14.0.
 It listens on `10.0.70.10:8444` with TLS 1.3 and bcrypt authentication; systemd
 allows connections only from the two cluster nodes and Houston itself. Private
-repositories isolate the `home-assistant`, `n8n` and `monitoring` users. A native
+repositories isolate the `home-assistant`, `n8n`, `monitoring` and `crafty-controller` users. A native
 90 GiB limit covers **all repositories combined**, leaving SSD space for Garage.
 K8up manages backup scheduling, retention and checks in Kubernetes; Houston needs
 no Kubernetes credentials. Retention requires deletion, so append-only is disabled.

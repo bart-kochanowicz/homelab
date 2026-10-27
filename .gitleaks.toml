@@ -21,6 +21,7 @@ paths = [
   '''^system/argocd/argocd-sso-sealed-secret\.yaml$''',
   '''^system/monitoring/grafana-admin-sealed-secret\.yaml$''',
   '''^system/monitoring/alertmanager-email-sealed-secret\.yaml$''',
+  '''^system/backups/crafty-controller-sealed-secret\.yaml$''',
   '''^system/backups/home-assistant-sealed-secret\.yaml$''',
   '''^system/backups/n8n-sealed-secret\.yaml$''',
   '''^system/backups/monitoring-sealed-secret\.yaml$''',
