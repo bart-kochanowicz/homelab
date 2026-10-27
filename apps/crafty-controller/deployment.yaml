@@ -50,14 +50,15 @@ spec:
             - name: backend-tls
               mountPath: /crafty/app/config/web/certs
               readOnly: true
-            - name: crafty-data
+            - name: crafty-backups
               mountPath: /crafty/backups
               subPath: backups
             - name: crafty-data
               mountPath: /crafty/logs
               subPath: logs
-            - name: crafty-servers
+            - name: crafty-data
               mountPath: /crafty/servers
+              subPath: servers
             - name: crafty-data
               mountPath: /crafty/config
               subPath: config
@@ -84,9 +85,9 @@ spec:
                 path: commander.cert.pem
               - key: tls.key
                 path: commander.key.pem
-        - name: crafty-data
+        - name: crafty-backups
           persistentVolumeClaim:
             claimName: crafty-data
-        - name: crafty-servers
+        - name: crafty-data
           persistentVolumeClaim:
-            claimName: crafty-servers
+            claimName: crafty-data-nvme

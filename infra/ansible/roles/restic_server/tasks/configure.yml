@@ -83,18 +83,18 @@
         src: "{{ restic_server_htpasswd_source }}"
       register: restic_server_htpasswd
 
-    - name: Restrict authentication to the three application repositories
+    - name: Restrict authentication to the application repositories
       ansible.builtin.assert:
         that:
           - >-
             (restic_server_htpasswd.content | b64decode).splitlines()
             | reject('equalto', '') | map('regex_replace', ':.*$', '')
-            | sort == ['home-assistant', 'monitoring', 'n8n']
+            | sort == ['crafty-controller', 'home-assistant', 'monitoring', 'n8n']
           - >-
             (restic_server_htpasswd.content | b64decode).splitlines()
             | select('match', '^[a-z0-9-]+:\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$')
-            | list | length == 3
-        fail_msg: Supply exactly one bcrypt entry each for home-assistant, monitoring and n8n.
+            | list | length == 4
+        fail_msg: Supply exactly one bcrypt entry each for crafty-controller, home-assistant, monitoring and n8n.
 
 - name: Create the unprivileged repository account
   ansible.builtin.user:

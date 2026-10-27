@@ -11,6 +11,13 @@ announces their virtual IPs on the Servers VLAN:
 | Home | `10.0.70.200` | Home Assistant from Home, Admin and WireGuard |
 | Admin | `10.0.70.201` | Administrative panels and webhooks from Admin and WireGuard |
 
+Houston (`10.0.70.10`) may reach only Crafty's `/api/v2/servers` API and its
+subpaths through Admin. Envoy checks source IP, hostname and path together;
+API authentication remains required. Verify authorization before widening
+Service or Cilium source ranges. SecurityPolicy resources belong to the platform.
+Both gateways use the TCP peer address for client IP detection; forwarded
+headers from clients are not trusted for access decisions.
+
 UniFi provides private DNS and routes traffic between VLANs. Talos uses
 `10.0.70.1` as upstream DNS so CoreDNS can resolve these records too.
 `talos/patches/dns.yaml` is a JSON Patch: strategic merge appends resolvers
@@ -175,20 +182,36 @@ Crafty/Minecraft is excluded. Restore commands, credentials and retention are
 specified in that guide. In-place recovery requires an explicit maintenance
 window and protection from ArgoCD self-heal.
 
+`system/backups/values.yaml` selects source claims explicitly. Keep these aligned
+with application mounts and manually sync the `backups` ArgoCD Application after
+changes.
+
 Namespaces and PVCs have ArgoCD `Prune=false,Delete=false`; ApplicationSets
 preserve their resources. Namespace deletion still cascades to workloads and PVCs.
 Local-path volumes use `Retain`, directory mode `0770` and application-specific
-ownership. Removing retained data requires a backup, PVC deletion, inspection of
-the PV's node/path, PV deletion and removal of the directory through Talos access.
+ownership. Before removing retained data, verify a backup, the PV's node/path and
+that no pod uses its PVC. For intentional cleanup, change only that PV's reclaim
+policy to `Delete`, then delete its unused PVC; the provisioner removes its directory.
 
-`local-path` stores worker volumes on SATA at `/var/mnt/minecraft`.
-`local-path-nvme` stores worker volumes under `/var/mnt/nvme`, sharing Talos's
+`local-path` reserves the worker's SATA at `/var/mnt/minecraft` for Crafty backups.
+Its setup hook rejects other SATA claims; neither storage class provisions on other nodes.
+The default class, `local-path-nvme`, stores worker volumes under `/var/mnt/nvme`, sharing Talos's
 NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
-bind when their first consumer is scheduled.
+bind when their first consumer is scheduled. The default class applies only
+to claims without an explicit storage class; existing claims keep their disks.
 
-Crafty mounts `crafty-servers` at `/crafty/servers` on NVMe. Its backups and
-panel configuration remain on the SATA-backed `crafty-data` claim. Both are
-local volumes; a worker failure makes both unavailable.
+Home Assistant uses `home-assistant-data-nvme` (32Gi); n8n uses `n8n-data-nvme`
+(20Gi); Grafana uses `grafana-data-nvme` (10Gi). These claims use NVMe, and their
+backups are stored on Houston.
+
+Prometheus (50Gi) and Alertmanager (5Gi) also use NVMe. Their StatefulSet claims
+are retained on scaling and deletion. Changing claim templates requires pausing
+operator reconciliation and recreating the StatefulSets during a maintenance window.
+
+Crafty stores servers, panel configuration, logs and imports in the shared
+`crafty-data-nvme` claim (120Gi), mounted through separate subdirectories.
+Only `/crafty/backups` uses the SATA-backed `crafty-data` claim. Both are local
+volumes; a worker failure makes both unavailable.
 
 The worker requires `talos/patches/worker-nvme.yaml`: Talos exposes `/var/mnt`
 read-only to kubelet, so the NVMe directory needs its own writable bind mount.

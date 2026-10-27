@@ -72,10 +72,10 @@ class PrivateGatewayTests(unittest.TestCase):
         classes = {item["metadata"]["name"]: item for item in self.resources_of_kind("GatewayClass")}
         allowed = {
             "private-home": {"10.0.40.42", "10.0.80.42", "10.0.100.42"},
-            "private-admin": {"10.0.80.42", "10.0.100.42"},
+            "private-admin": {"10.0.70.10", "10.0.80.42", "10.0.100.42"},
         }
         clients = {"10.0.30.42", "10.0.40.42", "10.0.50.42", "10.0.60.42",
-                   "10.0.70.11", "10.0.70.42", "10.0.80.42", "10.0.90.42",
+                   "10.0.70.10", "10.0.70.11", "10.0.70.42", "10.0.80.42", "10.0.90.42",
                    "10.0.100.42", "10.244.1.42", "192.0.2.42"}
         for config in self.resources_of_kind("EnvoyProxy"):
             name = config["metadata"]["name"]
@@ -175,7 +175,7 @@ class PrivateGatewayTests(unittest.TestCase):
                 target,
             ])
             detection = policy["spec"]["clientIPDetection"]
-            self.assertEqual(detection, {"xForwardedFor": {"numTrustedHops": 0}})
+            self.assertEqual(detection, {"directSourceIP": {}})
             expected_alpn = ["http/1.1"] if policy["metadata"]["name"] == "private-admin" else ["h2", "http/1.1"]
             self.assertEqual(policy["spec"]["tls"]["alpnProtocols"], expected_alpn)
 
@@ -380,7 +380,14 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(env["N8N_ENCRYPTION_KEY"]["valueFrom"], {
             "secretKeyRef": {"name": "n8n-secret", "key": "N8N_ENCRYPTION_KEY"},
         })
-        self.assertIn({"name": "n8n-data", "persistentVolumeClaim": {"claimName": "n8n-data"}}, pod["volumes"])
+        claim = next(item for item in resources if item["kind"] == "PersistentVolumeClaim")
+        self.assertEqual(claim["spec"]["storageClassName"], "local-path-nvme")
+        self.assertIn({"name": "n8n-data", "persistentVolumeClaim": {"claimName": claim["metadata"]["name"]}},
+                      pod["volumes"])
+        backup = next(item for item in self.rendered("system-backups.yaml") if
+                      item["kind"] == "PreBackupPod" and item["metadata"]["namespace"] == "n8n")
+        source = next(item for item in backup["spec"]["pod"]["spec"]["volumes"] if item["name"] == "data")
+        self.assertEqual(source["persistentVolumeClaim"]["claimName"], claim["metadata"]["name"])
         self.assertEqual(deployment["metadata"]["annotations"]["secret.reloader.stakater.com/reload"],
                          certificate["spec"]["secretName"])
         self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})
@@ -701,6 +708,19 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(volume["secret"], {"secretName": certificate["spec"]["secretName"],
                                             "defaultMode": 0o440})
         self.assertEqual(pod["securityContext"]["fsGroup"], 472)
+        claims = [item for item in resources if item["kind"] == "PersistentVolumeClaim" and
+                  item["metadata"]["labels"].get("app.kubernetes.io/name") == "grafana"]
+        self.assertEqual(len(claims), 1)
+        claim = claims[0]
+        self.assertEqual(claim["spec"]["storageClassName"], "local-path-nvme")
+        self.assertEqual(claim["metadata"]["annotations"]["argocd.argoproj.io/sync-options"],
+                         "Prune=false,Delete=false")
+        self.assertIn({"name": "storage", "persistentVolumeClaim": {"claimName": claim["metadata"]["name"]}},
+                      pod["volumes"])
+        backup = next(item for item in self.rendered("system-backups.yaml") if
+                      item["kind"] == "PreBackupPod" and item["metadata"]["namespace"] == "monitoring")
+        source = next(item for item in backup["spec"]["pod"]["spec"]["volumes"] if item["name"] == "data")
+        self.assertEqual(source["persistentVolumeClaim"]["claimName"], claim["metadata"]["name"])
         for key, filename in (("cert_file", "tls.crt"), ("cert_key", "tls.key")):
             self.assertEqual(settings["server"][key], f'{mount["mountPath"]}/{filename}')
         self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})

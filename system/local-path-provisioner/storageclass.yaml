@@ -2,11 +2,19 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: local-path
+  labels:
+    app.kubernetes.io/name: crafty-controller
+    app.kubernetes.io/component: backups
+    app.kubernetes.io/part-of: homelab
   annotations:
     argocd.argoproj.io/sync-options: Replace=true
-    storageclass.kubernetes.io/is-default-class: "true"
+    storageclass.kubernetes.io/is-default-class: "false"
 provisioner: rancher.io/local-path
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Retain
 parameters:
   pathPattern: "{{ .PVC.Namespace }}/{{ .PVC.Name }}/{{ .PVName }}"
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: kubernetes.io/hostname
+        values: [talos-2jn-7he]

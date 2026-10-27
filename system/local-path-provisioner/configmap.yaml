@@ -16,7 +16,7 @@ data:
             },
             {
               "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
-              "paths": ["/opt/local-path-provisioner"]
+              "paths": []
             }
           ]
         },
@@ -37,21 +37,33 @@ data:
   setup: |-
     #!/bin/sh
     set -eu
+    case "$VOL_DIR" in
+      /var/mnt/minecraft/crafty-controller/crafty-data/*|\
+      /var/mnt/minecraft/pvc-*_crafty-controller_crafty-data)
+        ;;
+      /var/mnt/minecraft|/var/mnt/minecraft/*)
+        echo "SATA storage is reserved for Crafty backups" >&2
+        exit 1
+        ;;
+    esac
     mkdir -m 0770 -p "$VOL_DIR"
     case "$VOL_DIR" in
-      */n8n/n8n-data/*|*_n8n_n8n-data)
+      */n8n/n8n-data/*|*_n8n_n8n-data|*/n8n/n8n-data-nvme/*|*_n8n_n8n-data-nvme)
         chown 1000:1000 "$VOL_DIR"
         ;;
-      */monitoring/kube-prometheus-stack-grafana/*|*_monitoring_kube-prometheus-stack-grafana)
+      */monitoring/kube-prometheus-stack-grafana/*|*_monitoring_kube-prometheus-stack-grafana|\
+      */monitoring/grafana-data-nvme/*|*_monitoring_grafana-data-nvme)
         chown 472:472 "$VOL_DIR"
         ;;
       */monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0/*|\
       *_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0|\
       */monitoring/alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0/*|\
-      *_monitoring_alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0)
+      *_monitoring_alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0|\
+      */monitoring/prometheus-data-nvme-*/*|*_monitoring_prometheus-data-nvme-*|\
+      */monitoring/alertmanager-data-nvme-*/*|*_monitoring_alertmanager-data-nvme-*)
         chown 1000:2000 "$VOL_DIR"
         ;;
-      */crafty-controller/crafty-servers/*|*_crafty-controller_crafty-servers)
+      */crafty-controller/*|*_crafty-controller_*)
         chown 1000:0 "$VOL_DIR"
         ;;
       *)

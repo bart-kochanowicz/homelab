@@ -6,7 +6,7 @@ resources:
   - certificate.yaml
   - httproute.yaml
   - service-account.yaml
-  - pvc.yaml
-  - servers-pvc.yaml
+  - backups-pvc.yaml
+  - data-nvme-pvc.yaml
   - deployment.yaml
   - service.yaml

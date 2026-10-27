@@ -45,6 +45,25 @@ class MonitoringDashboardTests(unittest.TestCase):
         env = {entry["name"]: entry.get("value") for entry in sidecar["env"]}
         self.assertEqual(env["FOLDER_ANNOTATION"], "grafana_folder")
 
+    def test_stateful_monitoring_uses_distinct_retained_nvme_claim_templates(self):
+        for kind, name, size in (("Prometheus", "prometheus-data-nvme", "50Gi"),
+                                 ("Alertmanager", "alertmanager-data-nvme", "5Gi")):
+            with self.subTest(kind=kind):
+                resource = next(item for item in self.resources if item["kind"] == kind)
+                spec = resource["spec"]
+                self.assertFalse(spec.get("paused", False))
+                self.assertEqual(spec["persistentVolumeClaimRetentionPolicy"], {
+                    "whenDeleted": "Retain", "whenScaled": "Retain",
+                })
+                claim = spec["storage"]["volumeClaimTemplate"]
+                self.assertEqual(claim["metadata"]["name"], name)
+                self.assertEqual(claim["metadata"]["annotations"]["argocd.argoproj.io/sync-options"],
+                                 "Prune=false,Delete=false")
+                self.assertEqual(claim["spec"]["storageClassName"], "local-path-nvme")
+                self.assertEqual(claim["spec"]["resources"]["requests"]["storage"], size)
+                self.assertEqual(spec["securityContext"]["runAsUser"], 1000)
+                self.assertEqual(spec["securityContext"]["runAsGroup"], 2000)
+
     def test_uids_and_datasources_match_the_provisioned_instance(self):
         uids = [dashboard["uid"] for dashboard in self.dashboards.values()]
         self.assertEqual(len(uids), len(set(uids)))

@@ -1,0 +1,23 @@
+variable "crafty_url" {
+  description = "Private Crafty Controller URL with verified TLS."
+  type        = string
+  default     = "https://crafty-controller.thecavespace.net"
+  nullable    = false
+
+  validation {
+    condition     = startswith(var.crafty_url, "https://")
+    error_message = "Use an HTTPS Crafty endpoint."
+  }
+}
+
+variable "crafty_token" {
+  description = "Dedicated Crafty API token supplied by the private automation."
+  type        = string
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = length(trimspace(var.crafty_token)) > 0
+    error_message = "The Crafty API token must not be empty."
+  }
+}

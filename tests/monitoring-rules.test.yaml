@@ -45,6 +45,23 @@ tests:
           - labels: 'ALERTS{alertname="HoustonPvcBackupStale",alertstate="firing",namespace="home-assistant",severity="warning"}'
             value: 1
 
+  - name: Weekly Crafty panel backups do not use the daily age limit
+    interval: 1m
+    input_series:
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="crafty-controller",name="panel-success",type="Completed",status="True",reason="Succeeded"}'
+        values: '60+0x11700'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname=~"HoustonPvcBackupStale|HoustonWeeklyPvcBackupStale",alertstate="firing"}) or vector(0)
+        eval_time: 168h
+        exp_samples:
+          - labels: '{}'
+            value: 0
+      - expr: ALERTS{alertname="HoustonWeeklyPvcBackupStale",alertstate="firing"}
+        eval_time: 194h
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonWeeklyPvcBackupStale",alertstate="firing",namespace="crafty-controller",severity="warning"}'
+            value: 1
+
   - name: Backup failures clear only after a newer successful backup
     interval: 1m
     input_series:
@@ -82,6 +99,18 @@ tests:
         exp_samples:
           - labels: '{}'
             value: 0
+
+  - name: Failed Crafty panel preparation alerts before a backup job exists
+    interval: 1m
+    input_series:
+      - series: 'k8up_backup_condition_transition_time_seconds{namespace="crafty-controller",name="panel-failed",type="PreBackupPodReady",status="False",reason="Failed"}'
+        values: '120+0x10'
+    promql_expr_test:
+      - expr: ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing"}
+        eval_time: 6m
+        exp_samples:
+          - labels: 'ALERTS{alertname="HoustonPvcBackupFailed",alertstate="firing",namespace="crafty-controller",severity="critical"}'
+            value: 1
 
   - name: Unfinished backup requests cannot disappear behind absent Job metrics
     interval: 1m

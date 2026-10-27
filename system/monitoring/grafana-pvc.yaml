@@ -1,12 +1,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: crafty-servers
-  namespace: crafty-controller
+  name: grafana-data-nvme
+  namespace: monitoring
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
   labels:
-    app.kubernetes.io/name: crafty-controller
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/part-of: homelab
 spec:
   storageClassName: local-path-nvme
@@ -14,4 +15,4 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 100Gi
+      storage: 10Gi

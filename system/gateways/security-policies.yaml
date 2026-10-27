@@ -1,0 +1,36 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: private-admin-access
+  namespace: private-admin
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: private-admin
+  authorization:
+    defaultAction: Deny
+    rules:
+      - name: admin-and-vpn
+        action: Allow
+        principal:
+          clientCIDRs:
+            - 10.0.80.0/24
+            - 10.0.100.0/24
+      - name: houston-crafty-api
+        action: Allow
+        principal:
+          clientCIDRs:
+            - 10.0.70.10/32
+          headers:
+            - name: ":authority"
+              values:
+                - crafty-controller.thecavespace.net
+                - crafty-controller.thecavespace.net:443
+        operation:
+          path:
+            type: RegularExpression
+            value: "^/api/v2/servers(/[^?]*)?([?].*)?$"

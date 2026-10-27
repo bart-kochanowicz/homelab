@@ -4,19 +4,30 @@ images:
   k8up: ghcr.io/k8up-io/k8up:v2.16.1@sha256:f59bfa37c51511d5ad67e53816fb55c62d0e6411890e59bb6b965923129f30b5
 applications:
 - namespace: home-assistant
-  pvc: home-assistant-config
+  pvc: home-assistant-data-nvme
   database: home-assistant_v2.db
   uid: 0
   gid: 0
   excludeLog: home-assistant.log*
 - namespace: n8n
-  pvc: n8n-data
+  pvc: n8n-data-nvme
   database: database.sqlite
   uid: 1000
   gid: 1000
   excludeLog: n8nEventLog*.log
 - namespace: monitoring
-  pvc: kube-prometheus-stack-grafana
+  pvc: grafana-data-nvme
   database: grafana.db
   uid: 472
   gid: 472
+- namespace: crafty-controller
+  pvc: crafty-data-nvme
+  subPath: app-config
+  database: db/crafty.sqlite
+  uid: 1000
+  gid: 0
+  schedule: '0 3 * * 1'
+  retention:
+    keepDaily: 1
+    keepWeekly: 4
+  excludePaths: [session.lock, db/servers]

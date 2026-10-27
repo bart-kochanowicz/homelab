@@ -61,16 +61,22 @@ grafana:
       serverName: grafana-backend.thecavespace.net
   persistence:
     enabled: true
-    storageClassName: local-path
-    size: 10Gi
+    existingClaim: grafana-data-nvme
 
 prometheus:
   prometheusSpec:
     retention: 30d
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
     storageSpec:
       volumeClaimTemplate:
+        metadata:
+          name: prometheus-data-nvme
+          annotations:
+            argocd.argoproj.io/sync-options: Prune=false,Delete=false
         spec:
-          storageClassName: local-path
+          storageClassName: local-path-nvme
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -89,10 +95,17 @@ alertmanager:
     configSecret: alertmanager-email
     # Notification history must outlive the seven-day delivery check interval.
     retention: 240h
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
     storage:
       volumeClaimTemplate:
+        metadata:
+          name: alertmanager-data-nvme
+          annotations:
+            argocd.argoproj.io/sync-options: Prune=false,Delete=false
         spec:
-          storageClassName: local-path
+          storageClassName: local-path-nvme
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
