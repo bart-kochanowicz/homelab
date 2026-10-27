@@ -49,7 +49,9 @@ data:
       */monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0/*|\
       *_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0|\
       */monitoring/alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0/*|\
-      *_monitoring_alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0)
+      *_monitoring_alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0|\
+      */monitoring/prometheus-data-nvme-*/*|*_monitoring_prometheus-data-nvme-*|\
+      */monitoring/alertmanager-data-nvme-*/*|*_monitoring_alertmanager-data-nvme-*)
         chown 1000:2000 "$VOL_DIR"
         ;;
       */crafty-controller/*|*_crafty-controller_*)
