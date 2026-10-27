@@ -39,7 +39,7 @@ data:
     set -eu
     mkdir -m 0770 -p "$VOL_DIR"
     case "$VOL_DIR" in
-      */n8n/n8n-data/*|*_n8n_n8n-data)
+      */n8n/n8n-data/*|*_n8n_n8n-data|*/n8n/n8n-data-nvme/*|*_n8n_n8n-data-nvme)
         chown 1000:1000 "$VOL_DIR"
         ;;
       */monitoring/kube-prometheus-stack-grafana/*|*_monitoring_kube-prometheus-stack-grafana)

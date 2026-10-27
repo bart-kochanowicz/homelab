@@ -10,7 +10,7 @@ applications:
   gid: 0
   excludeLog: home-assistant.log*
 - namespace: n8n
-  pvc: n8n-data
+  pvc: n8n-data-nvme
   database: database.sqlite
   uid: 1000
   gid: 1000

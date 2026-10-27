@@ -198,6 +198,9 @@ NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
 bind when their first consumer is scheduled. The default class applies only
 to claims without an explicit storage class; existing claims keep their disks.
 
+Home Assistant uses `home-assistant-data-nvme` (32Gi); n8n uses `n8n-data-nvme`
+(20Gi). Both claims use NVMe, and their backups are stored on Houston.
+
 Crafty stores servers, panel configuration, logs and imports in the shared
 `crafty-data-nvme` claim (120Gi), mounted through separate subdirectories.
 Only `/crafty/backups` uses the SATA-backed `crafty-data` claim. Both are local

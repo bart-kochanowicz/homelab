@@ -124,7 +124,7 @@ spec:
       volumes:
       - name: n8n-data
         persistentVolumeClaim:
-          claimName: n8n-data
+          claimName: n8n-data-nvme
       - name: tmp
         emptyDir:
           sizeLimit: 256Mi
