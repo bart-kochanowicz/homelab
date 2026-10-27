@@ -33,13 +33,14 @@ run "road_warrior_server_and_peer" {
   assert {
     condition = (
       unifi_vpn_server.this.subnet == "10.0.100.1/24" &&
-      unifi_vpn_server.this.wan.ip == "198.51.100.10" &&
+      unifi_vpn_server.this.wan.ip == "any" &&
       unifi_vpn_server.this.wan.interface == "wan" &&
+      output.endpoint == "198.51.100.10:51820" &&
       unifi_vpn_server.this.wireguard.port == 51820 &&
       unifi_wireguard_peer.this["macbook-01"].interface_ip == "10.0.100.10" &&
       length(unifi_wireguard_peer.this["macbook-01"].allowed_ips) == 0
     )
-    error_message = "The server requires a gateway CIDR; road-warrior peers must not route homelab destinations toward themselves."
+    error_message = "The server must start without the WAN address assigned, advertise the public endpoint, and avoid routing homelab destinations toward peers."
   }
 }
 

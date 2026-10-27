@@ -5,7 +5,8 @@ resource "unifi_vpn_server" "this" {
   subnet  = "${cidrhost(var.subnet, 1)}/${split("/", var.subnet)[1]}"
 
   wan = {
-    ip        = var.public_ip
+    # PPPoE may assign the public endpoint after WireGuard starts.
+    ip        = "any"
     interface = "wan"
   }
   dns = {

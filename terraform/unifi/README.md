@@ -72,6 +72,9 @@ VPN zone. Clients have Admin access through split routes; ordinary Internet
 traffic stays outside the tunnel. UniFi owns the handshake rule and VPN zone
 membership. WAN/PPPoE, LEOX and mDNS are administrator-managed.
 
+The server listens on `any` so startup does not require the PPPoE address to
+exist yet. Client settings still advertise `vpn_public_ip`.
+
 Client private keys stay on devices; server private keys remain in protected
 state/backups. Add/revoke `vpn_peers` through [plan and apply](../README.md#plan-and-apply).
 Get client settings locally and retain the device's existing `PrivateKey`:
