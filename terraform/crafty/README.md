@@ -16,9 +16,8 @@ Existing panel servers cannot be imported. ZIP server packs must be prepared
 for server use, pinned by SHA-256, and available on Houston; the provider does
 not accept the Minecraft EULA or start the game.
 
-ATM10 uses native ZIP backup policies on the worker's SATA disk. Schedules use
-Europe/Warsaw: daily at 03:00, Sunday at 04:00 and the first day of each month at
-05:00, retaining 7/4/3 archives respectively. Crafty stops the game for each copy
-and restarts it only if it was running. The panel stays up. Policy IDs refer to
-existing Crafty policies; Terraform manages their settings and schedules.
+ATM10 uses a native ZIP backup policy on the worker's SATA disk. The schedule
+runs on Mondays at 03:00 Europe/Warsaw and keeps the four latest archives.
+Crafty stops the game for each copy and restarts it only if it was running;
+the panel stays up. Terraform manages the existing policy and its schedule.
 These backups cover the game directory, not the panel database or configuration.
