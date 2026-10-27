@@ -218,6 +218,8 @@ spec:
   sourceRepos:
     - https://github.com/bart-kochanowicz/homelab.git
   destinations:
+    - namespace: crafty-controller
+      server: https://kubernetes.default.svc
     - namespace: home-assistant
       server: https://kubernetes.default.svc
     - namespace: n8n
