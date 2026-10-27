@@ -61,8 +61,7 @@ grafana:
       serverName: grafana-backend.thecavespace.net
   persistence:
     enabled: true
-    storageClassName: local-path
-    size: 10Gi
+    existingClaim: grafana-data-nvme
 
 prometheus:
   prometheusSpec:

@@ -16,7 +16,7 @@ applications:
   gid: 1000
   excludeLog: n8nEventLog*.log
 - namespace: monitoring
-  pvc: kube-prometheus-stack-grafana
+  pvc: grafana-data-nvme
   database: grafana.db
   uid: 472
   gid: 472

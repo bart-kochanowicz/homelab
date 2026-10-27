@@ -708,6 +708,19 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(volume["secret"], {"secretName": certificate["spec"]["secretName"],
                                             "defaultMode": 0o440})
         self.assertEqual(pod["securityContext"]["fsGroup"], 472)
+        claims = [item for item in resources if item["kind"] == "PersistentVolumeClaim" and
+                  item["metadata"]["labels"].get("app.kubernetes.io/name") == "grafana"]
+        self.assertEqual(len(claims), 1)
+        claim = claims[0]
+        self.assertEqual(claim["spec"]["storageClassName"], "local-path-nvme")
+        self.assertEqual(claim["metadata"]["annotations"]["argocd.argoproj.io/sync-options"],
+                         "Prune=false,Delete=false")
+        self.assertIn({"name": "storage", "persistentVolumeClaim": {"claimName": claim["metadata"]["name"]}},
+                      pod["volumes"])
+        backup = next(item for item in self.rendered("system-backups.yaml") if
+                      item["kind"] == "PreBackupPod" and item["metadata"]["namespace"] == "monitoring")
+        source = next(item for item in backup["spec"]["pod"]["spec"]["volumes"] if item["name"] == "data")
+        self.assertEqual(source["persistentVolumeClaim"]["claimName"], claim["metadata"]["name"])
         for key, filename in (("cert_file", "tls.crt"), ("cert_key", "tls.key")):
             self.assertEqual(settings["server"][key], f'{mount["mountPath"]}/{filename}')
         self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})

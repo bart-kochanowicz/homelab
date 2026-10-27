@@ -42,7 +42,8 @@ data:
       */n8n/n8n-data/*|*_n8n_n8n-data|*/n8n/n8n-data-nvme/*|*_n8n_n8n-data-nvme)
         chown 1000:1000 "$VOL_DIR"
         ;;
-      */monitoring/kube-prometheus-stack-grafana/*|*_monitoring_kube-prometheus-stack-grafana)
+      */monitoring/kube-prometheus-stack-grafana/*|*_monitoring_kube-prometheus-stack-grafana|\
+      */monitoring/grafana-data-nvme/*|*_monitoring_grafana-data-nvme)
         chown 472:472 "$VOL_DIR"
         ;;
       */monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0/*|\
