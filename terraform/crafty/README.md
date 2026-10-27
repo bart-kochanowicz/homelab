@@ -1,6 +1,6 @@
 # Crafty
 
-Uses the signed [Crafty provider](https://registry.terraform.io/providers/bart-kochanowicz/crafty/0.1.8)
+Uses the signed [Crafty provider](https://registry.terraform.io/providers/bart-kochanowicz/crafty/0.1.9)
 and a separate Garage state at `prod/crafty/terraform.tfstate`.
 Deploy through the [shared plan and approval workflow](../README.md#plan-and-apply).
 The private automation supplies `CRAFTY_API_TOKEN`; local plans use
@@ -15,3 +15,9 @@ installation inputs replaces the server and creates a new directory.
 Existing panel servers cannot be imported. ZIP server packs must be prepared
 for server use, pinned by SHA-256, and available on Houston; the provider does
 not accept the Minecraft EULA or start the game.
+
+ATM10 uses a native ZIP backup policy on the worker's SATA disk. The schedule
+runs on Mondays at 03:00 Europe/Warsaw and keeps the four latest archives.
+Crafty stops the game for each copy and restarts it only if it was running;
+the panel stays up. Terraform manages the existing policy and its schedule.
+These backups cover the game directory, not the panel database or configuration.

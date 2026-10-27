@@ -1,7 +1,8 @@
 # Application backups
 
 K8up backs up Home Assistant, n8n and Grafana daily at **03:00 Europe/Warsaw**.
-Crafty/Minecraft and disposable Prometheus data are excluded. Repositories live on
+[Crafty/Minecraft](../terraform/crafty/README.md) uses native ZIP backups on the
+worker's SATA disk; disposable Prometheus data is excluded. K8up repositories live on
 Houston's SSD at `/srv/terraform/backups/restic/{home-assistant,n8n,monitoring}`.
 `system/backups/values.yaml` lists the PVCs, database names and filesystem users;
 one Helm template generates the shared configuration for all three applications.
