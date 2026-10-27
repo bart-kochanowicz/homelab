@@ -189,10 +189,12 @@ changes.
 Namespaces and PVCs have ArgoCD `Prune=false,Delete=false`; ApplicationSets
 preserve their resources. Namespace deletion still cascades to workloads and PVCs.
 Local-path volumes use `Retain`, directory mode `0770` and application-specific
-ownership. Removing retained data requires a backup, PVC deletion, inspection of
-the PV's node/path, PV deletion and removal of the directory through Talos access.
+ownership. Before removing retained data, verify a backup, the PV's node/path and
+that no pod uses its PVC. For intentional cleanup, change only that PV's reclaim
+policy to `Delete`, then delete its unused PVC; the provisioner removes its directory.
 
-`local-path` stores worker volumes on SATA at `/var/mnt/minecraft`.
+`local-path` reserves the worker's SATA at `/var/mnt/minecraft` for Crafty backups.
+Its setup hook rejects other SATA claims; neither storage class provisions on other nodes.
 The default class, `local-path-nvme`, stores worker volumes under `/var/mnt/nvme`, sharing Talos's
 NVMe `/var` filesystem. PVC sizes do not enforce filesystem quotas; claims
 bind when their first consumer is scheduled. The default class applies only

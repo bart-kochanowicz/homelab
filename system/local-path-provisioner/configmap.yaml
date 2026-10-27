@@ -16,7 +16,7 @@ data:
             },
             {
               "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
-              "paths": ["/opt/local-path-provisioner"]
+              "paths": []
             }
           ]
         },
@@ -37,6 +37,15 @@ data:
   setup: |-
     #!/bin/sh
     set -eu
+    case "$VOL_DIR" in
+      /var/mnt/minecraft/crafty-controller/crafty-data/*|\
+      /var/mnt/minecraft/pvc-*_crafty-controller_crafty-data)
+        ;;
+      /var/mnt/minecraft|/var/mnt/minecraft/*)
+        echo "SATA storage is reserved for Crafty backups" >&2
+        exit 1
+        ;;
+    esac
     mkdir -m 0770 -p "$VOL_DIR"
     case "$VOL_DIR" in
       */n8n/n8n-data/*|*_n8n_n8n-data|*/n8n/n8n-data-nvme/*|*_n8n_n8n-data-nvme)
