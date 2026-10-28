@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-houston
+  namespace: monitoring
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http-metrics
+      nodePort: 30514
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: talos-logs
+  namespace: crafty-controller
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: alloy
+  ports:
+    - name: control-plane
+      port: 1515
+      targetPort: talos-control
+      nodePort: 30515
+    - name: worker
+      port: 1516
+      targetPort: talos-worker
+      nodePort: 30516
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy-houston
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alloy-houston
+spec:
+  ports:
+    - name: http-metrics
+      port: 12345
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: alloy-houston
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 10.0.70.10
+    ports:
+      - name: http-metrics
+        port: 12345
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: alloy-houston
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alloy-houston
+  endpoints:
+    - port: http-metrics

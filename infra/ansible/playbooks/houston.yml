@@ -56,3 +56,5 @@
       tags: github_runner
     - role: restic_server
       tags: restic_server
+    - role: alloy
+      tags: alloy

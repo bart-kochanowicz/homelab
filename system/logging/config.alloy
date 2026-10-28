@@ -135,6 +135,54 @@ loki.source.file "minecraft" {
 	forward_to = [loki.write.local.receiver]
 }
 
+loki.source.syslog "talos" {
+	listener {
+		address            = "0.0.0.0:1515"
+		protocol           = "tcp"
+		syslog_format      = "raw"
+		max_message_length = 1048576
+		labels             = {source = "talos", node = "talos-p5e-e9e"}
+	}
+
+	listener {
+		address            = "0.0.0.0:1516"
+		protocol           = "tcp"
+		syslog_format      = "raw"
+		max_message_length = 1048576
+		labels             = {source = "talos", node = "talos-2jn-7he"}
+	}
+	forward_to = [loki.process.talos.receiver]
+}
+
+loki.process "talos" {
+	stage.json {
+		expressions = {
+			timestamp    = "\"talos-time\"",
+			level        = "\"talos-level\"",
+			service_name = "\"talos-service\"",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339Nano"
+	}
+
+	stage.drop {
+		older_than = "336h"
+	}
+
+	stage.template {
+		source   = "service_name"
+		template = "{{ if .Value }}{{ .Value }}{{ else }}kernel{{ end }}"
+	}
+
+	stage.labels {
+		values = {level = "", service_name = ""}
+	}
+	forward_to = [loki.write.local.receiver]
+}
+
 loki.write "local" {
 	endpoint {
 		url = "http://loki.monitoring.svc:3100/loki/api/v1/push"

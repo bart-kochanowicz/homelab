@@ -1,0 +1,4 @@
+---
+- name: Configure host log collection when enabled
+  ansible.builtin.import_tasks: configure.yml
+  when: alloy_enabled | bool

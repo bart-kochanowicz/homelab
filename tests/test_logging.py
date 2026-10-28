@@ -2,8 +2,10 @@
 
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import tempfile
 import time
@@ -38,6 +40,7 @@ class LoggingTests(unittest.TestCase):
         cls.path = Path(cls.directory.name)
         cls.path.chmod(0o755)
         cls.containers = []
+        cls.test_user = f"{os.getuid()}:{os.getgid()}"
         cls.addClassCleanup(cls.cleanup_containers)
         rendered = cls.command("helm", "template", "logging", str(LOGGING), "--namespace", "monitoring")
         cls.resources = list(yaml.safe_load_all(rendered))
@@ -62,8 +65,10 @@ class LoggingTests(unittest.TestCase):
         cls.name = "homelab-log-test-" + uuid.uuid4().hex[:10]
         cls.containers.append(cls.name)
         cls.command("docker", "run", "-d", "--name", cls.name,
-                    "--user", "10001:10001", "--cap-drop", "ALL", "--read-only",
+                    "--user", cls.test_user, "--cap-drop", "ALL", "--read-only",
                     "--tmpfs", "/tmp", "-p", "127.0.0.1::3100",
+                    "-p", "127.0.0.1::1515", "-p", "127.0.0.1::1516",
+                    "-p", "127.0.0.1::12345",
                     "-v", f"{cls.path}/loki.yaml:/etc/loki/config.yaml:ro",
                     "-v", f"{cls.path}/runtime.yaml:/etc/loki/runtime-config/runtime-config.yaml:ro",
                     "-v", f"{cls.path}/data:/var/loki",
@@ -188,6 +193,18 @@ class LoggingTests(unittest.TestCase):
                 self.assertTrue(all(set(rule["resources"]) <= {"pods", "pods/log"}
                                     for rule in resource["rules"]))
 
+    def test_talos_service_and_kernel_destinations_match_private_listeners(self):
+        service = next(item["spec"] for item in self.resources
+                       if item["kind"] == "Service" and item["metadata"]["name"] == "talos-logs")
+        self.assertEqual(service["externalTrafficPolicy"], "Local")
+        for role in ("control-plane", "worker"):
+            port = next(port["nodePort"] for port in service["ports"] if port["name"] == role)
+            documents = list(yaml.safe_load_all((ROOT / f"talos/patches/logging-{role}.yaml").read_text()))
+            endpoint = f"tcp://10.0.70.12:{port}"
+            self.assertEqual(documents[0]["machine"]["logging"]["destinations"][0]["endpoint"], endpoint)
+            self.assertEqual(documents[1]["kind"], "KmsgLogConfig")
+            self.assertEqual(documents[1]["url"], endpoint)
+
     def test_real_crafty_lines_keep_event_times_and_multiline_failures(self):
         server = "pipeline-fixture"
         config = (LOGGING / "config.alloy").read_text()
@@ -208,7 +225,7 @@ class LoggingTests(unittest.TestCase):
             + "Traceback (most recent call last):\n  OSError: fixture\n")
         name = self.name + "-alloy"
         self.containers.append(name)
-        self.command("docker", "run", "-d", "--name", name, "--user", "1000:0",
+        self.command("docker", "run", "-d", "--name", name, "--user", self.test_user,
                      "--network", "container:" + self.name, "--cap-drop", "ALL",
                      "-v", f"{self.path}/alloy.alloy:/etc/alloy/config.alloy:ro",
                      "-v", f"{self.path}/logs:/var/log/crafty:ro",
@@ -227,6 +244,72 @@ class LoggingTests(unittest.TestCase):
         self.assertFalse(self.query(f'count_over_time({{source="file",server_name="{server}"}}[1h])'))
         self.command("docker", "stop", name)
         self.assertTrue(self.unhealthy(server))
+
+    def test_talos_tcp_fragments_keep_kernel_service_node_and_time(self):
+        config = (LOGGING / "config.alloy").read_text()
+        config = 'loki.source.syslog "talos" {' + config.split('loki.source.syslog "talos" {', 1)[1]
+        config = config.replace("http://loki.monitoring.svc:3100", "http://127.0.0.1:3100")
+        (self.path / "talos.alloy").write_text(config)
+        name = self.name + "-talos"
+        self.containers.append(name)
+        self.command("docker", "run", "-d", "--name", name, "--user", self.test_user,
+                     "--network", "container:" + self.name, "--cap-drop", "ALL",
+                     "-v", f"{self.path}/talos.alloy:/etc/alloy/config.alloy:ro",
+                     self.images["alloy"], "run", "--stability.level=experimental",
+                     "--storage.path=/tmp/alloy", "--server.http.listen-addr=0.0.0.0:12345",
+                     "/etc/alloy/config.alloy")
+        self.addCleanup(subprocess.run, ["docker", "stop", name], capture_output=True, check=False)
+        metrics_port = self.command("docker", "port", self.name, "12345/tcp").rsplit(":", 1)[1]
+        deadline = time.monotonic() + 15
+        while True:
+            try:
+                with urlopen(f"http://127.0.0.1:{metrics_port}/-/ready", timeout=2) as response:
+                    if response.status == 200:
+                        break
+            except OSError as error:
+                if isinstance(error, HTTPError):
+                    error.close()
+            if time.monotonic() > deadline:
+                self.fail("Alloy not ready: " + self.command("docker", "logs", name))
+            time.sleep(0.2)
+        stamp = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        service = {"talos-time": stamp, "talos-level": "info", "talos-service": "kubelet", "msg": "TCP fixture ☃"}
+        kernel = {"talos-time": stamp, "talos-level": "warn", "msg": "kernel fixture", "seq": 11}
+        worker = {"talos-time": stamp, "talos-level": "info", "talos-service": "containerd", "msg": "worker fixture"}
+        for port, records in ((1515, [service, kernel]), (1516, [worker])):
+            host_port = int(self.command("docker", "port", self.name, f"{port}/tcp").rsplit(":", 1)[1])
+            deadline = time.monotonic() + 15
+            while True:
+                try:
+                    connection = socket.create_connection(("127.0.0.1", host_port), timeout=2)
+                    break
+                except OSError:
+                    if time.monotonic() > deadline:
+                        self.fail("Talos listener unavailable: " + self.command("docker", "logs", name))
+                    time.sleep(0.2)
+            with connection:
+                data = b"".join(json.dumps(record, ensure_ascii=False).encode() + b"\n" for record in records)
+                marker = data.find("☃".encode())
+                split = marker + 1 if marker >= 0 else 11
+                connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                connection.sendall(data[:split])
+                time.sleep(0.02)
+                connection.sendall(data[split:])
+        expression = 'sum(count_over_time({source="talos"}[10m]))'
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            result = self.query(expression)
+            if result and float(result[0]["value"][1]) == 3:
+                break
+            time.sleep(0.2)
+        else:
+            with urlopen(f"http://127.0.0.1:{metrics_port}/metrics", timeout=2) as response:
+                metrics = "\n".join(line for line in response.read().decode().splitlines() if "syslog" in line or "dropped" in line)
+            self.fail(f"Talos records missing ({result}): {metrics}\n" + self.command("docker", "logs", name))
+        self.assertTrue(self.query('count_over_time({source="talos",node="talos-p5e-e9e",service_name="kernel"}[10m])'))
+        self.assertTrue(self.query('count_over_time({source="talos",node="talos-2jn-7he",service_name="containerd"}[10m])'))
+        self.assertTrue(self.query('count_over_time({source="talos",node="talos-p5e-e9e"} |= "☃" [10m])'))
+        self.assertFalse(self.query('count_over_time({source="talos"}[1m])'))
 
 
 if __name__ == "__main__":

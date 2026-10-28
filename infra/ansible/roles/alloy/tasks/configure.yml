@@ -1,0 +1,114 @@
+---
+- name: Require the supported host architecture
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == 'Debian'
+      - ansible_architecture == 'x86_64'
+    fail_msg: The pinned Alloy archive targets Debian amd64.
+
+- name: Install the native ZIP extraction tool
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the journal reader group
+  ansible.builtin.group:
+    name: alloy
+    system: true
+
+- name: Create the unprivileged journal reader
+  ansible.builtin.user:
+    name: alloy
+    group: alloy
+    system: true
+    groups: [adm, systemd-journal]
+    append: true
+    create_home: false
+    shell: /usr/sbin/nologin
+    password_lock: true
+  notify: Restart Alloy
+
+- name: Create the root-owned release directory on SSD
+  ansible.builtin.file:
+    path: "/srv/terraform/tools/alloy-{{ alloy_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Download the pinned checksum-verified Alloy release
+  ansible.builtin.get_url:
+    url: "https://github.com/grafana/alloy/releases/download/v{{ alloy_version }}/alloy-linux-amd64.zip"
+    dest: "/srv/terraform/tools/alloy-{{ alloy_version }}.zip"
+    checksum: "sha256:{{ alloy_archive_sha256 }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Extract the verified native binary
+  ansible.builtin.unarchive:
+    src: "/srv/terraform/tools/alloy-{{ alloy_version }}.zip"
+    dest: "/srv/terraform/tools/alloy-{{ alloy_version }}"
+    remote_src: true
+    creates: "/srv/terraform/tools/alloy-{{ alloy_version }}/alloy-linux-amd64"
+    owner: root
+    group: root
+    mode: '0755'
+  when: not ansible_check_mode
+  notify: Restart Alloy
+
+- name: Link the verified binary to the standard command path
+  ansible.builtin.file:
+    src: "/srv/terraform/tools/alloy-{{ alloy_version }}/alloy-linux-amd64"
+    dest: /usr/local/bin/alloy
+    owner: root
+    group: root
+    state: link
+  when: not ansible_check_mode
+  notify: Restart Alloy
+
+- name: Create the private cursor directory on SSD
+  ansible.builtin.file:
+    path: /srv/terraform/alloy
+    state: directory
+    owner: alloy
+    group: alloy
+    mode: '0700'
+
+- name: Create the protected configuration directory
+  ansible.builtin.file:
+    path: /etc/alloy
+    state: directory
+    owner: root
+    group: alloy
+    mode: '0750'
+
+- name: Install the native journal pipeline
+  ansible.builtin.copy:
+    src: config.alloy
+    dest: /etc/alloy/config.alloy
+    owner: root
+    group: alloy
+    mode: '0640'
+    validate: /usr/local/bin/alloy validate %s
+  when: not ansible_check_mode
+  notify: Restart Alloy
+
+- name: Install the bounded host collector service
+  ansible.builtin.template:
+    src: alloy.service.j2
+    dest: /etc/systemd/system/alloy.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Alloy
+
+- name: Start the journal collector at boot
+  ansible.builtin.systemd_service:
+    name: alloy.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode

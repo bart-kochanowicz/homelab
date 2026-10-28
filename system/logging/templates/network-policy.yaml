@@ -8,6 +8,13 @@ spec:
     matchLabels:
       app.kubernetes.io/name: alloy
   ingress:
+    - fromEntities: [host, remote-node]
+      toPorts:
+        - ports:
+            - port: '1515'
+              protocol: TCP
+            - port: '1516'
+              protocol: TCP
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: monitoring
@@ -51,6 +58,11 @@ spec:
     matchLabels:
       app.kubernetes.io/name: loki
   ingress:
+    - fromCIDR: [10.0.70.10/32]
+      toPorts:
+        - ports:
+            - port: '3100'
+              protocol: TCP
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: crafty-controller

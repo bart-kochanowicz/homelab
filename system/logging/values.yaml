@@ -111,6 +111,16 @@ alloy:
   namespaceOverride: crafty-controller
   alloy:
     enableReporting: false
+    stabilityLevel: experimental
+    extraPorts:
+      - name: talos-control
+        port: 1515
+        targetPort: 1515
+        protocol: TCP
+      - name: talos-worker
+        port: 1516
+        targetPort: 1516
+        protocol: TCP
     configMap:
       create: false
       name: alloy-config
