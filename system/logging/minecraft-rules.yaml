@@ -1,0 +1,34 @@
+groups:
+  - name: minecraft-backups
+    interval: 5m
+    rules:
+      - alert: MinecraftBackupUnhealthy
+        expr: |
+          max by (server_name) ((
+            max by (server_name) (max_over_time({service_name="crafty-controller",source="file",backup_status="failure"}
+              | label_format event_time="{{ __timestamp__ | unixEpochMillis }}" | unwrap event_time [14d]))
+            > on(server_name)
+            max by (server_name) (max_over_time({service_name="crafty-controller",source="file",backup_status="success"}
+              | label_format event_time="{{ __timestamp__ | unixEpochMillis }}" | unwrap event_time [14d]))
+          ) or (
+            max by (server_name) (max_over_time({service_name="crafty-controller",source="file",backup_status="failure"}
+              | label_format event_time="{{ __timestamp__ | unixEpochMillis }}" | unwrap event_time [14d]))
+            unless on(server_name)
+            max by (server_name) (max_over_time({service_name="crafty-controller",source="file",backup_status="success"}
+              | label_format event_time="{{ __timestamp__ | unixEpochMillis }}" | unwrap event_time [14d]))
+          ) or absent_over_time({service_name="crafty-controller",source="file",server_name="ATM 10 1.21.1 - 4.14",backup_status="success"}[8d]))
+        for: 5m
+        labels:
+          severity: critical
+          namespace: crafty-controller
+        annotations:
+          summary: 'Minecraft backup needs attention: {{ $labels.server_name }}'
+          description: A backup failed without a later success, or no successful copy was recorded in eight days. Check Crafty and the ZIP files on SATA.
+      - alert: CraftyBackupStartFailed
+        expr: sum(count_over_time({service_name="crafty-controller",source="file"} |= "app.classes.shared.server" |= "Failed to start backup:" [15m])) > 0
+        labels:
+          severity: critical
+          namespace: crafty-controller
+        annotations:
+          summary: Crafty recently failed to start a backup
+          description: A backup attempt could not start in the last 15 minutes. Inspect Crafty logs; the separate freshness alert tracks successful copies.

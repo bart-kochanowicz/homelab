@@ -1,0 +1,185 @@
+loki:
+  fullnameOverride: loki
+  deploymentMode: Monolithic
+  backend:
+    replicas: 0
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  loki:
+    image:
+      digest: sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    ingester:
+      query_store_max_look_back_period: 336h
+    analytics:
+      reporting_enabled: false
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: '2024-04-01'
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    limits_config:
+      retention_period: 336h
+      reject_old_samples_max_age: 336h
+      max_query_lookback: 336h
+      max_query_parallelism: 2
+      ingestion_rate_mb: 2
+      ingestion_burst_size_mb: 4
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
+      retention_delete_worker_count: 10
+    rulerConfig:
+      storage:
+        type: local
+        local:
+          directory: /etc/loki/rules
+      rule_path: /var/loki/rules-tmp
+      alertmanager_url: http://kube-prometheus-stack-alertmanager.monitoring.svc:9093
+      enable_alertmanager_v2: true
+      evaluation_interval: 1m
+      external_url: https://grafana.thecavespace.net/alerting/groups?alertmanager=Alertmanager
+  singleBinary:
+    replicas: 1
+    sidecar: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: '1'
+        memory: 1Gi
+    persistence:
+      size: 20Gi
+      storageClass: local-path-nvme
+      whenDeleted: Retain
+      whenScaled: Retain
+      annotations:
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    extraVolumes:
+      - name: minecraft-rules
+        configMap:
+          name: minecraft-log-rules
+    extraVolumeMounts:
+      - name: minecraft-rules
+        mountPath: /etc/loki/rules/fake
+        readOnly: true
+  gateway:
+    enabled: false
+  lokiCanary:
+    enabled: false
+  test:
+    enabled: false
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+  serviceAccount:
+    automountServiceAccountToken: false
+  sidecar:
+    rules:
+      enabled: false
+  monitoring:
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: kube-prometheus-stack
+
+alloy:
+  crds:
+    create: false
+  global:
+    podSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 0
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+  image:
+    digest: sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18
+  fullnameOverride: alloy
+  namespaceOverride: crafty-controller
+  alloy:
+    enableReporting: false
+    configMap:
+      create: false
+      name: alloy-config
+      key: config.alloy
+    storagePath: /var/lib/alloy
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: [ALL]
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    mounts:
+      extra:
+        - name: positions
+          mountPath: /var/lib/alloy
+        - name: crafty-logs
+          mountPath: /var/log/crafty
+          subPath: logs
+          readOnly: true
+        - name: crafty-logs
+          mountPath: /var/log/minecraft
+          subPath: servers/4d473593-4914-4167-957e-eb494f80a99b/logs
+          readOnly: true
+  controller:
+    type: statefulset
+    replicas: 1
+    podAnnotations:
+      homelab.security/automount-reviewed: 'true'
+    volumes:
+      extra:
+        - name: crafty-logs
+          persistentVolumeClaim:
+            claimName: crafty-data-nvme
+            readOnly: true
+    volumeClaimTemplates:
+      - metadata:
+          name: positions
+          annotations:
+            argocd.argoproj.io/sync-options: Prune=false,Delete=false
+        spec:
+          storageClassName: local-path-nvme
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 1Gi
+  rbac:
+    rules:
+      - apiGroups: ['']
+        resources: [pods]
+        verbs: [get, list, watch]
+    clusterRules:
+      - apiGroups: ['']
+        resources: [pods/log]
+        verbs: [get]
+  configReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 20Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kube-prometheus-stack
