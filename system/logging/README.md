@@ -2,6 +2,8 @@
 
 Loki stores application logs for 14 days on a 20 GiB NVMe PVC. The local-path
 request is not a hard disk quota. Logs are disposable; no backup is scheduled.
+Loki uses the PVC's writable root group with a non-root UID; local-path hostPath
+volumes do not apply `fsGroup` ownership changes.
 Filesystem lookback matches retention so imported historical events are queryable immediately.
 Loki has no public route. Network policies allow Alloy, Grafana, Prometheus and Houston.
 
