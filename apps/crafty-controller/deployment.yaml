@@ -29,7 +29,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: crafty-controller
-          image: arcadiatechnology/crafty-4:4.10.4@sha256:d2f61fcabb4756a63bc8538fb4f5e35ffddca3f1916a733c95a31c705c697742
+          image: arcadiatechnology/crafty-4:4.11.0@sha256:7b6e87514259549647e15ceeaf73d238792e6d77e2c79fc744d5badc8d6e997c
           securityContext:
             # The upstream wrapper uses sudo to switch to its runtime user.
             allowPrivilegeEscalation: true
