@@ -16,7 +16,7 @@ groups:
             unless on(server_name)
             max by (server_name) (max_over_time({service_name="crafty-controller",source="file",backup_status="success"}
               | label_format event_time="{{ __timestamp__ | unixEpochMillis }}" | unwrap event_time [14d]))
-          ) or absent_over_time({service_name="crafty-controller",source="file",server_name="ATM 10 1.21.1 - 4.14",backup_status="success"}[8d]))
+          ) or absent_over_time({service_name="crafty-controller",source="file",server_name="ATM10 4.14",backup_status="success"}[8d]))
         for: 5m
         labels:
           severity: critical

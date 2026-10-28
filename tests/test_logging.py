@@ -127,7 +127,7 @@ class LoggingTests(unittest.TestCase):
             self.assertEqual(response.status, 204)
 
     def unhealthy(self, server, at=None):
-        expression = self.expression.replace("ATM 10 1.21.1 - 4.14", server)
+        expression = self.expression.replace("ATM10 4.14", server)
         return any(result["metric"].get("server_name") == server for result in self.query(expression, at))
 
     def test_weekly_copy_does_not_alert_between_runs(self):

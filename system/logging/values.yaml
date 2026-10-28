@@ -151,7 +151,7 @@ alloy:
           readOnly: true
         - name: crafty-logs
           mountPath: /var/log/minecraft
-          subPath: servers/4d473593-4914-4167-957e-eb494f80a99b/logs
+          subPath: servers/f9a320f7-e9b8-439b-bc04-b2f70e5f85cb/logs
           readOnly: true
   controller:
     type: statefulset

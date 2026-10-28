@@ -23,7 +23,7 @@ the saved world and server settings. The launch command selects Java 21 and
 limits the heap to 12 GiB within the shared 16 GiB container. Automatic startup
 is disabled; only one server can bind TCP30000 at a time.
 
-The existing ATM10 server uses a native ZIP backup policy on the worker's SATA disk. The schedule
+ATM10 uses a native ZIP backup policy on the worker's SATA disk. The schedule
 runs on Mondays at 03:00 Europe/Warsaw and keeps the four latest archives.
 Crafty stops the game for each copy and restarts it only if it was running;
 the panel stays up. Terraform manages the existing policy and its schedule.
