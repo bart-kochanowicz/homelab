@@ -11,6 +11,9 @@ loki:
     image:
       digest: sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
     auth_enabled: false
+    podSecurityContext:
+      fsGroup: 0
+      runAsGroup: 0
     commonConfig:
       replication_factor: 1
     ingester:

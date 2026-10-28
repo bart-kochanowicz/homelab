@@ -34,40 +34,16 @@ spec:
       targetPort: talos-worker
       nodePort: 30516
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: alloy-houston
-  namespace: monitoring
-  labels:
-    app.kubernetes.io/name: alloy-houston
-spec:
-  ports:
-    - name: http-metrics
-      port: 12345
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  name: alloy-houston
-  namespace: monitoring
-subsets:
-  - addresses:
-      - ip: 10.0.70.10
-    ports:
-      - name: http-metrics
-        port: 12345
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
 metadata:
   name: alloy-houston
   namespace: monitoring
   labels:
     release: kube-prometheus-stack
 spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: alloy-houston
-  endpoints:
-    - port: http-metrics
+  staticConfigs:
+    - targets: ['10.0.70.10:12345']
+      labels:
+        namespace: monitoring
+        service: alloy-houston
