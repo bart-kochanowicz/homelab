@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: logging-health
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: logging-health
+      rules:
+        - alert: LogDeliveryFailed
+          expr: sum(increase(loki_write_dropped_entries_total[10m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Alloy could not deliver some log entries
+            description: Inspect Alloy delivery errors, Loki readiness and free space on NVMe.
+        - alert: LogRulesFailing
+          expr: sum(rate(loki_prometheus_rule_evaluation_failures_total[5m])) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Loki cannot evaluate log alerts
+            description: Minecraft backup alerts may be unavailable. Inspect Loki ruler errors.

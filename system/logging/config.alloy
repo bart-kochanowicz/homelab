@@ -1,0 +1,190 @@
+logging {
+	level = "info"
+}
+
+discovery.kubernetes "pods" {
+	role = "pod"
+}
+
+discovery.relabel "pods" {
+	targets = discovery.kubernetes.pods.targets
+
+	rule {
+		source_labels = ["__meta_kubernetes_namespace"]
+		target_label  = "namespace"
+	}
+
+	rule {
+		source_labels = ["__meta_kubernetes_pod_name"]
+		target_label  = "pod"
+	}
+
+	rule {
+		source_labels = ["__meta_kubernetes_pod_container_name"]
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_kubernetes_pod_node_name"]
+		target_label  = "node"
+	}
+
+	rule {
+		source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+		target_label  = "service_name"
+	}
+}
+
+loki.source.kubernetes "pods" {
+	targets    = discovery.relabel.pods.output
+	forward_to = [loki.process.pods.receiver]
+}
+
+loki.process "pods" {
+	stage.drop {
+		older_than = "336h"
+	}
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.source.file "crafty" {
+	targets = [{
+		__path__     = "/var/log/crafty/*.log",
+		namespace    = "crafty-controller",
+		service_name = "crafty-controller",
+		source       = "file",
+	}]
+
+	file_match {
+		enabled = true
+	}
+	forward_to = [loki.process.crafty.receiver]
+}
+
+loki.process "crafty" {
+	stage.multiline {
+		firstline     = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},"
+		max_wait_time = "3s"
+	}
+
+	stage.regex {
+		expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) - \\[.*?\\] - (?P<level>\\w+)"
+	}
+
+	stage.timestamp {
+		source            = "timestamp"
+		format            = "2006-01-02 15:04:05,000"
+		location          = "Europe/Warsaw"
+		action_on_failure = "skip"
+	}
+
+	stage.drop {
+		older_than = "336h"
+	}
+
+	stage.labels {
+		values = {level = ""}
+	}
+
+	stage.match {
+		selector = "{service_name=\"crafty-controller\"} |= \"app.classes.shared.backup_mgr\" |= \"Backup of server: \" |= \" completed\""
+
+		stage.regex {
+			expression = "Backup of server: (?P<server_name>.+) completed$"
+		}
+
+		stage.labels {
+			values = {server_name = ""}
+		}
+
+		stage.static_labels {
+			values = {backup_status = "success"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"crafty-controller\"} |= \"app.classes.shared.backup_mgr\" |= \"Failed to create backup of server \""
+
+		stage.regex {
+			expression = "Failed to create backup of server (?P<server_name>.+) \\(ID [^)]+\\)(?:\\n|$)"
+		}
+
+		stage.labels {
+			values = {server_name = ""}
+		}
+
+		stage.static_labels {
+			values = {backup_status = "failure"}
+		}
+	}
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.source.file "minecraft" {
+	tail_from_end = true
+	targets       = [{
+		__path__     = "/var/log/minecraft/latest.log",
+		namespace    = "crafty-controller",
+		service_name = "minecraft",
+		source       = "file",
+	}]
+
+	file_match {
+		enabled = true
+	}
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.source.syslog "talos" {
+	listener {
+		address            = "0.0.0.0:1515"
+		protocol           = "tcp"
+		syslog_format      = "raw"
+		max_message_length = 1048576
+		labels             = {source = "talos", node = "talos-p5e-e9e"}
+	}
+
+	listener {
+		address            = "0.0.0.0:1516"
+		protocol           = "tcp"
+		syslog_format      = "raw"
+		max_message_length = 1048576
+		labels             = {source = "talos", node = "talos-2jn-7he"}
+	}
+	forward_to = [loki.process.talos.receiver]
+}
+
+loki.process "talos" {
+	stage.json {
+		expressions = {
+			timestamp    = "\"talos-time\"",
+			level        = "\"talos-level\"",
+			service_name = "\"talos-service\"",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339Nano"
+	}
+
+	stage.drop {
+		older_than = "336h"
+	}
+
+	stage.template {
+		source   = "service_name"
+		template = "{{ if .Value }}{{ .Value }}{{ else }}kernel{{ end }}"
+	}
+
+	stage.labels {
+		values = {level = "", service_name = ""}
+	}
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki.monitoring.svc:3100/loki/api/v1/push"
+	}
+}

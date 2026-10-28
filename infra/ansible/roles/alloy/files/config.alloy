@@ -1,0 +1,37 @@
+logging {
+	level = "info"
+}
+
+loki.relabel "journal" {
+	forward_to = []
+
+	rule {
+		source_labels = ["__journal_syslog_identifier"]
+		regex         = "(.+)"
+		target_label  = "service_name"
+	}
+
+	rule {
+		source_labels = ["__journal__systemd_unit"]
+		regex         = "(.+)"
+		target_label  = "service_name"
+	}
+
+	rule {
+		source_labels = ["__journal_priority_keyword"]
+		target_label  = "level"
+	}
+}
+
+loki.source.journal "system" {
+	max_age       = "336h"
+	labels        = {node = "houston-01", source = "journal", service_name = "journal"}
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.write.cluster.receiver]
+}
+
+loki.write "cluster" {
+	endpoint {
+		url = "http://10.0.70.12:30514/loki/api/v1/push"
+	}
+}

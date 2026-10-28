@@ -7,6 +7,7 @@ labelled `houston-data`, mounted at `/srv/terraform`.
 | Role | Configuration |
 | --- | --- |
 | `common` | Warsaw timezone, NTP, security updates and journald limits |
+| `alloy` | Journal forwarding to Loki; collector state on the SSD |
 | `storage` | SSD mount by UUID and scheduled TRIM |
 | `garage` | Garage 2.4.1, `terraform-state` bucket and S3 credentials |
 | `terraform_cli` | Terraform 1.16.4, shared lock and backup tools |

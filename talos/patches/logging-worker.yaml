@@ -1,0 +1,10 @@
+machine:
+  logging:
+    destinations:
+      - endpoint: tcp://10.0.70.12:30516
+        format: json_lines
+---
+apiVersion: v1alpha1
+kind: KmsgLogConfig
+name: remote-log
+url: tcp://10.0.70.12:30516

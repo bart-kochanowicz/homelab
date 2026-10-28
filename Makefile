@@ -30,7 +30,7 @@ validate: validate-tools validate-format validate-yaml validate-shell \
 	validate-terraform-tests validate-workflows validate-monitoring
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool sqlite3 restic; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool sqlite3 restic docker; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -62,7 +62,8 @@ validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
 	python3 -m unittest discover -s tests -v
 
 validate-monitoring: validate-kustomize
-	yq '.spec' system/monitoring/security-alerts.yaml > .cache/monitoring-rules.yaml
+	yq eval-all '.spec.groups as $$groups ireduce ({"groups": []}; .groups += $$groups)' \
+		system/monitoring/security-alerts.yaml system/logging/templates/prometheus-rules.yaml > .cache/monitoring-rules.yaml
 	promtool check rules .cache/monitoring-rules.yaml
 	promtool test rules tests/monitoring-rules.test.yaml
 
@@ -75,6 +76,7 @@ validate-yaml:
 		-not -path './thoughts/*' \
 		-not -path '*/charts/*' \
 		-not -path './system/backups/templates/*' \
+		-not -path './system/logging/templates/config.yaml' \
 		-not -path '*/.terraform/*' \
 		-not -path './talos/controlplane.yaml' \
 		-not -path './talos/worker.yaml' \
@@ -100,6 +102,11 @@ validate-kustomize:
 	kubectl kustomize --enable-helm system/backup-operator > .cache/rendered/system-backup-operator.yaml
 	helm lint system/backups
 	helm template backups system/backups --namespace monitoring > .cache/rendered/system-backups.yaml
+	helm repo add --force-update grafana https://grafana.github.io/helm-charts >/dev/null
+	helm repo add --force-update grafana-community https://grafana-community.github.io/helm-charts >/dev/null
+	helm dependency build --skip-refresh system/logging
+	helm lint system/logging
+	helm template logging system/logging --namespace monitoring > .cache/rendered/system-logging.yaml
 
 validate-helm: validate-kustomize
 	@set -e; retry() { \

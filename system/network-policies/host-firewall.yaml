@@ -6,6 +6,11 @@ spec:
   nodeSelector:
     matchLabels: {}
   ingress:
+    - fromCIDR: [10.0.70.10/32]
+      toPorts:
+        - ports:
+            - port: '30514'
+              protocol: TCP
     - fromEntities:
         - host
         - remote-node

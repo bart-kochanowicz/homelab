@@ -38,6 +38,8 @@ Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
 `--config-patch-control-plane @talos/patches/service-accounts.yaml`.
 Use `--config-patch-worker @talos/patches/worker-nvme.yaml` for the worker's
 NVMe storage mount.
+Add `--config-patch-control-plane @talos/patches/logging-control-plane.yaml` and
+`--config-patch-worker @talos/patches/logging-worker.yaml` for service/kernel log forwarding.
 Apply `talos/patches/dns.yaml` as JSON Patch. Nodes use Servers VLAN 70; the API's
 ServiceAccount issuer and audience are independent of node addresses.
 

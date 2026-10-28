@@ -29,6 +29,9 @@ backup warns after eight days; its failures use the same alerts. Job completion
 measures backup execution; isolated restore tests remain a separate operational check.
 K8up status is scraped from Kubernetes; its Pushgateway output is disabled.
 
+[Loki and Alloy](../logging/README.md) provide application logs and Minecraft
+backup alerts. The Loki datasource is available in Grafana Explore.
+
 Run `make validate-monitoring` to render monitoring and test rules with the pinned
 `promtool`. Full repository validation also runs these tests.
 
