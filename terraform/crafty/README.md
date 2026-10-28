@@ -16,14 +16,14 @@ Existing panel servers cannot be imported. ZIP server packs must be prepared
 for server use, pinned by SHA-256, and available on Houston; the provider does
 not accept the Minecraft EULA or start the game.
 
-ATM10 4.14 is created from the checksum-pinned private archive at
-`atm10_archive_path`. Keep that archive on Houston's SSD under
-`/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`). It includes
-the saved world and server settings. The launch command selects Java 21 and
-limits the heap to 12 GiB within the shared 16 GiB container. Automatic startup
-is disabled; only one server can bind TCP30000 at a time.
+ATM10 4.14 and 8.3 use checksum-pinned private archives at `atm10_archive_path`
+and `atm10_8_3_archive_path`. Keep these on Houston's SSD under
+`/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`). They include
+the saved world and server settings. Both launch commands select Java 21 and
+limit the heap to 12 GiB within the shared 16 GiB container. Automatic startup
+is disabled. Run only one game at a time; both use TCP30000.
 
-ATM10 uses a native ZIP backup policy on the worker's SATA disk. The schedule
+ATM10 4.14 uses a native ZIP backup policy on the worker's SATA disk. The schedule
 runs on Mondays at 03:00 Europe/Warsaw and keeps the four latest archives.
 Crafty stops the game for each copy and restarts it only if it was running;
 the panel stays up. Terraform manages the existing policy and its schedule.
