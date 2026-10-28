@@ -17,6 +17,6 @@ resource "crafty_minecraft_server" "atm10" {
   }
 
   timeouts {
-    create = "15m"
+    create = "30m"
   }
 }
