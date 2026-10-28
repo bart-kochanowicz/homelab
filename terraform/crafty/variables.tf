@@ -21,3 +21,10 @@ variable "crafty_token" {
     error_message = "The Crafty API token must not be empty."
   }
 }
+
+variable "atm10_archive_path" {
+  description = "Private ATM10 4.14 server archive, including the world, available to the Terraform process."
+  type        = string
+  default     = "/srv/terraform/artifacts/atm10-4.14-d8985a62529c.zip"
+  nullable    = false
+}

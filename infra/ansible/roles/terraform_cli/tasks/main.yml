@@ -41,6 +41,14 @@
     group: capcom
     mode: '0700'
 
+- name: Create private installation artifact storage on the SSD
+  ansible.builtin.file:
+    path: /srv/terraform/artifacts
+    state: directory
+    owner: root
+    group: terraform-ops
+    mode: '2770'
+
 - name: Create shared state backup staging on the SSD
   ansible.builtin.file:
     path: /srv/terraform/backup-staging
