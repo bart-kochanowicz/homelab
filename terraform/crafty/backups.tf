@@ -1,8 +1,8 @@
 resource "crafty_backup_config" "atm10" {
-  server_id       = crafty_minecraft_server.atm10.id
-  backup_id       = "f813a6e2-d7bd-4ee7-8653-30fb18244a84"
+  server_id       = crafty_minecraft_server.atm10_8_3.id
+  backup_id       = "0cb658e6-0eb3-4a05-adda-74bbcc1a8133"
   name            = "ATM10 Weekly"
-  backup_location = "/crafty/backups/${crafty_minecraft_server.atm10.id}"
+  backup_location = "/crafty/backups/${crafty_minecraft_server.atm10_8_3.id}"
   max_backups     = 4
   compress        = true
   shutdown        = true
@@ -16,7 +16,7 @@ resource "crafty_backup_config" "atm10" {
 }
 
 resource "crafty_schedule" "atm10_backup" {
-  server_id   = crafty_minecraft_server.atm10.id
+  server_id   = crafty_minecraft_server.atm10_8_3.id
   name        = "ATM10 Weekly backup"
   action      = "backup"
   command     = "backup_server"
