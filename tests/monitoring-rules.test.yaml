@@ -3,6 +3,113 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
+  - name: Node aliases deduplicate scrapes and fall back for unlabelled nodes
+    interval: 1m
+    input_series:
+      - series: 'kube_node_labels{node="talos-control",label_homelab_thecavespace_net_name="control-plane-01",instance="ksm-a"}'
+        values: '1+0x5'
+      - series: 'kube_node_labels{node="talos-control",label_homelab_thecavespace_net_name="control-plane-01",instance="ksm-b"}'
+        values: '1+0x5'
+      - series: 'kube_node_info{node="talos-control",instance="ksm-a"}'
+        values: '1+0x5'
+      - series: 'kube_node_info{node="talos-worker",instance="ksm-a"}'
+        values: '1+0x5'
+      - series: 'node_uname_info{job="node-exporter",instance="10.0.70.11:9100",nodename="talos-control"}'
+        values: '1+0x5'
+      - series: 'node_uname_info{job="node-exporter",instance="10.0.70.12:9100",nodename="talos-worker"}'
+        values: '1+0x5'
+      - series: 'node_uname_info{job="node-exporter",instance="10.0.70.13:9100",nodename="talos-unknown"}'
+        values: '1+0x5'
+    promql_expr_test:
+      - expr: homelab:node_info
+        eval_time: 2m
+        exp_samples:
+          - labels: 'homelab:node_info{node="talos-control",node_name="control-plane-01"}'
+            value: 1
+          - labels: 'homelab:node_info{node="talos-worker",node_name="talos-worker"}'
+            value: 1
+      - expr: homelab:node_exporter_info
+        eval_time: 2m
+        exp_samples:
+          - labels: 'homelab:node_exporter_info{instance="10.0.70.11:9100",node="talos-control",node_name="control-plane-01"}'
+            value: 1
+          - labels: 'homelab:node_exporter_info{instance="10.0.70.12:9100",node="talos-worker",node_name="talos-worker"}'
+            value: 1
+          - labels: 'homelab:node_exporter_info{instance="10.0.70.13:9100",node_name="talos-unknown"}'
+            value: 1
+
+  - name: Node alert descriptions use aliases without changing alert identity
+    interval: 1m
+    input_series:
+      - series: 'kube_node_labels{node="talos-control",label_homelab_thecavespace_net_name="control-plane-01"}'
+        values: '1+0x20'
+      - series: 'kube_node_labels{node="talos-worker",label_homelab_thecavespace_net_name="worker-01"}'
+        values: '1+0x20'
+      - series: 'kube_node_role{node="talos-control",role="control-plane"}'
+        values: '1+0x20'
+      - series: 'kube_node_status_allocatable{node="talos-worker",resource="memory"}'
+        values: '100+0x20'
+      - series: 'kube_pod_container_resource_requests{node="talos-worker",resource="memory"}'
+        values: '95+0x20'
+      - series: 'kube_node_status_allocatable{node="talos-worker",resource="cpu"}'
+        values: '4+0x20'
+      - series: 'kube_pod_container_resource_requests{node="talos-worker",resource="cpu"}'
+        values: '3.8+0x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: TalosSchedulerUnavailable
+        exp_alerts:
+          - exp_labels: {node: talos-control, role: control-plane, severity: critical}
+            exp_annotations:
+              summary: A control-plane node has no ready scheduler pod
+              description: 'Check kube-scheduler on control-plane-01 through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+      - eval_time: 16m
+        alertname: TalosControllerManagerUnavailable
+        exp_alerts:
+          - exp_labels: {node: talos-control, role: control-plane, severity: critical}
+            exp_annotations:
+              summary: A control-plane node has no ready controller-manager pod
+              description: 'Check kube-controller-manager on control-plane-01 through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+      - eval_time: 16m
+        alertname: NodeMemoryRequestsHigh
+        exp_alerts:
+          - exp_labels: {node: talos-worker, severity: warning}
+            exp_annotations:
+              summary: Pod memory requests exceed 90% of a node's allocatable memory
+              description: 'Review memory requests and scheduling capacity on worker-01. This is reserved capacity, not measured memory use.'
+      - eval_time: 16m
+        alertname: NodeCpuRequestsHigh
+        exp_alerts:
+          - exp_labels: {node: talos-worker, severity: warning}
+            exp_annotations:
+              summary: Pod CPU requests exceed 90% of a node's allocatable CPU
+              description: 'Review CPU requests and scheduling capacity on worker-01. This is reserved capacity, not measured CPU use.'
+
+  - name: Missing node metadata cannot suppress alerts or hide their node
+    interval: 1m
+    input_series:
+      - series: 'kube_node_role{node="talos-control",role="control-plane"}'
+        values: '1+0x20'
+      - series: 'kube_node_status_allocatable{node="talos-worker",resource="memory"}'
+        values: '100+0x20'
+      - series: 'kube_pod_container_resource_requests{node="talos-worker",resource="memory"}'
+        values: '95+0x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: TalosSchedulerUnavailable
+        exp_alerts:
+          - exp_labels: {node: talos-control, role: control-plane, severity: critical}
+            exp_annotations:
+              summary: A control-plane node has no ready scheduler pod
+              description: 'Check kube-scheduler on talos-control through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+      - eval_time: 16m
+        alertname: NodeMemoryRequestsHigh
+        exp_alerts:
+          - exp_labels: {node: talos-worker, severity: warning}
+            exp_annotations:
+              summary: Pod memory requests exceed 90% of a node's allocatable memory
+              description: 'Review memory requests and scheduling capacity on talos-worker. This is reserved capacity, not measured memory use.'
+
   - name: Backup success is required in every application namespace
     interval: 1m
     input_series:

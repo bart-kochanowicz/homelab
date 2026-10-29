@@ -10,6 +10,28 @@ Edit these files and merge through GitOps. Provisioned dashboards are read-only;
 export a UI copy as JSON to bring changes back into the repository. Chart-provided
 Kubernetes dashboards remain available alongside them.
 
+## Node names
+
+Talos patches `node-control-plane.yaml` and `node-worker.yaml` persist the
+`homelab.thecavespace.net/name` node label. Apply them from the repository root
+to existing nodes with the cluster's Talos credentials:
+
+```bash
+talosctl -n 10.0.70.11 patch machineconfig \
+  --patch @talos/patches/node-control-plane.yaml --mode=no-reboot
+talosctl -n 10.0.70.12 patch machineconfig \
+  --patch @talos/patches/node-worker.yaml --mode=no-reboot
+kubectl --context homelab-prod get nodes -L homelab.thecavespace.net/name
+```
+
+Kube-state-metrics exports only this allowed node label. Recording rules
+`homelab:node_info` and `homelab:node_exporter_info` map Kubernetes nodes and
+node-exporter instances to `node_name`. The Homelab Resources dashboard and custom
+node alert descriptions use these aliases, falling back to the original names
+when metadata is missing. Chart-provided dashboards and alerts keep their
+upstream formatting. Kubernetes names remain stable for PV affinity and MetalLB.
+Historical samples from before the recording rules retain their original names.
+
 ## Alerts
 
 Talos scheduler/controller-manager metrics listen on loopback. Their custom alerts
