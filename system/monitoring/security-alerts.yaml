@@ -7,6 +7,28 @@ metadata:
     release: kube-prometheus-stack
 spec:
   groups:
+    - name: homelab.nodes
+      rules:
+        - record: homelab:node_info
+          expr: |
+            max by (node, node_name) (
+              label_replace(
+                kube_node_labels{label_homelab_thecavespace_net_name!=""},
+                "node_name", "$1", "label_homelab_thecavespace_net_name", "(.+)"
+              )
+            )
+            or on (node)
+            label_replace(max by (node) (kube_node_info), "node_name", "$1", "node", "(.+)")
+        - record: homelab:node_exporter_info
+          expr: |
+            max by (instance, node, node_name) (
+              label_replace(node_uname_info{job="node-exporter"}, "node", "$1", "nodename", "(.+)")
+              * on (node) group_left (node_name) homelab:node_info
+            )
+            or on (instance)
+            max by (instance, node_name) (
+              label_replace(node_uname_info{job="node-exporter"}, "node_name", "$1", "nodename", "(.+)")
+            )
     - name: homelab.platform
       rules:
         - alert: CiliumAgentUnavailable
@@ -69,7 +91,7 @@ spec:
             severity: critical
           annotations:
             summary: A control-plane node has no ready scheduler pod
-            description: 'Check kube-scheduler on {{ $labels.node }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+            description: 'Check kube-scheduler on {{ with query (printf "homelab:node_info{node=%q}" $labels.node) }}{{ . | first | label "node_name" }}{{ else }}{{ $labels.node }}{{ end }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
         - alert: TalosControllerManagerUnavailable
           expr: |
             kube_node_role{role="control-plane"}
@@ -84,7 +106,7 @@ spec:
             severity: critical
           annotations:
             summary: A control-plane node has no ready controller-manager pod
-            description: 'Check kube-controller-manager on {{ $labels.node }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
+            description: 'Check kube-controller-manager on {{ with query (printf "homelab:node_info{node=%q}" $labels.node) }}{{ . | first | label "node_name" }}{{ else }}{{ $labels.node }}{{ end }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
         - alert: NodeMemoryRequestsHigh
           expr: |
             sum by (node) (kube_pod_container_resource_requests{resource="memory",node!=""})
@@ -94,7 +116,7 @@ spec:
             severity: warning
           annotations:
             summary: Pod memory requests exceed 90% of a node's allocatable memory
-            description: 'Review memory requests and scheduling capacity on {{ $labels.node }}. This is reserved capacity, not measured memory use.'
+            description: 'Review memory requests and scheduling capacity on {{ with query (printf "homelab:node_info{node=%q}" $labels.node) }}{{ . | first | label "node_name" }}{{ else }}{{ $labels.node }}{{ end }}. This is reserved capacity, not measured memory use.'
         - alert: NodeCpuRequestsHigh
           expr: |
             sum by (node) (kube_pod_container_resource_requests{resource="cpu",node!=""})
@@ -104,7 +126,7 @@ spec:
             severity: warning
           annotations:
             summary: Pod CPU requests exceed 90% of a node's allocatable CPU
-            description: 'Review CPU requests and scheduling capacity on {{ $labels.node }}. This is reserved capacity, not measured CPU use.'
+            description: 'Review CPU requests and scheduling capacity on {{ with query (printf "homelab:node_info{node=%q}" $labels.node) }}{{ . | first | label "node_name" }}{{ else }}{{ $labels.node }}{{ end }}. This is reserved capacity, not measured CPU use.'
         - alert: ArgoCDMetricsMissing
           expr: absent(up{job="argocd-application-controller"}) or max(up{job="argocd-application-controller"}) == 0
           for: 10m

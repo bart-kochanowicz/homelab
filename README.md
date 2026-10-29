@@ -28,6 +28,11 @@ only from Home, Admin and WireGuard, on TCP `30000`.
 Hardware: ThinkCentre m720q (i3-8100T, 8 GB RAM, 256 GB SSD), m920q
 (i5-8500T, 32 GB RAM, 512 GB SSD), and Dell Wyse 3040 (`houston-01`).
 
+| Node alias | Kubernetes name | Address |
+| --- | --- | --- |
+| `control-plane-01` | `talos-p5e-e9e` | `10.0.70.11` |
+| `worker-01` | `talos-2jn-7he` | `10.0.70.12` |
+
 ## Bootstrap
 
 Install the tools in `aqua.yaml`, plus Talos, Ansible and yamllint. Commands use
@@ -38,6 +43,8 @@ Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
 `--config-patch-control-plane @talos/patches/service-accounts.yaml`.
 Use `--config-patch-worker @talos/patches/worker-nvme.yaml` for the worker's
 NVMe storage mount.
+Add `--config-patch-control-plane @talos/patches/node-control-plane.yaml` and
+`--config-patch-worker @talos/patches/node-worker.yaml` for monitoring aliases.
 Add `--config-patch-control-plane @talos/patches/logging-control-plane.yaml` and
 `--config-patch-worker @talos/patches/logging-worker.yaml` for service/kernel log forwarding.
 Apply `talos/patches/dns.yaml` as JSON Patch. Nodes use Servers VLAN 70; the API's

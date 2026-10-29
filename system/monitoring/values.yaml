@@ -118,6 +118,8 @@ kubeStateMetrics:
   enabled: true
 
 kube-state-metrics:
+  metricLabelsAllowlist:
+    - nodes=[homelab.thecavespace.net/name]
   rbac:
     extraRules:
       - apiGroups: [k8up.io]
