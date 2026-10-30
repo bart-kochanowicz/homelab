@@ -3,6 +3,7 @@ registries:
     ref: v4.433.0
 
 packages:
+  - name: astral-sh/uv@0.13.6
   - name: hashicorp/terraform@v1.16.4
   - name: kubernetes/kubectl@v1.34.0
   - name: helm/helm@v3.19.0

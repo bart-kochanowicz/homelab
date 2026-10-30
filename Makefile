@@ -16,7 +16,7 @@ KUSTOMIZE_DIRS := \
 	system/network-policies
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
-	validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
+	validate-python format-python validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-cert-manager validate-metallb validate-envoy-gateway validate-backups \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring
 
@@ -25,14 +25,22 @@ default: system
 system:
 	make -C system bootstrap
 
-validate: validate-tools validate-format validate-yaml validate-shell \
+validate: validate-tools validate-python validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
 	validate-terraform-tests validate-workflows validate-monitoring
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks python3 yq jq curl amtool promtool sqlite3 restic docker; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks uv yq jq curl amtool promtool sqlite3 restic docker; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
+
+validate-python:
+	uv run --locked ruff check tests
+	uv run --locked ruff format --check tests
+
+format-python:
+	uv run --locked ruff check --fix tests
+	uv run --locked ruff format tests
 
 validate-terraform-layout:
 	@for file in terraform/*.tf terraform/*.tf.json; do \
@@ -59,7 +67,7 @@ validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
 validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
-	python3 -m unittest discover -s tests -v
+	uv run --locked python -m unittest discover -s tests -v
 
 validate-monitoring: validate-kustomize
 	yq eval-all '.spec.groups as $$groups ireduce ({"groups": []}; .groups += $$groups)' \
@@ -71,6 +79,7 @@ validate-yaml:
 	find . -type f \( -name '*.yaml' -o -name '*.yml' \) \
 		-not -path './.git/*' \
 		-not -path './.cache/*' \
+		-not -path './.venv/*' \
 		-not -path './.secrets/*' \
 		-not -path './.backups/*' \
 		-not -path './thoughts/*' \
@@ -87,6 +96,7 @@ validate-shell:
 	find . -type f -name '*.sh' \
 		-not -path './.git/*' \
 		-not -path './.cache/*' \
+		-not -path './.venv/*' \
 		-not -path './.secrets/*' \
 		-not -path './.backups/*' \
 		-not -path './thoughts/*' \
@@ -212,7 +222,7 @@ validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manag
 validate-security:
 	trivy config --exit-code 1 --severity HIGH,CRITICAL \
 		--ignorefile .trivyignore.yaml \
-		--skip-dirs .git --skip-dirs .terraform --skip-dirs .cache \
+		--skip-dirs .git --skip-dirs .terraform --skip-dirs .cache --skip-dirs .venv \
 		--skip-dirs .secrets --skip-dirs .backups --skip-dirs thoughts \
 		--skip-dirs '**/charts' .
 	trivy config --exit-code 1 --severity HIGH,CRITICAL \

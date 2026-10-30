@@ -58,6 +58,22 @@ make -C system setup-from-scratch
 `make validate` checks configuration without deploying it. Bootstrap installs
 Cilium before ArgoCD; Cilium stays bootstrap-managed for network recovery.
 
+## Python checks
+
+Python 3.13 and the test dependencies are managed by uv from `aqua.yaml`;
+`uv.lock` pins the dependencies. Set up the environment and check or format tests:
+
+```bash
+uv sync --locked
+make validate-python
+make format-python
+```
+
+In VS Code, install the recommended extensions and select the `.venv` interpreter
+with **Python: Select Interpreter**. Python files format on save, and the Testing
+panel uses unittest. Integration tests need Docker and the rendered configuration
+created by `make validate`; that command also checks Python lint and formatting.
+
 ## Operations
 
 - [Private access, certificates, SSO, storage and backups](docs/security-runbook.md)

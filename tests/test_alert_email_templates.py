@@ -1,14 +1,15 @@
-from html.parser import HTMLParser
 import json
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-
+from html.parser import HTMLParser
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "system/monitoring/alertmanager-email.tmpl"
-ALERTS_URL = "https://grafana.thecavespace.net/alerting/groups?alertmanager=Alertmanager"
+ALERTS_URL = (
+    "https://grafana.thecavespace.net/alerting/groups?alertmanager=Alertmanager"
+)
 
 
 class Links(HTMLParser):
@@ -30,8 +31,14 @@ class AlertEmailTemplateTests(unittest.TestCase):
             "alerts": [
                 {
                     "status": status,
-                    "labels": {"alertname": f"Example-{status}", "instance": "<worker&>"},
-                    "annotations": {"summary": "<script>unsafe</script>", "description": "A & B"},
+                    "labels": {
+                        "alertname": f"Example-{status}",
+                        "instance": "<worker&>",
+                    },
+                    "annotations": {
+                        "summary": "<script>unsafe</script>",
+                        "description": "A & B",
+                    },
                     "generatorURL": "http://prometheus.monitoring:9090/graph",
                 }
                 for status in ("firing", "resolved")
@@ -41,10 +48,18 @@ class AlertEmailTemplateTests(unittest.TestCase):
             fixture = Path(directory) / "alerts.json"
             fixture.write_text(json.dumps(data))
             result = subprocess.run(
-                ["amtool", "template", "render", f"--template.glob={TEMPLATE}",
-                 f'--template.text={{{{ template "{name}" . }}}}',
-                 "--template.type=html", f"--template.data={fixture}"],
-                capture_output=True, text=True, timeout=15,
+                [
+                    "amtool",
+                    "template",
+                    "render",
+                    f"--template.glob={TEMPLATE}",
+                    f'--template.text={{{{ template "{name}" . }}}}',
+                    "--template.type=html",
+                    f"--template.data={fixture}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
             )
         self.assertEqual(result.returncode, 0, result.stderr)
         links = Links()
