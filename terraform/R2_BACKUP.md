@@ -13,7 +13,17 @@ a failed post-backup does not undo it. See [plan and apply](README.md#plan-and-a
 ## Credentials
 
 Manual commands below run in **Bash on Houston**, from a private repository checkout
-under `/srv/terraform/workspaces`. Production jobs use [Actions secrets](https://github.com/bart-kochanowicz/homelab-automation#github-configuration).
+under `/srv/terraform/workspaces`. The Ansible `terraform_cli` role installs
+Debian 13's AWS CLI v2 package for R2 transfers. Before using these scripts on
+an existing host, install it with:
+
+```bash
+ANSIBLE_CONFIG=infra/ansible/ansible.cfg ansible-playbook \
+  infra/ansible/playbooks/houston.yml --tags terraform_cli --ask-become-pass
+```
+
+Scripts isolate R2 credentials from Garage, ignore AWS profiles and disable
+automatic request retries. Production jobs use [Actions secrets](https://github.com/bart-kochanowicz/homelab-automation#github-configuration).
 Load Garage and bucket-scoped R2 **Object Read & Write** credentials:
 
 ```bash

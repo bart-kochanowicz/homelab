@@ -19,6 +19,7 @@ expected_sha256=$2
 [[ ${R2_SECRET_ACCESS_KEY:-} =~ ^[a-f0-9]{64}$ ]] || fail 'Set R2_SECRET_ACCESS_KEY.'
 [[ -n ${AWS_ACCESS_KEY_ID:-} && -n ${AWS_SECRET_ACCESS_KEY:-} ]] || fail 'Load the Garage AWS_* credentials first.'
 mountpoint --quiet /srv/terraform || fail 'The workload SSD must be mounted at /srv/terraform.'
+command -v aws > /dev/null || fail 'Install AWS CLI v2 with the terraform_cli Ansible role.'
 
 # Keep inherited Terraform options from redirecting this private rehearsal.
 unset TF_DATA_DIR TF_WORKSPACE TF_CLI_ARGS TF_CLI_ARGS_init TF_CLI_ARGS_state TF_CLI_ARGS_plan TF_CLI_ARGS_output
@@ -39,11 +40,17 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-url="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com/houston-terraform-state-backups/$key"
-printf 'user = "%s:%s"\n' "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" |
-  curl --disable --config - --aws-sigv4 aws:amz:auto:s3 \
-    --proto '=https' --silent --show-error --fail \
-    --connect-timeout 10 --max-time 120 --output "$snapshot" "$url"
+(
+  # Scope R2 credentials/configuration to AWS CLI; Terraform keeps Garage access.
+  unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+  export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+  export AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null
+  export AWS_MAX_ATTEMPTS=1 AWS_RETRY_MODE=standard AWS_PAGER='' AWS_CLI_AUTO_PROMPT=off
+  export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+  timeout 120 aws --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" --region auto \
+    --cli-connect-timeout 10 --cli-read-timeout 120 s3api get-object \
+    --bucket houston-terraform-state-backups --key "$key" "$snapshot" > /dev/null
+)
 [[ $(sha256sum "$snapshot" | cut -d ' ' -f 1) == "$expected_sha256" ]] || fail 'Snapshot SHA256 does not match the backup result.'
 
 # Accept only the completed, harmless marker example, never infrastructure state.
