@@ -14,3 +14,19 @@
     name: fstrim.timer
     enabled: true
     state: started
+
+- name: Create the root-owned backup parent on the SSD
+  ansible.builtin.file:
+    path: /srv/terraform/backups
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create the private Talos recovery repository directory
+  ansible.builtin.file:
+    path: /srv/terraform/backups/talos
+    state: directory
+    owner: capcom
+    group: capcom
+    mode: '0700'
