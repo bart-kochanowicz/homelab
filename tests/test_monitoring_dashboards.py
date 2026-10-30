@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MONITORING = ROOT / "system/monitoring"
@@ -102,7 +103,7 @@ class MonitoringDashboardTests(unittest.TestCase):
     def test_uids_and_datasources_match_the_provisioned_instance(self):
         uids = [dashboard["uid"] for dashboard in self.dashboards.values()]
         self.assertEqual(len(uids), len(set(uids)))
-        other_uids = set()
+        other_uids: set[str | None] = set()
         for resource in self.resources:
             if (
                 resource["kind"] != "ConfigMap"
@@ -129,7 +130,7 @@ class MonitoringDashboardTests(unittest.TestCase):
                         self.assertIn(link["url"][3:], uids)
 
     def test_all_dashboard_queries_are_valid_promql(self):
-        rules = []
+        rules: list[dict[str, str]] = []
         for dashboard in self.dashboards.values():
             for panel in dashboard["panels"]:
                 for target in panel["targets"]:
@@ -174,7 +175,7 @@ class MonitoringDashboardTests(unittest.TestCase):
             if item["kind"] == "PrometheusRule"
             and item["metadata"]["name"] == "homelab-security-and-operations"
         )
-        series = []
+        series: list[dict[str, str]] = []
         for node, instance in (
             ("talos-control", "10.0.70.11:9100"),
             ("talos-worker", "10.0.70.12:9100"),
@@ -239,7 +240,7 @@ class MonitoringDashboardTests(unittest.TestCase):
                 "values": "1+0x10",
             }
         )
-        queries = []
+        queries: list[dict[str, Any]] = []
         dashboard = self.dashboards["resources.json"]
         for panel_id, expected in ((1, 25), (2, 75), (3, 25), (4, 50), (8, 80)):
             panel = next(

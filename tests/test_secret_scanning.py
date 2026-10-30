@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 CONFIG = Path(__file__).resolve().parents[1] / ".gitleaks.toml"
 SEALED_SECRET_PATHS = (
@@ -20,7 +21,9 @@ SEALED_SECRET_PATHS = (
 
 
 class SecretScanningTests(unittest.TestCase):
-    def scan(self, path, content, default_config=False):
+    def scan(
+        self, path: str, content: str, default_config: bool = False
+    ) -> list[dict[str, Any]]:
         cache = CONFIG.parent / ".cache"
         cache.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(

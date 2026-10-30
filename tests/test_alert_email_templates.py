@@ -13,17 +13,17 @@ ALERTS_URL = (
 
 
 class Links(HTMLParser):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.urls = []
+        self.urls: list[str | None] = []
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag == "a":
             self.urls.extend(value for key, value in attrs if key == "href")
 
 
 class AlertEmailTemplateTests(unittest.TestCase):
-    def render(self, name):
+    def render(self, name: str) -> str:
         data = {
             "receiver": "email",
             "status": "firing",

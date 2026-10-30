@@ -103,12 +103,14 @@ class R2BackupTests(unittest.TestCase):
         """),
         )
 
-    def executable(self, name, content):
+    def executable(self, name: str, content: str) -> None:
         path = self.bin / name
         path.write_text(content)
         path.chmod(0o700)
 
-    def run_script(self, name, *args, **env):
+    def run_script(
+        self, name: str, *args: str, **env: str
+    ) -> subprocess.CompletedProcess[str]:
         script = (SCRIPTS / name).read_text().replace("/srv/terraform", str(self.root))
         script = script.replace("/usr/local/bin/terraform", str(self.bin / "terraform"))
         return subprocess.run(

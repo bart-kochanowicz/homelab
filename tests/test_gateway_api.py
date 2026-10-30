@@ -4,13 +4,14 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ROOT / ".cache/gateway-api-schemas"
 SCHEMA_LOCATION = str(SCHEMAS / "{{.ResourceKind}}_{{.ResourceAPIVersion}}.json")
 
 
-def resource(kind, spec, version="v1"):
+def resource(kind: str, spec: dict[str, Any], version: str = "v1") -> dict[str, Any]:
     return {
         "apiVersion": f"gateway.networking.k8s.io/{version}",
         "kind": kind,
@@ -35,7 +36,7 @@ class GatewaySchemaTests(unittest.TestCase):
         if not SCHEMAS.is_dir():
             raise RuntimeError("Run make validate-gateway-api before these tests")
 
-    def validate(self, document):
+    def validate(self, document: dict[str, Any]) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory(
             prefix="gateway-schema-", dir=ROOT / ".cache"
         ) as directory:

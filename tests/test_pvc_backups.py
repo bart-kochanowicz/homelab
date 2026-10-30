@@ -53,7 +53,9 @@ class PvcBackupTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name).resolve()
 
-    def prepare(self, namespace, source, staging):
+    def prepare(
+        self, namespace: str, source: Path, staging: Path
+    ) -> subprocess.CompletedProcess[str]:
         init = self.prebackups[namespace]["spec"]["pod"]["spec"]["initContainers"][0]
         paths = {"data": str(source), "staging": str(staging)}
         command = re.sub(
@@ -69,13 +71,13 @@ class PvcBackupTests(unittest.TestCase):
             timeout=30,
         )
 
-    def archive_path(self, namespace, staging):
+    def archive_path(self, namespace: str, staging: Path) -> Path:
         command = shlex.split(self.prebackups[namespace]["spec"]["backupCommand"])
         self.assertEqual(command[0], "cat")
         self.assertEqual(len(command), 2)
         return Path(command[1].replace("/staging", str(staging)))
 
-    def source(self, namespace):
+    def source(self, namespace: str) -> tuple[Path, Path]:
         source, staging = (
             self.root / namespace / "source",
             self.root / namespace / "staging",
@@ -90,7 +92,7 @@ class PvcBackupTests(unittest.TestCase):
         (source / "config.yaml").write_text("fixture: application configuration\n")
         return source, staging
 
-    def open_wal(self, namespace, source):
+    def open_wal(self, namespace: str, source: Path) -> sqlite3.Connection:
         database = sqlite3.connect(source / DATABASES[namespace])
         self.addCleanup(database.close)
         database.execute("PRAGMA journal_mode=WAL")
@@ -101,7 +103,7 @@ class PvcBackupTests(unittest.TestCase):
         self.assertGreater((source / (DATABASES[namespace] + "-wal")).stat().st_size, 0)
         return database
 
-    def assert_database(self, namespace, directory):
+    def assert_database(self, namespace: str, directory: Path) -> None:
         with closing(sqlite3.connect(directory / DATABASES[namespace])) as database:
             self.assertEqual(
                 database.execute("PRAGMA integrity_check").fetchone(), ("ok",)

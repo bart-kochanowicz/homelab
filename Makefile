@@ -35,6 +35,7 @@ validate-tools:
 	done
 
 validate-python:
+	uv run --locked pyright
 	uv run --locked ruff check tests
 	uv run --locked ruff format --check tests
 

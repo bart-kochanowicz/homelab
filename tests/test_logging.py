@@ -11,6 +11,7 @@ import unittest
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -22,8 +23,10 @@ LOGGING = ROOT / "system/logging"
 
 
 class LoggingTests(unittest.TestCase):
+    containers: list[str]
+
     @classmethod
-    def command(cls, *args):
+    def command(cls, *args: str) -> str:
         return subprocess.check_output(
             args, text=True, stderr=subprocess.STDOUT
         ).strip()
@@ -154,7 +157,7 @@ class LoggingTests(unittest.TestCase):
         )
 
     @classmethod
-    def query(cls, expression, at=None):
+    def query(cls, expression: str, at: float | None = None) -> list[dict[str, Any]]:
         params = {"query": expression}
         if at is not None:
             params["time"] = str(at)
@@ -168,8 +171,13 @@ class LoggingTests(unittest.TestCase):
             raise AssertionError(payload)
         return payload["data"]["result"]
 
-    def push(self, server, events, message="backup integration fixture"):
-        streams = []
+    def push(
+        self,
+        server: str,
+        events: list[tuple[str, timedelta]],
+        message: str = "backup integration fixture",
+    ) -> None:
+        streams: list[dict[str, Any]] = []
         for status, age in events:
             stamp = time.time_ns() - int(age.total_seconds() * 1_000_000_000)
             streams.append(
@@ -191,7 +199,7 @@ class LoggingTests(unittest.TestCase):
         with urlopen(request, timeout=10) as response:
             self.assertEqual(response.status, 204)
 
-    def unhealthy(self, server, at=None):
+    def unhealthy(self, server: str, at: float | None = None) -> bool:
         expression = self.expression.replace("ATM10 8.3", server)
         return any(
             result["metric"].get("server_name") == server
@@ -417,7 +425,7 @@ class LoggingTests(unittest.TestCase):
 
         stamp = datetime.now(timezone.utc) - timedelta(days=1)
 
-        def line(instant, message):
+        def line(instant: datetime, message: str) -> str:
             local = instant.astimezone(ZoneInfo("Europe/Warsaw")).strftime(
                 "%Y-%m-%d %H:%M:%S,%f"
             )[:-3]

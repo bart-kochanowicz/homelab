@@ -26,7 +26,9 @@ class TerraformRunPollingTests(unittest.TestCase):
         if len(cls.functions) != 2:
             raise AssertionError("Both plan and apply must have their polling tested.")
 
-    def check_polling(self, responses, succeeds, requests):
+    def check_polling(
+        self, responses: list[str], succeeds: bool, requests: int
+    ) -> None:
         for job, body in zip(("plan", "apply"), self.functions):
             with self.subTest(job=job), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)

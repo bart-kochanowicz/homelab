@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,10 +39,10 @@ class PrivateGatewayTests(unittest.TestCase):
         ]
         cls.resources += cls.rendered("system-metallb-config.yaml")
 
-    def resources_of_kind(self, kind):
+    def resources_of_kind(self, kind: str) -> list[dict[str, Any]]:
         return [item for item in self.resources if item["kind"] == kind]
 
-    def validate(self, document):
+    def validate(self, document: dict[str, Any]) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory(
             prefix="gateway-schema-", dir=ROOT / ".cache"
         ) as directory:
@@ -86,7 +87,7 @@ class PrivateGatewayTests(unittest.TestCase):
                 self.assertIn(
                     "Valid: 1, Invalid: 0, Errors: 0, Skipped: 0", result.stdout
                 )
-        invalid_examples = []
+        invalid_examples: list[dict[str, Any]] = []
         invalid = copy.deepcopy(config)
         invalid["spec"]["provider"]["kubernetes"]["envoyService"]["sourceRanges"] = [
             "0.0.0.0/0"
@@ -170,7 +171,7 @@ class PrivateGatewayTests(unittest.TestCase):
             for item in self.resources_of_kind("EnvoyProxy")
         }
         self.assertEqual(len(pools), 2)
-        addresses = set()
+        addresses: set[str] = set()
         for pool in pools:
             name = pool["metadata"]["name"]
             self.assertEqual(pool["metadata"]["namespace"], "metallb-system")
@@ -293,7 +294,7 @@ class PrivateGatewayTests(unittest.TestCase):
             for item in self.rendered("system-cert-manager-acme.yaml")
             if item["kind"] == "Certificate"
         }
-        policies = {}
+        policies: dict[tuple[str, str, str | None], dict[str, Any]] = {}
         for policy in self.resources_of_kind("ClientTrafficPolicy"):
             for target in policy["spec"]["targetRefs"]:
                 policies[
@@ -738,9 +739,11 @@ class PrivateGatewayTests(unittest.TestCase):
             item["name"]: item.get("value")
             for item in deployment["spec"]["template"]["spec"]["containers"][0]["env"]
         }
+        editor_url: str = env["N8N_EDITOR_BASE_URL"]
+        webhook_url: str = env["WEBHOOK_URL"]
         hosts = {
-            "n8n": urlsplit(env["N8N_EDITOR_BASE_URL"]).hostname,
-            "n8n-webhook": urlsplit(env["WEBHOOK_URL"]).hostname,
+            "n8n": urlsplit(editor_url).hostname,
+            "n8n-webhook": urlsplit(webhook_url).hostname,
         }
         self.assertEqual(set(routes), set(hosts))
         for name, route in routes.items():
@@ -1048,7 +1051,7 @@ class PrivateGatewayTests(unittest.TestCase):
             )
 
     @staticmethod
-    def rendered(name):
+    def rendered(name: str) -> list[dict[str, Any]]:
         result = subprocess.run(
             [
                 "yq",
@@ -1153,7 +1156,7 @@ class PrivateGatewayTests(unittest.TestCase):
             for item in resources
             if item["kind"] in {"Role", "ClusterRole"}
         }
-        granted = set()
+        granted: set[str] = set()
         for binding in resources:
             if binding["kind"] not in {"RoleBinding", "ClusterRoleBinding"}:
                 continue
@@ -1455,7 +1458,9 @@ class PrivateGatewayTests(unittest.TestCase):
         self.assertEqual(grafana["spec"]["policyTypes"], ["Ingress"])
         self.assertNotIn("egress", grafana["spec"])
 
-        def allows(namespace, labels, address, port):
+        def allows(
+            namespace: str, labels: dict[str, str], address: str, port: int
+        ) -> bool:
             for rule in grafana["spec"]["ingress"]:
                 if {"port": port, "protocol": "TCP"} not in rule["ports"]:
                     continue
@@ -1763,7 +1768,9 @@ class PrivateGatewayTests(unittest.TestCase):
             ],
         )
 
-        def allows(namespace, labels, address, port):
+        def allows(
+            namespace: str, labels: dict[str, str], address: str, port: int
+        ) -> bool:
             for rule in server["spec"]["ingress"]:
                 if {"port": port, "protocol": "TCP"} not in rule["ports"]:
                     continue

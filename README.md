@@ -72,7 +72,9 @@ make format-python
 In VS Code, install the recommended extensions and select the `.venv` interpreter
 with **Python: Select Interpreter**. Python files format on save, and the Testing
 panel uses unittest. Integration tests need Docker and the rendered configuration
-created by `make validate`; that command also checks Python lint and formatting.
+created by `make validate`; that command also checks Python types, lint and
+formatting. Pyright and Pylance share the standard type-checking configuration in
+`pyproject.toml`, including errors for unknown member types.
 
 ## Operations
 
