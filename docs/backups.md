@@ -40,6 +40,9 @@ The repository configures no offsite replication of application backups or copy
 of Minecraft ZIPs off the worker. [R2 backups](../terraform/R2_BACKUP.md) cover
 Terraform state only. A lost worker also makes its SATA backups unavailable.
 
+The control plane has a separate [Talos/etcd recovery procedure](talos-etcd-recovery.md).
+Its encrypted repository on Houston is independent of the application repositories.
+
 ## Storage and credentials
 
 The [Houston REST-server](../infra/ansible/README.md#application-backup-storage)

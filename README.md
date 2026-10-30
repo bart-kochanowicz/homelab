@@ -85,6 +85,7 @@ uv run --locked python -m unittest tests.networking.test_n8n -v
 
 ## Operations
 
+- [Talos/etcd backup and recovery](docs/talos-etcd-recovery.md)
 - [Private access, certificates, SSO, storage and backups](docs/security-runbook.md)
 - [Security exceptions](docs/exception-register.md)
 - [Houston](infra/ansible/README.md)
