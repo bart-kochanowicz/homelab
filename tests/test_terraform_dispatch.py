@@ -96,7 +96,11 @@ class TerraformRootDispatchTests(unittest.TestCase):
                     from pathlib import Path
                     args = sys.argv[1:]
                     if any(value.endswith("/dispatches") for value in args):
-                        inputs = json.load(sys.stdin)["inputs"]
+                        fields = dict(args[index + 1].split("=", 1)
+                                      for index, value in enumerate(args) if value == "-f")
+                        assert fields.pop("ref") == "main"
+                        inputs = {key.removeprefix("inputs[").removesuffix("]"): value
+                                  for key, value in fields.items()}
                         with Path(os.environ["REQUESTS"]).open("a") as log:
                             log.write(json.dumps(inputs) + "\\n")
                         print({"cloudflare": 101, "unifi": 102, "crafty": 103}[inputs["terraform_root"]])
@@ -119,6 +123,11 @@ class TerraformRootDispatchTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 planned = [json.loads(line) for line in requests.read_text().splitlines()]
                 self.assertEqual([item["terraform_root"] for item in planned], roots)
+                for item in planned:
+                    self.assertEqual(item["operation"], "plan")
+                    self.assertEqual(item["source_sha"], env["SOURCE_SHA"])
+                    self.assertEqual(item["validation_run_id"], "10")
+                    self.assertEqual(item["approval_run_id"], "20")
                 plan_outputs = dict(line.split("=", 1) for line in output.read_text().splitlines())
                 apply_step = workflow["jobs"]["apply"]["steps"][0]
                 for name, expression in apply_step["env"].items():

@@ -79,7 +79,6 @@ jobs:
           fi
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ && "$VALIDATION_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$(gh api repos/bart-kochanowicz/homelab/git/ref/heads/main --jq .object.sha)" == "$SOURCE_SHA" ]]
-          export SOURCE_SHA VALIDATION_RUN_ID
           printf 'source_sha=%s\nvalidation_run_id=%s\n' "$SOURCE_SHA" "$VALIDATION_RUN_ID" >> "$GITHUB_OUTPUT"
           case "$ROOT" in
             all) roots=(cloudflare unifi crafty) ;;
@@ -88,22 +87,17 @@ jobs:
           esac
           runs=()
           for TERRAFORM_ROOT in "${roots[@]}"; do
-            export TERRAFORM_ROOT
             printf 'Dispatching %s plan.\n' "$TERRAFORM_ROOT"
-            run_id=$(python3 - <<'PYTHON' | gh api --method POST \
+            run_id=$(gh api --method POST \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
               repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
-              --input - --jq .workflow_run_id
-          import json
-          import os
-          print(json.dumps({"ref": "main", "inputs": {
-              "terraform_root": os.environ["TERRAFORM_ROOT"], "operation": "plan",
-              "source_sha": os.environ["SOURCE_SHA"],
-              "validation_run_id": os.environ["VALIDATION_RUN_ID"],
-              "approval_run_id": os.environ["GITHUB_RUN_ID"],
-          }}))
-          PYTHON
-            )
+              -f ref=main \
+              -f "inputs[terraform_root]=$TERRAFORM_ROOT" \
+              -f "inputs[operation]=plan" \
+              -f "inputs[source_sha]=$SOURCE_SHA" \
+              -f "inputs[validation_run_id]=$VALIDATION_RUN_ID" \
+              -f "inputs[approval_run_id]=$GITHUB_RUN_ID" \
+              --jq .workflow_run_id)
             [[ "$run_id" =~ ^[1-9][0-9]*$ ]]
             runs+=("$run_id")
             printf '%s=%s\n' "$TERRAFORM_ROOT" "$run_id" >> "$GITHUB_OUTPUT"
@@ -169,23 +163,18 @@ jobs:
             esac
             [[ -n "$PLAN_RUN_ID" ]] || continue
             [[ "$PLAN_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            export TERRAFORM_ROOT PLAN_RUN_ID
             printf 'Dispatching %s apply.\n' "$TERRAFORM_ROOT"
-            run_id=$(python3 - <<'PYTHON' | gh api --method POST \
+            run_id=$(gh api --method POST \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
               repos/bart-kochanowicz/homelab-automation/actions/workflows/terraform.yaml/dispatches \
-              --input - --jq .workflow_run_id
-          import json
-          import os
-          print(json.dumps({"ref": "main", "inputs": {
-              "terraform_root": os.environ["TERRAFORM_ROOT"], "operation": "apply",
-              "source_sha": os.environ["SOURCE_SHA"],
-              "validation_run_id": os.environ["VALIDATION_RUN_ID"],
-              "plan_run_id": os.environ["PLAN_RUN_ID"],
-              "approval_run_id": os.environ["GITHUB_RUN_ID"],
-          }}))
-          PYTHON
-            )
+              -f ref=main \
+              -f "inputs[terraform_root]=$TERRAFORM_ROOT" \
+              -f "inputs[operation]=apply" \
+              -f "inputs[source_sha]=$SOURCE_SHA" \
+              -f "inputs[validation_run_id]=$VALIDATION_RUN_ID" \
+              -f "inputs[plan_run_id]=$PLAN_RUN_ID" \
+              -f "inputs[approval_run_id]=$GITHUB_RUN_ID" \
+              --jq .workflow_run_id)
             [[ "$run_id" =~ ^[1-9][0-9]*$ ]]
             printf -- '- [%s apply](https://github.com/bart-kochanowicz/homelab-automation/actions/runs/%s).\n' \
               "$TERRAFORM_ROOT" "$run_id" >> "$GITHUB_STEP_SUMMARY"
