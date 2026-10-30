@@ -1,29 +1,44 @@
 # Application backups
 
-K8up backs up Home Assistant, n8n and Grafana daily at **03:00 Europe/Warsaw**.
-The Crafty panel is copied on Mondays at 03:00, retaining the latest snapshot and
-four weekly snapshots. K8up requires a positive daily retention value; zero defaults
-to 14 days. With weekly backups, the latest snapshot also belongs to a retained week.
-[Crafty/Minecraft](../terraform/crafty/README.md) uses native ZIP backups on the
-worker's SATA disk; disposable Prometheus data is excluded. K8up repositories live on
-Houston's SSD at `/srv/terraform/backups/restic/{home-assistant,n8n,monitoring,crafty-controller}`.
-`system/backups/values.yaml` lists the PVCs, database names and filesystem users;
-one Helm template generates their shared configuration.
-Empty resource objects match K8up's stored defaults and prevent ArgoCD drift.
-Daily applications retain 7 daily, 4 weekly and 3 monthly snapshots; pruning runs Sunday at
-05:00. Sunday checks at 04:00 read and verify every stored data block.
+All schedules use **Europe/Warsaw**. Sources below are PVCs, with subdirectories
+shown where only part of a claim is copied.
 
-Each backup mounts the application's PVC read-only, uses SQLite's online backup
+| Data | Source | Destination | Schedule | Retention |
+| --- | --- | --- | --- | --- |
+| Home Assistant | `home-assistant-data-nvme` | Houston / K8up | Daily 03:00 | 7 daily, 4 weekly, 3 monthly |
+| n8n | `n8n-data-nvme` | Houston / K8up | Daily 03:00 | 7 daily, 4 weekly, 3 monthly |
+| Grafana | `grafana-data-nvme` | Houston / K8up | Daily 03:00 | 7 daily, 4 weekly, 3 monthly |
+| Crafty panel | `crafty-data-nvme`, `app-config/` | Houston / K8up | Monday 03:00 | 1 daily, 4 weekly |
+| Minecraft ATM10 8.3 | `crafty-data-nvme`, `servers/<server-id>/` | Worker SATA / ZIP | Monday 03:00 | 4 latest archives |
+
+`system/backups/values.yaml` selects the K8up sources. Each application uses its
+namespace as the repository name under Houston's `/srv/terraform/backups/restic/`.
+Restic retention buckets can overlap; Crafty's daily and weekly settings do not
+necessarily retain five snapshots. K8up requires a positive daily retention value;
+zero defaults to 14 days. Sunday checks at 04:00 verify every stored data block;
+pruning runs at 05:00.
+
+Each K8up backup mounts the application's PVC read-only, uses SQLite's online backup
 command and prepares a tar archive containing the database and a `files.tar`
 archive of the remaining files before streaming it to restic. Applications
 keep running. Database copies are transactional; other files are copied during
 normal operation and do not form an atomic application-wide snapshot. Preparation
-uses at most 4 GiB of temporary node storage and does not change PVC ownership.
+has a 4 GiB staging limit for both intermediate and final archives and does not
+change PVC ownership.
 
 Crafty's preparation mounts only the `app-config` subdirectory of `crafty-data-nvme`.
 It copies `db/crafty.sqlite` through SQLite's backup API. Runtime `session.lock` and
 recreated `db/servers` statistics/cache data are excluded; game files use Crafty's
 separate SATA backups. Restore the panel configuration and game directories together.
+
+Minecraft's native policy stops the game for the ZIP copy and restarts it only
+if it was running. The panel stays up. Terraform manages this policy and its
+schedule in [terraform/crafty](../terraform/crafty/README.md).
+
+Prometheus, Alertmanager, Loki and Alloy positions have no scheduled backup.
+The repository configures no offsite replication of application backups or copy
+of Minecraft ZIPs off the worker. [R2 backups](../terraform/R2_BACKUP.md) cover
+Terraform state only. A lost worker also makes its SATA backups unavailable.
 
 ## Storage and credentials
 
@@ -49,43 +64,58 @@ unchanged so existing snapshots remain readable.
 Install CRDs before the operator. The operator chart skips Helm hooks because
 its legacy cleanup hook removes old executor RBAC across namespaces. Sync backup
 definitions only after storage and credentials are ready. All three ArgoCD backup
-Applications require manual synchronization. Before enabling schedules, run one
-backup and an isolated restore per application; review retention with restic's
+Applications (`backup-crds`, `backup-operator`, `backups`) require manual
+synchronization. Before enabling schedules, run one backup and an isolated
+restore per application; review retention with restic's
 `forget --dry-run` before allowing pruning.
 
 ## Inspect and restore
 
 ```bash
-kubectl get schedules,backups,checks,prunes -A
-kubectl -n n8n logs job/JOB_NAME
+kubectl --context homelab-prod get schedules,backups,checks,prunes -A
+kubectl --context homelab-prod -n n8n logs job/JOB_NAME
 ssh houston-01 'journalctl -u restic-server.service --since today'
 ```
 
-For an isolated n8n restore on the MacBook, select a snapshot belonging to a
-**completed successful Backup**, not an unchecked `latest` snapshot:
+For an isolated restore on the MacBook, select a snapshot belonging to a
+**completed successful Backup**, not an unchecked `latest` snapshot.
+Set `backup_namespace` and `database` from this table; the example uses n8n:
 
-Open an SSH tunnel in another terminal: `ssh -N -L 127.0.0.1:48444:10.0.70.10:8444 houston-01`.
+| Application | Namespace | Database |
+| --- | --- | --- |
+| Home Assistant | `home-assistant` | `home-assistant_v2.db` |
+| n8n | `n8n` | `database.sqlite` |
+| Grafana | `monitoring` | `grafana.db` |
+| Crafty panel | `crafty-controller` | `db/crafty.sqlite` |
+
+Run from the repository root. Open an SSH tunnel in another terminal:
+`ssh -N -L 127.0.0.1:48444:10.0.70.10:8444 houston-01`.
 
 ```bash
-export RESTIC_REPOSITORY=rest:https://127.0.0.1:48444/n8n/
-export RESTIC_REST_USERNAME=n8n
-export RESTIC_REST_PASSWORD="$(cat .secrets/houston-restic/n8n.http-password)"
-export RESTIC_PASSWORD_FILE="$PWD/.secrets/houston-restic/n8n.repo-password"
+backup_namespace=n8n
+database=database.sqlite
+export RESTIC_REPOSITORY="rest:https://127.0.0.1:48444/$backup_namespace/"
+export RESTIC_REST_USERNAME="$backup_namespace"
+export RESTIC_REST_PASSWORD="$(cat ".secrets/houston-restic/$backup_namespace.http-password")"
+export RESTIC_PASSWORD_FILE="$PWD/.secrets/houston-restic/$backup_namespace.repo-password"
 umask 077
-restore_dir=$(mktemp -d "${TMPDIR:-/tmp}/n8n-restore.XXXXXX")
+restore_dir=$(mktemp -d "${TMPDIR:-/tmp}/application-restore.XXXXXX")
 restic --cacert system/backups/ca.crt snapshots
-restic --cacert system/backups/ca.crt dump SNAPSHOT_ID /n8n-archive.tar > "$restore_dir/archive.tar"
-mkdir "$restore_dir/data"
+restic --cacert system/backups/ca.crt ls SNAPSHOT_ID
+restic --cacert system/backups/ca.crt dump SNAPSHOT_ID ARCHIVE_PATH > "$restore_dir/archive.tar"
+mkdir -p "$restore_dir/data/$(dirname "$database")"
 tar -xf "$restore_dir/archive.tar" -C "$restore_dir"
-cp "$restore_dir/database.sqlite" "$restore_dir/data/"
+cp "$restore_dir/$database" "$restore_dir/data/$database"
 tar -xf "$restore_dir/files.tar" -C "$restore_dir/data"
-sqlite3 "$restore_dir/data/database.sqlite" 'PRAGMA integrity_check;'
+sqlite3 -readonly -bail "$restore_dir/data/$database" 'PRAGMA integrity_check;'
 unset RESTIC_REST_PASSWORD
 ```
 
-Use the corresponding namespace and database for HA (`home-assistant_v2.db`) or
-Grafana (`grafana.db`). Inspect configuration and test the application separately.
+Replace `SNAPSHOT_ID` and `ARCHIVE_PATH` using `snapshots` and `ls` output.
+For Crafty, `data/` contains `app-config/` contents, not the whole PVC.
+Download the matching Minecraft ZIP from Crafty, check it with `unzip -t` and
+extract it into a separate test directory. Inspect configuration and test each
+application separately.
 Restic integrity checks and successful job status do not replace restore tests.
 An in-place restore requires explicit approval, an application stop and protection
-from ArgoCD self-heal. Existing MacBook repositories remain readable with native
-`restic snapshots`, `ls`, `dump` and `restore`; their paths and passwords are unchanged.
+from ArgoCD self-heal.

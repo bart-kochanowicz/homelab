@@ -178,9 +178,12 @@ server. Disable local admin again after recovery.
 
 [Application backups](backups.md) use K8up and encrypted restic repositories on
 Houston's SSD. HA, n8n and Grafana are copied daily without stopping applications;
-Crafty/Minecraft is excluded. Restore commands, credentials and retention are
-specified in that guide. In-place recovery requires an explicit maintenance
-window and protection from ArgoCD self-heal.
+the Crafty panel is copied weekly. Minecraft ATM10 8.3 has a separate weekly ZIP
+backup on the worker's SATA disk; the game stops during that copy.
+The backup guide lists sources, schedules, retention, credentials and restore
+commands. Application backups have no configured offsite replication; R2 covers
+Terraform state only. In-place recovery requires an explicit maintenance window
+and protection from ArgoCD self-heal.
 
 `system/backups/values.yaml` selects source claims explicitly. Keep these aligned
 with application mounts and manually sync the `backups` ArgoCD Application after
@@ -226,8 +229,10 @@ talosctl -n 10.0.70.12 patch machineconfig \
 
 Prometheus collects metrics; Grafana provides dashboards and the Alertmanager
 view. [Email notifications](../system/monitoring/README.md) use Brevo for incident,
-recovery and weekly delivery-check messages. Backup alerts cover failures,
-missing successes and copies older than 36 hours.
+recovery and weekly delivery-check messages. K8up backup alerts cover failures,
+missing successes, daily copies older than 36 hours and weekly Crafty panel
+copies older than eight days. [Minecraft backup alerts](../system/logging/README.md)
+use Crafty logs to detect failures and eight days without a successful copy.
 
 Credentials and state belong in private directories with mode `700`, files with
 mode `600`, and encrypted backups. Commit Kubernetes credentials as SealedSecrets.

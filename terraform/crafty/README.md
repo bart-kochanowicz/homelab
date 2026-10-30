@@ -28,4 +28,7 @@ runs on Mondays at 03:00 Europe/Warsaw and keeps the four latest archives.
 Crafty stops the game for each copy and restarts it only if it was running;
 the panel stays up. Terraform manages the existing policy and its schedule.
 The game policy covers the server directory. [K8up](../../docs/backups.md) copies
-the panel database and configuration separately to Houston.
+only the panel's `app-config/` directory, including `db/crafty.sqlite`, separately
+to Houston. The game ZIPs stay on the worker; neither copy has configured offsite
+replication. Recovery needs both the panel configuration and matching game files;
+use the backup guide's isolated restore instructions before in-place recovery.
