@@ -10,7 +10,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 
 
 class R2BackupTests(unittest.TestCase):

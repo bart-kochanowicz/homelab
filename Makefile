@@ -68,7 +68,7 @@ validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
 validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
-	uv run --locked python -m unittest discover -s tests -v
+	uv run --locked python -m unittest discover -s tests -t . -v
 
 validate-monitoring: validate-kustomize
 	yq eval-all '.spec.groups as $$groups ireduce ({"groups": []}; .groups += $$groups)' \

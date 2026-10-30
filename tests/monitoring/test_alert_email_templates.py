@@ -5,7 +5,7 @@ import unittest
 from html.parser import HTMLParser
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "system/monitoring/alertmanager-email.tmpl"
 ALERTS_URL = (
     "https://grafana.thecavespace.net/alerting/groups?alertmanager=Alertmanager"

@@ -76,6 +76,13 @@ created by `make validate`; that command also checks Python types, lint and
 formatting. Pyright and Pylance share the standard type-checking configuration in
 `pyproject.toml`, including errors for unknown member types.
 
+Tests are grouped by component under `tests/networking`, `tests/backups`,
+`tests/logging`, and `tests/monitoring`. Run one module from the repository root:
+
+```bash
+uv run --locked python -m unittest tests.networking.test_n8n -v
+```
+
 ## Operations
 
 - [Private access, certificates, SSO, storage and backups](docs/security-runbook.md)

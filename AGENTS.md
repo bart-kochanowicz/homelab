@@ -28,6 +28,7 @@ These commands change the cluster; validation does not deploy resources.
 
 ## Conventions
 
+- Group Python tests by component; keep shared setup in package-local `support.py`.
 - YAML: two-space indentation; explicit namespaces and consistent labels.
 - Kubernetes: stable APIs, lowercase hyphenated names, `kustomization.yaml`.
 - Terraform: run `terraform fmt -recursive`; use lowercase underscore names
