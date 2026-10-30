@@ -20,11 +20,15 @@ and documentation. Document operational commands and non-obvious constraints.
 Run `make validate` for Terraform format/validation/tests, YAML, ShellCheck,
 Kustomize, Helm, Kubernetes schemas, security scans, and secret detection.
 Required tools are listed in `aqua.yaml`; yamllint is installed separately.
+Python tests use `uv run --locked`; run `make validate-python` for Pyright type
+checks and Ruff lint/format checks, or `make format-python` to fix imports and
+formatting.
 Use `make -C system bootstrap` for ArgoCD and `bootstrap-cilium` for Cilium.
 These commands change the cluster; validation does not deploy resources.
 
 ## Conventions
 
+- Group Python tests by component; keep shared setup in package-local `support.py`.
 - YAML: two-space indentation; explicit namespaces and consistent labels.
 - Kubernetes: stable APIs, lowercase hyphenated names, `kustomization.yaml`.
 - Terraform: run `terraform fmt -recursive`; use lowercase underscore names

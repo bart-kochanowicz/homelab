@@ -3,15 +3,14 @@
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
+from pathlib import Path
 
-
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 
 
 class R2BackupTests(unittest.TestCase):
@@ -23,21 +22,37 @@ class R2BackupTests(unittest.TestCase):
         self.staging.mkdir()
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
-                        TEST_ROOT=str(self.root), R2_ACCOUNT_ID="a" * 32,
-                        R2_ACCESS_KEY_ID="b" * 32, R2_SECRET_ACCESS_KEY="c" * 64,
-                        AWS_ACCESS_KEY_ID="garage-access", AWS_SECRET_ACCESS_KEY="garage-secret",
-                        AWS_SESSION_TOKEN="garage-session", AWS_SECURITY_TOKEN="garage-security",
-                        AWS_PROFILE="garage", AWS_DEFAULT_PROFILE="garage", AWS_MAX_ATTEMPTS="9")
+        self.env = dict(
+            os.environ,
+            PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
+            TEST_ROOT=str(self.root),
+            R2_ACCOUNT_ID="a" * 32,
+            R2_ACCESS_KEY_ID="b" * 32,
+            R2_SECRET_ACCESS_KEY="c" * 64,
+            AWS_ACCESS_KEY_ID="garage-access",
+            AWS_SECRET_ACCESS_KEY="garage-secret",
+            AWS_SESSION_TOKEN="garage-session",
+            AWS_SECURITY_TOKEN="garage-security",
+            AWS_PROFILE="garage",
+            AWS_DEFAULT_PROFILE="garage",
+            AWS_MAX_ATTEMPTS="9",
+        )
         for name, body in {
-            "mountpoint": "exit 0", "sleep": "exit 0", "timeout": 'shift; exec "$@"',
-            "terraform": '''
+            "mountpoint": "exit 0",
+            "sleep": "exit 0",
+            "timeout": 'shift; exec "$@"',
+            "terraform": """
                 [[ $AWS_ACCESS_KEY_ID == garage-access && $AWS_SECRET_ACCESS_KEY == garage-secret ]]
                 printf '%s\\n' '{"version":4,"serial":1,"lineage":"test","resources":[]}'
-            ''',
+            """,
         }.items():
-            self.executable(name, "#!/usr/bin/env bash\nset -eu\n" + textwrap.dedent(body))
-        self.executable("aws", f"#!{sys.executable}\n" + textwrap.dedent('''\
+            self.executable(
+                name, "#!/usr/bin/env bash\nset -eu\n" + textwrap.dedent(body)
+            )
+        self.executable(
+            "aws",
+            f"#!{sys.executable}\n"
+            + textwrap.dedent("""\
             import json, os, sys
             from pathlib import Path
             assert os.environ["AWS_ACCESS_KEY_ID"] == "b" * 32
@@ -85,44 +100,69 @@ class R2BackupTests(unittest.TestCase):
                 target.unlink()
             else:
                 raise AssertionError(operation)
-        '''))
+        """),
+        )
 
-    def executable(self, name, content):
+    def executable(self, name: str, content: str) -> None:
         path = self.bin / name
         path.write_text(content)
         path.chmod(0o700)
 
-    def run_script(self, name, *args, **env):
+    def run_script(
+        self, name: str, *args: str, **env: str
+    ) -> subprocess.CompletedProcess[str]:
         script = (SCRIPTS / name).read_text().replace("/srv/terraform", str(self.root))
         script = script.replace("/usr/local/bin/terraform", str(self.bin / "terraform"))
-        return subprocess.run(["bash", "-c", script, name, *args], env=self.env | env,
-                              capture_output=True, text=True, timeout=10)
+        return subprocess.run(
+            ["bash", "-c", script, name, *args],
+            env=self.env | env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
 
     def test_backup_reads_back_before_cleanup(self):
-        result = self.run_script("backup-terraform-state.sh", str(self.root), "checks/garage-backend")
+        result = self.run_script(
+            "backup-terraform-state.sh", str(self.root), "checks/garage-backend"
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Verified R2 backup:", result.stdout)
         self.assertEqual(list(self.staging.iterdir()), [])
-        requests = [json.loads(line) for line in (self.root / "requests").read_text().splitlines()]
+        requests = [
+            json.loads(line)
+            for line in (self.root / "requests").read_text().splitlines()
+        ]
         self.assertEqual([item[0] for item in requests], ["put-object", "get-object"])
         self.assertEqual(requests[0][1], requests[1][1])
 
     def test_mismatched_readback_retains_snapshot(self):
-        result = self.run_script("backup-terraform-state.sh", str(self.root), "checks/garage-backend",
-                                 CORRUPT_READ="1")
+        result = self.run_script(
+            "backup-terraform-state.sh",
+            str(self.root),
+            "checks/garage-backend",
+            CORRUPT_READ="1",
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("R2 readback differs", result.stderr)
         self.assertEqual(len(list(self.staging.glob("*/snapshot.tfstate"))), 1)
 
     def test_ambiguous_upload_is_not_retried_and_retains_snapshot(self):
-        result = self.run_script("backup-terraform-state.sh", str(self.root), "checks/garage-backend",
-                                 AMBIGUOUS_PUT="1")
+        result = self.run_script(
+            "backup-terraform-state.sh",
+            str(self.root),
+            "checks/garage-backend",
+            AMBIGUOUS_PUT="1",
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len((self.root / "requests").read_text().splitlines()), 1)
         self.assertEqual(len(list(self.staging.glob("*/snapshot.tfstate"))), 1)
 
     def test_retention_requires_bucket_lock_evidence(self):
-        for code, succeeds in (("ObjectLockedByBucketPolicy", True), ("AccessDenied", False), ("allow", False)):
+        for code, succeeds in (
+            ("ObjectLockedByBucketPolicy", True),
+            ("AccessDenied", False),
+            ("allow", False),
+        ):
             with self.subTest(code=code):
                 result = self.run_script("check-r2-retention.sh", LOCK_CODE=code)
                 self.assertEqual(result.returncode == 0, succeeds, result.stderr)
@@ -133,8 +173,12 @@ class R2BackupTests(unittest.TestCase):
         snapshot = self.root / "objects" / key
         snapshot.parent.mkdir(parents=True)
         snapshot.write_bytes(b"original")
-        result = self.run_script("check-terraform-state-restore.sh", key,
-                                 hashlib.sha256(b"original").hexdigest(), CORRUPT_READ="1")
+        result = self.run_script(
+            "check-terraform-state-restore.sh",
+            key,
+            hashlib.sha256(b"original").hexdigest(),
+            CORRUPT_READ="1",
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Snapshot SHA256 does not match", result.stderr)
         self.assertEqual(len(list(self.staging.glob("*/snapshot.tfstate"))), 1)

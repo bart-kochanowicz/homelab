@@ -1,17 +1,18 @@
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
+from pathlib import Path
 
 import yaml
 
-
-WORKFLOW = Path(__file__).resolve().parents[1] / ".github/workflows/terraform-dispatch.yaml"
+WORKFLOW = (
+    Path(__file__).resolve().parents[1] / ".github/workflows/terraform-dispatch.yaml"
+)
 
 
 class TerraformRunPollingTests(unittest.TestCase):
@@ -25,12 +26,16 @@ class TerraformRunPollingTests(unittest.TestCase):
         if len(cls.functions) != 2:
             raise AssertionError("Both plan and apply must have their polling tested.")
 
-    def check_polling(self, responses, succeeds, requests):
+    def check_polling(
+        self, responses: list[str], succeeds: bool, requests: int
+    ) -> None:
         for job, body in zip(("plan", "apply"), self.functions):
             with self.subTest(job=job), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 gh = root / "gh"
-                gh.write_text(f"#!{sys.executable}\n" + textwrap.dedent('''\
+                gh.write_text(
+                    f"#!{sys.executable}\n"
+                    + textwrap.dedent("""\
                     import json, os, sys
                     from pathlib import Path
                     assert sys.argv[1:3] == [
@@ -46,18 +51,30 @@ class TerraformRunPollingTests(unittest.TestCase):
                               file=sys.stderr)
                         sys.exit(1)
                     print(response)
-                '''))
+                """)
+                )
                 gh.chmod(0o700)
                 sleep = root / "sleep"
                 sleep.write_text("#!/bin/sh\nexit 0\n")
                 sleep.chmod(0o700)
                 counter = root / "count"
-                env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
-                           REQUEST_COUNT=str(counter), RESPONSES=json.dumps(responses))
-                function = "wait_for_run() {\n" + textwrap.dedent(body) + "\n}\nwait_for_run 123"
+                env = dict(
+                    os.environ,
+                    PATH=str(root) + os.pathsep + os.environ["PATH"],
+                    REQUEST_COUNT=str(counter),
+                    RESPONSES=json.dumps(responses),
+                )
+                function = (
+                    "wait_for_run() {\n"
+                    + textwrap.dedent(body)
+                    + "\n}\nwait_for_run 123"
+                )
                 result = subprocess.run(
                     ["bash", "-euo", "pipefail", "-c", function],
-                    env=env, capture_output=True, text=True, timeout=5,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 self.assertEqual(result.returncode == 0, succeeds, result.stderr)
                 self.assertEqual(int(counter.read_text()), requests, result.stderr)
@@ -72,7 +89,9 @@ class TerraformRunPollingTests(unittest.TestCase):
         self.check_polling(["404"], False, 6)
 
     def test_successful_read_resets_error_budget(self):
-        self.check_polling(["404"] * 5 + ["pending"] + ["404"] * 5 + ["success"], True, 12)
+        self.check_polling(
+            ["404"] * 5 + ["pending"] + ["404"] * 5 + ["success"], True, 12
+        )
 
     def test_failed_cancelled_or_timed_out_run_stops_immediately(self):
         for status in ("failure", "cancelled", "timed_out"):
@@ -83,15 +102,23 @@ class TerraformRunPollingTests(unittest.TestCase):
 class TerraformRootDispatchTests(unittest.TestCase):
     def test_selected_roots_apply_only_their_saved_plans(self):
         workflow = yaml.safe_load(WORKFLOW.read_text())
-        for selection, roots in (("crafty", ["crafty"]), ("unifi", ["unifi"]),
-                                 ("cloudflare", ["cloudflare"]),
-                                 ("all", ["cloudflare", "unifi", "crafty"])):
-            with self.subTest(selection=selection), tempfile.TemporaryDirectory() as directory:
+        for selection, roots in (
+            ("crafty", ["crafty"]),
+            ("unifi", ["unifi"]),
+            ("cloudflare", ["cloudflare"]),
+            ("all", ["cloudflare", "unifi", "crafty"]),
+        ):
+            with (
+                self.subTest(selection=selection),
+                tempfile.TemporaryDirectory() as directory,
+            ):
                 root = Path(directory)
                 requests = root / "requests"
                 output = root / "outputs"
                 gh = root / "gh"
-                gh.write_text(f"#!{sys.executable}\n" + textwrap.dedent('''\
+                gh.write_text(
+                    f"#!{sys.executable}\n"
+                    + textwrap.dedent("""\
                     import json, os, sys
                     from pathlib import Path
                     args = sys.argv[1:]
@@ -110,42 +137,75 @@ class TerraformRootDispatchTests(unittest.TestCase):
                         print("success")
                     else:
                         raise SystemExit("Unexpected GitHub request")
-                '''))
+                """)
+                )
                 gh.chmod(0o700)
-                env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
-                           GH_TOKEN="test-only", SOURCE_SHA="a" * 40,
-                           VALIDATION_RUN_ID="10", GITHUB_RUN_ID="20", ROOT=selection,
-                           REQUESTS=str(requests), GITHUB_OUTPUT=str(output),
-                           GITHUB_STEP_SUMMARY=str(root / "summary"))
+                env = dict(
+                    os.environ,
+                    PATH=str(root) + os.pathsep + os.environ["PATH"],
+                    GH_TOKEN="test-only",
+                    SOURCE_SHA="a" * 40,
+                    VALIDATION_RUN_ID="10",
+                    GITHUB_RUN_ID="20",
+                    ROOT=selection,
+                    REQUESTS=str(requests),
+                    GITHUB_OUTPUT=str(output),
+                    GITHUB_STEP_SUMMARY=str(root / "summary"),
+                )
                 plan_step = workflow["jobs"]["plan"]["steps"][0]
-                result = subprocess.run(["bash", "-euo", "pipefail", "-c", plan_step["run"]],
-                                        env=env, capture_output=True, text=True, timeout=10)
+                result = subprocess.run(
+                    ["bash", "-euo", "pipefail", "-c", plan_step["run"]],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                planned = [json.loads(line) for line in requests.read_text().splitlines()]
+                planned = [
+                    json.loads(line) for line in requests.read_text().splitlines()
+                ]
                 self.assertEqual([item["terraform_root"] for item in planned], roots)
                 for item in planned:
                     self.assertEqual(item["operation"], "plan")
                     self.assertEqual(item["source_sha"], env["SOURCE_SHA"])
                     self.assertEqual(item["validation_run_id"], "10")
                     self.assertEqual(item["approval_run_id"], "20")
-                plan_outputs = dict(line.split("=", 1) for line in output.read_text().splitlines())
+                plan_outputs = dict(
+                    line.split("=", 1) for line in output.read_text().splitlines()
+                )
                 apply_step = workflow["jobs"]["apply"]["steps"][0]
                 for name, expression in apply_step["env"].items():
                     if name.endswith("_PLAN"):
-                        match = re.fullmatch(r"\$\{\{ needs\.plan\.outputs\.(\w+) \}\}", expression)
-                        self.assertIsNotNone(match)
+                        match = re.fullmatch(
+                            r"\$\{\{ needs\.plan\.outputs\.(\w+) \}\}", expression
+                        )
+                        if match is None:
+                            self.fail(
+                                f"Unexpected plan output expression: {expression}"
+                            )
                         field = match.group(1)
-                        self.assertEqual(workflow["jobs"]["plan"]["outputs"][field],
-                                         "${{ steps.plan.outputs." + field + " }}")
+                        self.assertEqual(
+                            workflow["jobs"]["plan"]["outputs"][field],
+                            "${{ steps.plan.outputs." + field + " }}",
+                        )
                         env[name] = plan_outputs.get(field, "")
-                result = subprocess.run(["bash", "-euo", "pipefail", "-c", apply_step["run"]],
-                                        env=env, capture_output=True, text=True, timeout=10)
+                result = subprocess.run(
+                    ["bash", "-euo", "pipefail", "-c", apply_step["run"]],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                applied = [json.loads(line) for line in requests.read_text().splitlines()][len(roots):]
+                applied = [
+                    json.loads(line) for line in requests.read_text().splitlines()
+                ][len(roots) :]
                 self.assertEqual([item["terraform_root"] for item in applied], roots)
                 for item in applied:
                     self.assertEqual(item["operation"], "apply")
-                    self.assertEqual(item["plan_run_id"], plan_outputs[item["terraform_root"]])
+                    self.assertEqual(
+                        item["plan_run_id"], plan_outputs[item["terraform_root"]]
+                    )
                     self.assertEqual(item["source_sha"], env["SOURCE_SHA"])
                     self.assertEqual(item["validation_run_id"], "10")
                     self.assertEqual(item["approval_run_id"], "20")
