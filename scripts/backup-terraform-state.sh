@@ -19,6 +19,7 @@ state_name=$2
 [[ ${R2_SECRET_ACCESS_KEY:-} =~ ^[a-f0-9]{64}$ ]] || fail 'Set R2_SECRET_ACCESS_KEY to the R2 secret access key.'
 [[ -n ${AWS_ACCESS_KEY_ID:-} && -n ${AWS_SECRET_ACCESS_KEY:-} ]] || fail 'Load the Garage AWS_* credentials first.'
 mountpoint --quiet /srv/terraform || fail 'The workload SSD must be mounted at /srv/terraform.'
+command -v aws > /dev/null || fail 'Install AWS CLI v2 with the terraform_cli Ansible role.'
 
 staging_directory=$(mktemp -d /srv/terraform/backup-staging/state.XXXXXXXXXX)
 snapshot="$staging_directory/snapshot.tfstate"
@@ -56,26 +57,25 @@ bucket=houston-terraform-state-backups
 stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 unique_id=$(python3 -c 'import uuid; print(uuid.uuid4())')
 key="backups/$state_name/$stamp-$unique_id.tfstate"
-url="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com/$bucket/$key"
 snapshot_sha256=$(sha256sum "$snapshot" | cut -d ' ' -f 1)
 
-r2_request() {
-  # Validated hex credentials reach curl through stdin, outside process arguments.
-  printf 'user = "%s:%s"\n' "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" |
-    curl --disable --config - --aws-sigv4 aws:amz:auto:s3 \
-      --proto '=https' --silent --show-error --fail \
-      --connect-timeout 10 --max-time 120 "$@" "$url"
-}
+r2_request() (
+  # Scope R2 credentials/configuration to AWS CLI; Terraform keeps Garage access.
+  unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+  export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+  export AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null
+  export AWS_MAX_ATTEMPTS=1 AWS_RETRY_MODE=standard AWS_PAGER='' AWS_CLI_AUTO_PROMPT=off
+  export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+  timeout 120 aws --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" --region auto \
+    --cli-connect-timeout 10 --cli-read-timeout 120 s3api "$@" --bucket "$bucket"
+)
 
 # Conditional PUT rejects an existing key, even outside its retention period.
 # No automatic PUT retry: an ambiguous failure may already have stored the object.
-r2_request --upload-file "$snapshot" \
-  --header 'Content-Type: application/json' \
-  --header 'If-None-Match: *' \
-  --header "x-amz-content-sha256: $snapshot_sha256" \
-  --output /dev/null
+r2_request put-object --key "$key" --body "$snapshot" \
+  --content-type application/json --if-none-match '*' > /dev/null
 
-r2_request --output "$staging_directory/readback.tfstate"
+r2_request get-object --key "$key" "$staging_directory/readback.tfstate" > /dev/null
 cmp --silent "$snapshot" "$staging_directory/readback.tfstate" || fail 'R2 readback differs from the snapshot.'
 verified=true
 printf 'Verified R2 backup: s3://%s/%s\nSHA256: %s\n' "$bucket" "$key" "$snapshot_sha256"

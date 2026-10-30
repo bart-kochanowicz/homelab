@@ -2,6 +2,7 @@
 - name: Install Terraform archive, process locking, and state backup tools
   ansible.builtin.apt:
     name:
+      - awscli
       - ca-certificates
       - curl
       - python3
