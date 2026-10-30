@@ -53,6 +53,8 @@ Strict SealedSecrets contain each namespace's `k8up-repo` credentials. Private
 source files are under `.secrets/houston-restic/`; keep an independent protected
 copy of repository passwords, TLS keys and the offline CA key. Losing a repository
 password prevents recovery. `system/backups/ca.crt` is public trust material.
+Keep a separate [SealedSecrets key recovery copy](sealed-secrets-recovery.md);
+application PVC backups do not contain the controller's keys.
 Renew the server certificate before expiry, preserving its IP SAN and distributing
 new CA trust before a CA change.
 

@@ -239,6 +239,10 @@ mode `600`, and encrypted backups. Commit Kubernetes credentials as SealedSecret
 Terraform state remains sensitive even when outputs are marked sensitive.
 Compatibility exceptions are listed in [exception-register.md](exception-register.md).
 
+Back up [SealedSecrets controller keys](sealed-secrets-recovery.md) independently
+of the cluster. Without them, Git's encrypted manifests cannot recover credentials,
+including the passwords needed to read application backups.
+
 Branch protection requires PRs, resolved conversations, the current `validate`
 check and linear history. Force pushes and branch deletion are blocked; required
 review approvals are zero. Configuration command:
