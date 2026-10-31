@@ -32,6 +32,14 @@ when metadata is missing. Chart-provided dashboards and alerts keep their
 upstream formatting. Kubernetes names remain stable for PV affinity and MetalLB.
 Historical samples from before the recording rules retain their original names.
 
+## Metrics retention
+
+Prometheus retains metrics for up to 30 days or 40GB, whichever limit is reached
+first. Prometheus uses binary units: 40GB is 40GiB, leaving 20% of the 50Gi PVC
+request as headroom for the WAL, head chunks and compaction. Size retention is a
+cleanup target, not a hard disk quota; `local-path-nvme` shares the node's filesystem
+and does not enforce PVC capacity. See [Prometheus storage](https://prometheus.io/docs/prometheus/latest/storage/).
+
 ## Alerts
 
 Talos scheduler/controller-manager metrics listen on loopback. Their custom alerts
