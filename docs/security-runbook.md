@@ -229,9 +229,9 @@ talosctl -n 10.0.70.12 patch machineconfig \
 
 Run `make scan-images` to render application and platform manifests, including
 ArgoCD's bootstrap chart, and scan their unique images with the pinned Trivy.
-The inventory includes init containers, Helm hooks, custom-resource image fields
-and Prometheus Operator's default config reloader. Scans use registry images for
-`linux/amd64`; no cluster credentials or Docker daemon are needed.
+The inventory includes init containers, Helm hooks, custom-resource image fields,
+storage helper pods and Prometheus Operator's default config reloader. Scans use
+registry images for `linux/amd64`; no cluster credentials or Docker daemon are needed.
 Trivy tries the registry mirrors in `.trivy-images.yaml` before the source registry.
 
 Reports include HIGH/CRITICAL vulnerabilities with available fixes. A fixable

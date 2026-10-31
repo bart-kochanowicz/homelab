@@ -236,6 +236,8 @@ image-inventory: validate-kustomize validate-helm
 			.cache/rendered/*.yaml .cache/image-scan/argocd.yaml; \
 		yq -N -r '.. | select(tag == "!!map") | select(has("args")) | .args[] | select(test("^--prometheus-config-reloader=")) | split("=")[1]' \
 			.cache/rendered/system-monitoring.yaml; \
+		yq -N -r 'select(.kind == "ConfigMap") | .data."helperPod.yaml" | select(. != null) | from_yaml | .. | select(tag == "!!map") | select(has("image")) | .image | select(tag == "!!str" and . != "")' \
+			.cache/rendered/system-local-path-provisioner.yaml; \
 	} | LC_ALL=C sort -u > .cache/image-scan/images.txt
 	@test -s .cache/image-scan/images.txt
 	@cat .cache/image-scan/images.txt
