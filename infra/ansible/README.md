@@ -8,7 +8,7 @@ labelled `houston-data`, mounted at `/srv/terraform`.
 | --- | --- |
 | `common` | Warsaw timezone, NTP, security updates and journald limits |
 | `alloy` | Journal forwarding to Loki; collector state on the SSD |
-| `storage` | SSD mount by UUID and scheduled TRIM |
+| `storage` | SSD mount, scheduled TRIM and private Talos recovery directory |
 | `garage` | Garage 2.4.1, `terraform-state` bucket and S3 credentials |
 | `terraform_cli` | Terraform 1.16.4, shared lock and backup tools |
 | `restic_server` | Private TLS endpoint for encrypted application backup repositories |
@@ -49,6 +49,7 @@ mode `600`, owned by `capcom`. See [local plans](../../terraform/LOCAL_PLAN.md).
 | `garage` | Garage objects, metadata and service credentials |
 | `workspaces` | Operator checkouts, `700 capcom:capcom` |
 | `runner/{home,work,tmp,app-<version>}` | Private runner files |
+| `backups/talos` | Encrypted Talos recovery repository over SFTP, `700 capcom:capcom` |
 | `backups/restic` | Encrypted application repositories, `700 restic-svc:restic-svc` |
 | `backup-staging` | Per-operation directories, `1770 root:terraform-ops` |
 | `tools` | Root-owned executables and release archives |
@@ -134,6 +135,9 @@ ANSIBLE_CONFIG=infra/ansible/ansible.cfg ansible-playbook \
   -e @.secrets/houston-restic.yml
 ssh houston-01 'systemctl status restic-server.service'
 ```
+
+Talos/etcd recovery copies use a separate encrypted repository over SSH/SFTP;
+see [capture and recovery](../../docs/talos-etcd-recovery.md).
 
 ## Recovery
 
