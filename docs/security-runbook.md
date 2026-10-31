@@ -1,5 +1,20 @@
 # Platform operations
 
+## Inventory
+
+The cluster has one control plane and one worker on Servers VLAN 70. Houston
+runs Terraform, Garage state storage and encrypted backup repositories.
+
+| Host | Kubernetes name | Address |
+| --- | --- | --- |
+| `control-plane-01` | `talos-p5e-e9e` | `10.0.70.11` |
+| `worker-01` | `talos-2jn-7he` | `10.0.70.12` |
+| `houston-01` | — | `10.0.70.10` |
+
+Cluster hardware: ThinkCentre m720q (i3-8100T, 8 GB RAM, 256 GB SSD) and m920q
+(i5-8500T, 32 GB RAM, 512 GB SSD). Houston is a Dell Wyse 3040.
+The Kubernetes API is `https://10.0.70.11:6443`; the kubeconfig context is `homelab-prod`.
+
 ## Network and access
 
 Cilium handles Kubernetes Services, pod policies and the Talos host firewall.
@@ -59,8 +74,40 @@ when the Cilium agent restarts. Finish the policy review before restarting agent
 
 ## Bootstrap and platform changes
 
-Talos configuration uses the patches listed in the [root README](../README.md#bootstrap).
-Cilium is bootstrap-managed so recovery does not depend on ArgoCD:
+Install the tools in [`aqua.yaml`](../aqua.yaml), plus Talos and Ansible with
+the Kubernetes Python client. Commands run from the repository root and use
+the current `KUBECONFIG`; verify its context before deploying:
+
+```bash
+kubectl config current-context
+```
+
+For new Talos machine configurations, use these `talosctl gen config` patch flags.
+Review node-specific disks and interfaces before applying generated configurations.
+
+| Scope / flag | Patch under `talos/patches/` | Purpose |
+| --- | --- | --- |
+| Both: `--config-patch` | `cilium.yaml` | Disable the default CNI and kube-proxy |
+| Both: `--config-patch` | `network.yaml` | Servers VLAN node addresses and API endpoint |
+| Both: `--config-patch` | `dns.yaml` | Replace DNS resolvers using JSON Patch |
+| Control plane: `--config-patch-control-plane` | `service-accounts.yaml` | API ServiceAccount issuer and audience |
+| Control plane: `--config-patch-control-plane` | `node-control-plane.yaml` | Readable monitoring alias |
+| Worker: `--config-patch-worker` | `node-worker.yaml` | Readable monitoring alias |
+| Worker: `--config-patch-worker` | `worker-nvme.yaml` | Writable NVMe bind mount for kubelet |
+| Control plane: `--config-patch-control-plane` | `logging-control-plane.yaml` | Service and kernel log forwarding |
+| Worker: `--config-patch-worker` | `logging-worker.yaml` | Service and kernel log forwarding |
+
+Pass each file as `@talos/patches/<file>`. Keep `dns.yaml` as JSON Patch;
+strategic merge appends resolvers instead of replacing them. The API issuer and
+audience are independent of node addresses. Generated configurations contain
+credentials and must stay outside Git. For recovery, use the
+[saved configurations and cluster secrets](talos-etcd-recovery.md) instead of
+generating a new cluster identity.
+
+Use the pinned Helm and Kustomize tools; Helm 4 requires Kustomize 5.8 or newer.
+Render locally with `kustomize build`, including `--enable-helm` where needed.
+Cilium is bootstrap-managed so recovery does not depend on ArgoCD. Once Talos
+and the Kubernetes API are ready, install Cilium before ArgoCD:
 
 ```bash
 make -C system bootstrap-cilium
@@ -85,6 +132,8 @@ Gateway API CRDs and frontend certificates are protected from pruning and deleti
 Frontend certificates must be Ready before `gateways` is synced.
 `network-policies`, `cert-manager-acme` and the gateway components require manual sync.
 Changes in `system/argocd/` need bootstrap or an `argocd-bootstrap` sync.
+Synchronize matching Prometheus Operator CRDs before updating monitoring; see
+the [monitoring guide](../system/monitoring/README.md#alerts).
 
 MetalLB is the only VIP allocator and announcer; Cilium L2 announcements and
 default LB IPAM are disabled. VIP requests use EnvoyProxy Service annotations.

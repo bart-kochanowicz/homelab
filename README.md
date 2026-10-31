@@ -1,98 +1,64 @@
 # Homelab
 
-Private services on a two-node Talos Kubernetes cluster. ArgoCD deploys the
-applications; Cilium handles networking and firewall policies. Envoy Gateway and
-MetalLB provide separate Home and Admin HTTPS entry points. Terraform manages
-UniFi and Cloudflare; Ansible manages Houston, the Terraform host.
+Home Assistant, n8n and Minecraft through Crafty Controller, running on a two-node
+Talos Kubernetes cluster. All application endpoints are private.
+
+ArgoCD deploys Kubernetes applications and platform services. Cilium handles
+networking and firewall policies; Envoy Gateway and MetalLB provide private HTTPS
+access. Prometheus, Grafana, Alertmanager, Loki and Alloy provide metrics, alerts
+and logs. Terraform manages UniFi, Cloudflare and Crafty configuration; Ansible
+manages Houston, the Terraform and backup host.
 
 <p align="center">
   <img src="docs/images/homelab.jpg" width="520" alt="Homelab rack with two Lenovo ThinkCentre nodes and a Dell Wyse 3040.">
 </p>
 
-Home Assistant uses host networking for LAN discovery. Minecraft is available
-only from Home, Admin and WireGuard, on TCP `30000`.
+## Local checks
+
+Install [Aqua](https://aquaproj.github.io/) for the pinned tools in
+[`aqua.yaml`](aqua.yaml). Install yamllint, SQLite and Docker separately; start
+Docker for the integration tests. Run from the repository root:
+
+```bash
+aqua install
+uv sync --locked
+make validate
+```
+
+Validation covers formatting, Python types and lint, Terraform tests, rendered
+Kubernetes manifests, integration tests, configuration security and secret
+detection. It does not deploy resources or require cluster credentials.
+`make scan-images` separately scans rendered container images from registries.
+See [tests and VS Code setup](tests/README.md) for focused checks and formatting.
+
+Use `make validate` explicitly: bare `make` runs ArgoCD bootstrap.
+
+## Operations
+
+| Task | Guide |
+| --- | --- |
+| Bootstrap or update the platform | [Talos patches, Cilium and ArgoCD](docs/security-runbook.md#bootstrap-and-platform-changes) |
+| Access services or manage TLS, SSO and storage | [Platform operations](docs/security-runbook.md) |
+| Use dashboards, alerts and logs | [Monitoring](system/monitoring/README.md) · [Logging](system/logging/README.md) |
+| Back up or restore application data | [Application backups](docs/backups.md) |
+| Recover cluster state or sealing keys | [Talos/etcd](docs/talos-etcd-recovery.md) · [SealedSecrets](docs/sealed-secrets-recovery.md) |
+| Plan and apply Terraform changes | [Terraform and state recovery](terraform/README.md) |
+| Configure Houston | [Ansible and host services](infra/ansible/README.md) |
+| Manage LANs, DNS, firewall and WAN | [UniFi configuration](terraform/unifi/README.md) · [Network layout](infra/unifi/README.md) |
+| Review security exceptions | [Exception register](docs/exception-register.md) |
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| `apps/` | Home Assistant, Crafty Controller and n8n |
-| `system/` | ArgoCD, networking, certificates, storage and monitoring |
-| `talos/patches/` | Talos networking and API configuration |
-| `terraform/cloudflare/` | R2 backup storage and email DNS |
-| `terraform/unifi/` | LANs, Wi-Fi, switch ports, DNS, firewall and VPN |
-| `terraform/modules/` | Reusable Terraform modules |
-| `infra/ansible/` | Houston's Garage storage, Terraform CLI and private Actions runner |
-| `infra/unifi/` | Network layout and Netia/LEOX WAN configuration |
-
-Hardware: ThinkCentre m720q (i3-8100T, 8 GB RAM, 256 GB SSD), m920q
-(i5-8500T, 32 GB RAM, 512 GB SSD), and Dell Wyse 3040 (`houston-01`).
-
-| Node alias | Kubernetes name | Address |
-| --- | --- | --- |
-| `control-plane-01` | `talos-p5e-e9e` | `10.0.70.11` |
-| `worker-01` | `talos-2jn-7he` | `10.0.70.12` |
-
-## Bootstrap
-
-Install the tools in `aqua.yaml`, plus Talos, Ansible and yamllint. Commands use
-the current `KUBECONFIG`. The Kubernetes API is `https://10.0.70.11:6443`.
-Pinned Helm and Kustomize versions are compatible with ArgoCD's renderers.
-Use `kustomize build` for local rendering; Helm 4 requires Kustomize 5.8 or newer.
-
-Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
-`--config-patch @talos/patches/network.yaml` and
-`--config-patch-control-plane @talos/patches/service-accounts.yaml`.
-Use `--config-patch-worker @talos/patches/worker-nvme.yaml` for the worker's
-NVMe storage mount.
-Add `--config-patch-control-plane @talos/patches/node-control-plane.yaml` and
-`--config-patch-worker @talos/patches/node-worker.yaml` for monitoring aliases.
-Add `--config-patch-control-plane @talos/patches/logging-control-plane.yaml` and
-`--config-patch-worker @talos/patches/logging-worker.yaml` for service/kernel log forwarding.
-Apply `talos/patches/dns.yaml` as JSON Patch. Nodes use Servers VLAN 70; the API's
-ServiceAccount issuer and audience are independent of node addresses.
-
-```bash
-make validate
-make -C system setup-from-scratch
-```
-
-`make validate` checks configuration without deploying it. Bootstrap installs
-Cilium before ArgoCD; Cilium stays bootstrap-managed for network recovery.
-
-## Python checks
-
-Python 3.13 and the test dependencies are managed by uv from `aqua.yaml`;
-`uv.lock` pins the dependencies. Set up the environment and check or format tests:
-
-```bash
-uv sync --locked
-make validate-python
-make format-python
-```
-
-In VS Code, install the recommended extensions and select the `.venv` interpreter
-with **Python: Select Interpreter**. Python files format on save, and the Testing
-panel uses unittest. Integration tests need Docker and the rendered configuration
-created by `make validate`; that command also checks Python types, lint and
-formatting. Pyright and Pylance share the standard type-checking configuration in
-`pyproject.toml`, including errors for unknown member types.
-
-Tests are grouped by component under `tests/networking`, `tests/backups`,
-`tests/logging`, and `tests/monitoring`. Run one module from the repository root:
-
-```bash
-uv run --locked python -m unittest tests.networking.test_n8n -v
-```
-
-## Operations
-
-- [Talos/etcd backup and recovery](docs/talos-etcd-recovery.md)
-- [Private access, certificates, SSO, storage and backups](docs/security-runbook.md)
-- [Security exceptions](docs/exception-register.md)
-- [Houston](infra/ansible/README.md)
-- [Terraform plans, deployment and state backups](terraform/README.md)
-- [UniFi configuration](terraform/unifi/README.md) and [network layout](infra/unifi/README.md)
+| [`apps/`](apps/) | Home Assistant, Crafty Controller and n8n |
+| [`system/`](system/) | Kubernetes platform manifests, Helm charts and bootstrap |
+| [`talos/patches/`](talos/patches/) | Machine configuration patches |
+| [`terraform/`](terraform/) | Cloudflare, UniFi and Crafty roots; reusable modules |
+| [`infra/ansible/`](infra/ansible/) | Houston host configuration |
+| [`infra/unifi/`](infra/unifi/) | Network architecture and WAN operations |
+| [`tests/`](tests/) | Configuration and integration tests |
+| [`docs/`](docs/) | Platform operations, backups and recovery |
 
 Commit Kubernetes credentials as SealedSecrets. Plaintext credentials, device
 backups, Terraform state and generated Talos configuration stay outside Git.
