@@ -232,6 +232,7 @@ ArgoCD's bootstrap chart, and scan their unique images with the pinned Trivy.
 The inventory includes init containers, Helm hooks, custom-resource image fields
 and Prometheus Operator's default config reloader. Scans use registry images for
 `linux/amd64`; no cluster credentials or Docker daemon are needed.
+Trivy tries the registry mirrors in `.trivy-images.yaml` before the source registry.
 
 Reports include HIGH/CRITICAL vulnerabilities with available fixes. A fixable
 CRITICAL vulnerability or a scan error fails the command after all images have

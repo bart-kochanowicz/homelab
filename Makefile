@@ -245,7 +245,7 @@ scan-images: image-inventory
 	while IFS= read -r image; do \
 		index=$$((index + 1)); report=".cache/image-scan/reports/$$index"; \
 		printf '\nScanning %s\n' "$$image"; \
-		if trivy image --image-src remote --platform linux/amd64 --scanners vuln \
+		if trivy image --config .trivy-images.yaml --image-src remote --platform linux/amd64 --scanners vuln \
 			--ignore-unfixed --severity HIGH,CRITICAL --timeout 10m \
 			--format json --output "$$report.json" "$$image"; then \
 			if ! trivy convert --format table --output "$$report.txt" "$$report.json"; then failed=1; fi; \
