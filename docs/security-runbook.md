@@ -225,6 +225,25 @@ talosctl -n 10.0.70.12 patch machineconfig \
   --patch @talos/patches/worker-nvme.yaml --mode=no-reboot
 ```
 
+## Container image scanning
+
+Run `make scan-images` to render application and platform manifests, including
+ArgoCD's bootstrap chart, and scan their unique images with the pinned Trivy.
+The inventory includes init containers, Helm hooks, custom-resource image fields,
+storage helper pods and Prometheus Operator's default config reloader. Scans use
+registry images for `linux/amd64`; no cluster credentials or Docker daemon are needed.
+Trivy tries the registry mirrors in `.trivy-images.yaml` before the source registry.
+
+Reports include HIGH/CRITICAL vulnerabilities with available fixes. A fixable
+CRITICAL vulnerability or a scan error fails the command after all images have
+been attempted. Inventory/rendering errors and an empty inventory also fail.
+Results are in `.cache/image-scan/images.txt` and `reports/` beneath that directory.
+The `Image Scan` workflow runs for relevant PRs, weekly and on manual dispatch;
+its `image-scan` artifact retains the inventory and JSON/text reports for 14 days,
+including failed scans. `make validate` keeps configuration and secret checks
+separate from registry downloads. Talos-managed control-plane/CoreDNS images and
+Minecraft JARs are outside this repository's rendered image inventory.
+
 ## Monitoring and credentials
 
 Prometheus collects metrics; Grafana provides dashboards and the Alertmanager

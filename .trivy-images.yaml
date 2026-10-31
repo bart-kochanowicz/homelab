@@ -1,0 +1,6 @@
+registry:
+  mirrors:
+    docker.n8n.io:
+      - mirror.gcr.io
+    ecr-public.aws.com:
+      - public.ecr.aws

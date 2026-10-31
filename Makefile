@@ -18,7 +18,8 @@ KUSTOMIZE_DIRS := \
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-python format-python validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-cert-manager validate-metallb validate-envoy-gateway validate-backups \
-	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring
+	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring \
+	image-inventory scan-images
 
 default: system
 
@@ -219,6 +220,43 @@ validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manag
 		-not -name 'helm-cilium.yaml' -not -name 'helm-metallb.yaml' -print0 | \
 		xargs -0 kube-linter lint --do-not-auto-add-defaults \
 			--include wildcard-in-rules
+
+image-inventory: validate-kustomize validate-helm
+	@rm -rf .cache/image-scan && mkdir -p .cache/image-scan
+	yq -e '.[0].tasks[] | .["kubernetes.core.helm"] | select(.values != null) | .values' \
+		system/bootstrap.yaml > .cache/image-scan/argocd-values.yaml
+	helm template "$$(yq '.[0].vars.argocd_release' system/bootstrap.yaml)" \
+		"$$(yq '.[0].vars.argocd_chart' system/bootstrap.yaml)" \
+		--repo "$$(yq '.[0].vars.argocd_repo' system/bootstrap.yaml)" \
+		--version "$$(yq '.[0].vars.argocd_version' system/bootstrap.yaml)" \
+		--namespace "$$(yq '.[0].vars.argocd_namespace' system/bootstrap.yaml)" \
+		--values .cache/image-scan/argocd-values.yaml > .cache/image-scan/argocd.yaml
+	@set -euo pipefail; { \
+		yq -N -r '.. | select(tag == "!!map") | select(has("image")) | .image | select(tag == "!!str" and . != "")' \
+			.cache/rendered/*.yaml .cache/image-scan/argocd.yaml; \
+		yq -N -r '.. | select(tag == "!!map") | select(has("args")) | .args[] | select(test("^--prometheus-config-reloader=")) | split("=")[1]' \
+			.cache/rendered/system-monitoring.yaml; \
+		yq -N -r 'select(.kind == "ConfigMap") | .data."helperPod.yaml" | select(. != null) | from_yaml | .. | select(tag == "!!map") | select(has("image")) | .image | select(tag == "!!str" and . != "")' \
+			.cache/rendered/system-local-path-provisioner.yaml; \
+	} | LC_ALL=C sort -u > .cache/image-scan/images.txt
+	@test -s .cache/image-scan/images.txt
+	@cat .cache/image-scan/images.txt
+
+scan-images: image-inventory
+	@set -eu; mkdir -p .cache/image-scan/reports; failed=0; index=0; \
+	while IFS= read -r image; do \
+		index=$$((index + 1)); report=".cache/image-scan/reports/$$index"; \
+		printf '\nScanning %s\n' "$$image"; \
+		if trivy image --config .trivy-images.yaml --image-src remote --platform linux/amd64 --scanners vuln \
+			--ignore-unfixed --severity HIGH,CRITICAL --timeout 10m \
+			--format json --output "$$report.json" "$$image"; then \
+			if ! trivy convert --format table --output "$$report.txt" "$$report.json"; then failed=1; fi; \
+			if ! trivy convert --format table --severity CRITICAL --exit-code 1 "$$report.json"; then failed=1; fi; \
+		else \
+			printf 'Scan failed: %s\n' "$$image" >&2; failed=1; \
+		fi; \
+	done < .cache/image-scan/images.txt; \
+	exit "$$failed"
 
 validate-security:
 	trivy config --exit-code 1 --severity HIGH,CRITICAL \
