@@ -5,6 +5,51 @@ from .support import ROOT, MonitoringTestCase
 
 
 class MonitoringPlatformTests(MonitoringTestCase):
+    def test_control_plane_scraping_uses_rotating_service_account_tokens(self):
+        prometheus = next(
+            item for item in self.resources if item["kind"] == "Prometheus"
+        )
+        self.assertTrue(prometheus["spec"].get("automountServiceAccountToken", True))
+        classes = {item["name"]: item for item in prometheus["spec"]["scrapeClasses"]}
+        monitors = {
+            item["metadata"]["name"]: item
+            for item in self.resources
+            if item["kind"] == "ServiceMonitor" and item["spec"].get("scrapeClass")
+        }
+        self.assertEqual(
+            set(monitors),
+            {
+                f"kube-prometheus-stack-{name}"
+                for name in (
+                    "apiserver",
+                    "coredns",
+                    "kube-controller-manager",
+                    "kube-etcd",
+                    "kube-scheduler",
+                    "kubelet",
+                )
+            },
+        )
+        for name, monitor in monitors.items():
+            with self.subTest(monitor=name):
+                self.assertEqual(
+                    classes[monitor["spec"]["scrapeClass"]]["authorization"],
+                    {
+                        "type": "Bearer",
+                        "credentialsFile": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+                    },
+                )
+                for endpoint in monitor["spec"]["endpoints"]:
+                    self.assertNotIn("bearerTokenSecret", endpoint)
+                    self.assertNotIn("credentials", endpoint.get("authorization", {}))
+        self.assertFalse(
+            any(
+                item["kind"] == "Secret"
+                and item.get("type") == "kubernetes.io/service-account-token"
+                for item in self.resources
+            )
+        )
+
     def test_stateful_monitoring_uses_distinct_retained_nvme_claim_templates(self):
         for kind, name, size in (
             ("Prometheus", "prometheus-data-nvme", "50Gi"),

@@ -98,11 +98,6 @@ misconfigurations:
       - "helm-cilium.yaml"
     expired_at: 2026-12-31
     statement: Cilium uses required host ports for node-level networking.
-  - id: KSV-0045
-    paths:
-      - "system-monitoring.yaml"
-    expired_at: 2026-12-31
-    statement: Prometheus Operator upstream RBAC requires wildcard access to its CRDs.
   - id: KSV-0109
     paths:
       - "helm-cilium.yaml"

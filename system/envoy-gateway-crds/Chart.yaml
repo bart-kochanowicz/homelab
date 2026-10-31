@@ -5,5 +5,5 @@ type: application
 version: 0.1.0
 dependencies:
   - name: gateway-crds-helm
-    version: v1.9.2
+    version: v1.9.3
     repository: oci://docker.io/envoyproxy

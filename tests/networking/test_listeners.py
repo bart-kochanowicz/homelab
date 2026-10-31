@@ -122,7 +122,7 @@ class GatewayListenerTests(GatewayTestCase):
             deployment = provider["envoyDeployment"]
             container = deployment["container"]
             self.assertRegex(
-                container["image"], r":distroless-v1\.39\.3@sha256:[0-9a-f]{64}$"
+                container["image"], r":distroless-v1\.39\.6@sha256:[0-9a-f]{64}$"
             )
             self.assertEqual(
                 container["securityContext"]["capabilities"]["drop"], ["ALL"]

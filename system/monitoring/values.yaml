@@ -64,6 +64,10 @@ grafana:
     existingClaim: grafana-data-nvme
 
 prometheus:
+  serviceAccount:
+    createTokenSecret: false
+  controlPlaneScrapeClass:
+    enabled: true
   prometheusSpec:
     retention: 30d
     retentionSize: 40GB

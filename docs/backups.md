@@ -125,7 +125,8 @@ Restic integrity checks and successful job status do not replace restore tests.
 An in-place restore requires explicit approval, an application stop and protection
 from ArgoCD self-heal.
 
-n8n may migrate its SQLite schema on startup. Before updating its image, verify a
-completed backup and test the target version against an isolated restored copy.
+n8n, Home Assistant and Grafana may migrate persisted data on startup. Before an
+image update, verify a completed backup and test the target version against an
+isolated restored copy with external network access disabled.
 An image rollback does not revert schema migrations; recovery may require the
 matching pre-update backup and image.

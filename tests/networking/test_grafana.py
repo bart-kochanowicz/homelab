@@ -171,11 +171,20 @@ class GrafanaGatewayTests(GatewayTestCase):
             )
         self.assertEqual(deployment["spec"]["strategy"], {"type": "Recreate"})
         for probe in ("readinessProbe", "livenessProbe"):
+            request = grafana[probe]["httpGet"]
+            port = request["port"]
+            if isinstance(port, str):
+                port = next(
+                    item["containerPort"]
+                    for item in grafana["ports"]
+                    if item["name"] == port
+                )
+            self.assertEqual(port, 3000)
             self.assertEqual(
-                grafana[probe]["httpGet"],
+                request,
                 {
                     "path": "/api/health",
-                    "port": 3000,
+                    "port": request["port"],
                     "scheme": "HTTPS",
                 },
             )

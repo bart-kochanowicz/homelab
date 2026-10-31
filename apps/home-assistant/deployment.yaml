@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: home-assistant
-        image: ghcr.io/home-assistant/home-assistant:2026.6.3@sha256:aed891b8f801072302815b4b0fab5adb714182967e9d2e2d4a2be558241c73ad
+        image: ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:23f4dfbb69ce76315dbc4de7915504f1c2dcecd7ca2648113a493a385972e133
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

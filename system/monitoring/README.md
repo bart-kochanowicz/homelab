@@ -65,6 +65,10 @@ backup alerts. The Loki datasource is available in Grafana Explore.
 Run `make validate-monitoring` to render monitoring and test rules with the pinned
 `promtool`. Full repository validation also runs these tests.
 
+Control-plane ServiceMonitors use a shared ScrapeClass with the projected,
+rotating ServiceAccount token. No long-lived token Secret is created. Synchronize
+the matching Prometheus Operator CRDs before updating the monitoring application.
+
 ## Email notifications
 
 Alertmanager uses Brevo SMTP with verified STARTTLS. Recipient addresses and SMTP
