@@ -1,6 +1,13 @@
 name: Image Scan
 
 on:
+  pull_request:
+    paths:
+      - apps/**
+      - system/**
+      - Makefile
+      - aqua.yaml
+      - .github/workflows/image-scan.yaml
   schedule:
     - cron: "17 4 * * 1"
   workflow_dispatch:
@@ -11,6 +18,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
@@ -20,28 +28,17 @@ jobs:
         with:
           aqua_version: v2.55.0
 
-      - name: Scan deployed application images
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t images < <(
-            {
-              rg --no-filename '^[[:space:]]*image:' apps system \
-                -g '*.yaml' -g '!**/charts/**' -g '!system/backups/templates/**' |
-                awk 'NF > 1 {print $2}'
-              helm template backups system/backups |
-                yq '.. | select(tag == "!!map") | select(has("image")) | .image | select(tag == "!!str")'
-            } | sort -u
-          )
-          failed=0
-          for image in "${images[@]}"; do
-            if ! aqua exec -- trivy image \
-              --exit-code 1 \
-              --ignore-unfixed \
-              --severity CRITICAL \
-              --scanners vuln \
-              "$image"; then
-              failed=1
-            fi
-          done
-          exit "$failed"
+      - name: Scan rendered application and platform images
+        run: make scan-images
+
+      - name: Upload image inventory and vulnerability reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-scan
+          path: |
+            .cache/image-scan/images.txt
+            .cache/image-scan/reports/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
