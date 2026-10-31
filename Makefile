@@ -72,8 +72,9 @@ validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
 	uv run --locked python -m unittest discover -s tests -t . -v
 
 validate-monitoring: validate-kustomize
-	yq eval-all '.spec.groups as $$groups ireduce ({"groups": []}; .groups += $$groups)' \
-		system/monitoring/security-alerts.yaml system/logging/templates/prometheus-rules.yaml > .cache/monitoring-rules.yaml
+	@set -euo pipefail; yq -o=json -I=0 '.spec.groups' \
+		system/monitoring/security-alerts.yaml system/logging/templates/prometheus-rules.yaml | \
+		jq -s '{"groups": add}' > .cache/monitoring-rules.yaml
 	promtool check rules .cache/monitoring-rules.yaml
 	promtool test rules tests/monitoring-rules.test.yaml
 
