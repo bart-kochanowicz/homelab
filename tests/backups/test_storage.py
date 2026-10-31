@@ -54,7 +54,7 @@ class PvcStorageTests(PvcBackupTestCase):
 
     def test_crafty_sata_claim_is_mounted_only_as_backups(self):
         rendered = subprocess.run(
-            ["kubectl", "kustomize", str(ROOT / "apps/crafty-controller")],
+            ["kustomize", "build", str(ROOT / "apps/crafty-controller")],
             capture_output=True,
             text=True,
             check=True,

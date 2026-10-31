@@ -12,7 +12,7 @@ spec:
   project: monitoring-crds
   source:
     repoURL: https://github.com/prometheus-community/helm-charts.git
-    targetRevision: kube-prometheus-stack-79.4.1
+    targetRevision: kube-prometheus-stack-92.16.2
     path: charts/kube-prometheus-stack/charts/crds/crds
   destination:
     server: https://kubernetes.default.svc

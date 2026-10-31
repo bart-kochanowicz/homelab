@@ -2,5 +2,5 @@ registry:
   mirrors:
     docker.n8n.io:
       - mirror.gcr.io
-    ecr-public.aws.com:
-      - public.ecr.aws
+    index.docker.io:
+      - mirror.gcr.io

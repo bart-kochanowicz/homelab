@@ -31,7 +31,7 @@ validate: validate-tools validate-python validate-format validate-yaml validate-
 	validate-terraform-tests validate-workflows validate-monitoring
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kubeconform kube-linter trivy gitleaks uv yq jq curl amtool promtool sqlite3 restic docker; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kustomize kubeconform kube-linter trivy gitleaks uv yq jq curl amtool promtool sqlite3 restic docker; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -72,8 +72,9 @@ validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
 	uv run --locked python -m unittest discover -s tests -t . -v
 
 validate-monitoring: validate-kustomize
-	yq eval-all '.spec.groups as $$groups ireduce ({"groups": []}; .groups += $$groups)' \
-		system/monitoring/security-alerts.yaml system/logging/templates/prometheus-rules.yaml > .cache/monitoring-rules.yaml
+	@set -euo pipefail; yq -o=json -I=0 '.spec.groups' \
+		system/monitoring/security-alerts.yaml system/logging/templates/prometheus-rules.yaml | \
+		jq -s '{"groups": add}' > .cache/monitoring-rules.yaml
 	promtool check rules .cache/monitoring-rules.yaml
 	promtool test rules tests/monitoring-rules.test.yaml
 
@@ -108,10 +109,10 @@ validate-shell:
 validate-kustomize:
 	@rm -rf .cache/rendered && mkdir -p .cache/rendered
 	@set -e; for dir in $(KUSTOMIZE_DIRS); do \
-		kubectl kustomize "$$dir" > ".cache/rendered/$$(echo "$$dir" | tr / -).yaml"; \
+		kustomize build "$$dir" > ".cache/rendered/$$(echo "$$dir" | tr / -).yaml"; \
 	done
-	kubectl kustomize --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
-	kubectl kustomize --enable-helm system/backup-operator > .cache/rendered/system-backup-operator.yaml
+	kustomize build --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
+	kustomize build --enable-helm system/backup-operator > .cache/rendered/system-backup-operator.yaml
 	helm lint system/backups
 	helm template backups system/backups --namespace monitoring > .cache/rendered/system-backups.yaml
 	helm repo add --force-update grafana https://grafana.github.io/helm-charts >/dev/null
@@ -216,7 +217,6 @@ validate-kubernetes: validate-kustomize validate-gateway-api validate-cert-manag
 		.kube-linter.yaml > .cache/metallb-kube-linter.yaml
 	kube-linter lint --config .cache/metallb-kube-linter.yaml .cache/rendered/helm-metallb.yaml
 	find .cache/rendered -type f -name '*.yaml' \
-		-not -name 'system-monitoring.yaml' \
 		-not -name 'helm-cilium.yaml' -not -name 'helm-metallb.yaml' -print0 | \
 		xargs -0 kube-linter lint --do-not-auto-add-defaults \
 			--include wildcard-in-rules

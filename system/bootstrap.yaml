@@ -9,7 +9,7 @@
     argocd_release: argocd
     argocd_chart: argo-cd
     argocd_repo: https://argoproj.github.io/argo-helm
-    argocd_version: 8.6.3
+    argocd_version: 10.11.6
 
   tasks:
     - name: Check if kubectl is available
@@ -62,7 +62,16 @@
         timeout: 300s
         state: present
         values:
+          global:
+            networkPolicy:
+              create: false
+          redis:
+            image:
+              repository: docker.io/library/redis
+              tag: 8.6.4-alpine@sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763
           configs:
+            params:
+              applicationsetcontroller.policy: sync
             cm:
               admin.enabled: false
             secret:
@@ -94,7 +103,7 @@
         wait_timeout: 300
 
     - name: Render ArgoCD manifests using kustomize
-      command: kubectl kustomize ./argocd/
+      command: kustomize build ./argocd/
       register: kustomize_output
       changed_when: false
 

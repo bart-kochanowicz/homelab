@@ -37,6 +37,8 @@ Hardware: ThinkCentre m720q (i3-8100T, 8 GB RAM, 256 GB SSD), m920q
 
 Install the tools in `aqua.yaml`, plus Talos, Ansible and yamllint. Commands use
 the current `KUBECONFIG`. The Kubernetes API is `https://10.0.70.11:6443`.
+Pinned Helm and Kustomize versions are compatible with ArgoCD's renderers.
+Use `kustomize build` for local rendering; Helm 4 requires Kustomize 5.8 or newer.
 
 Generate Talos configuration with `--config-patch @talos/patches/cilium.yaml`,
 `--config-patch @talos/patches/network.yaml` and
