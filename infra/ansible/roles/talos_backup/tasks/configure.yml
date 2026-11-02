@@ -175,7 +175,7 @@
       backup_credentials_install.changed or backup_runtime_install.changed or
       backup_units_install.changed
 
-- name: Enable the daily persistent timer
+- name: Enable the weekly persistent timer
   ansible.builtin.systemd_service:
     name: talos-etcd-backup.timer
     daemon_reload: true

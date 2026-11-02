@@ -21,15 +21,15 @@ groups:
               |= "TALOS_ETCD_BACKUP_SUCCESS"
               | label_format event_time="{{ __timestamp__ | unixEpochMillis }}" | unwrap event_time [14d]))
           ) or absent_over_time({node="houston-01",source="journal",service_name="talos-etcd-backup.service"}
-            |= "TALOS_ETCD_BACKUP_SUCCESS" [36h]))
+            |= "TALOS_ETCD_BACKUP_SUCCESS" [8d]))
         for: 5m
         labels:
           severity: critical
         annotations:
           summary: Talos recovery backup needs attention
-          description: A backup failed without a later verified success, or no success was recorded in 36 hours. Check talos-etcd-backup.service on Houston and the mounted SSD; preserve failed private staging.
+          description: A backup failed without a later verified success, or no success was recorded in eight days. Check talos-etcd-backup.service on Houston and the mounted SSD; preserve failed private staging.
       - alert: TalosBackupClientExpiring
-        expr: sum(count_over_time({node="houston-01",source="journal",service_name="talos-etcd-backup.service"} |= "TALOS_ETCD_BACKUP_CLIENT_EXPIRING" [36h])) > 0
+        expr: sum(count_over_time({node="houston-01",source="journal",service_name="talos-etcd-backup.service"} |= "TALOS_ETCD_BACKUP_CLIENT_EXPIRING" [8d])) > 0
         labels:
           severity: warning
         annotations:

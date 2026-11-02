@@ -52,9 +52,9 @@ class TalosBackupAlertTests(LoggingTestCase):
     ) -> bool:
         return bool(self.query(self.talos_rules[name].replace("houston-01", node), at))
 
-    def test_daily_success_is_healthy_until_the_36_hour_limit(self):
-        node = "daily-talos"
-        self.journal(node, [("TALOS_ETCD_BACKUP_SUCCESS", timedelta(hours=35))])
+    def test_weekly_success_is_healthy_until_the_eight_day_limit(self):
+        node = "weekly-talos"
+        self.journal(node, [("TALOS_ETCD_BACKUP_SUCCESS", timedelta(days=7, hours=23))])
         self.assertFalse(self.alert(node))
         self.assertTrue(self.alert(node, at=time.time_ns() + 2 * 3600 * 1_000_000_000))
 
@@ -101,6 +101,9 @@ class TalosBackupAlertTests(LoggingTestCase):
             [("TALOS_ETCD_BACKUP_CLIENT_EXPIRING", timedelta(minutes=1))],
         )
         self.assertTrue(self.alert(node, name))
+        self.assertTrue(
+            self.alert(node, name, time.time_ns() + 7 * 86400 * 1_000_000_000)
+        )
         self.assertFalse(
-            self.alert(node, name, time.time_ns() + 37 * 3600 * 1_000_000_000)
+            self.alert(node, name, time.time_ns() + 9 * 86400 * 1_000_000_000)
         )

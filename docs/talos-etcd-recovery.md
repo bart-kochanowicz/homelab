@@ -6,8 +6,8 @@ An etcd snapshot contains Kubernetes objects and Secrets, including sealing keys
 It does not contain PVC contents or the Talos configuration needed to rebuild a
 machine. Preserve the snapshot and both complete machine configurations together.
 
-The opt-in Houston `talos_backup` role schedules a daily copy at 04:30
-Europe/Warsaw, with up to 15 minutes of jitter and catch-up after downtime.
+The opt-in Houston `talos_backup` role schedules a weekly copy on Mondays at
+04:30 Europe/Warsaw, with up to 15 minutes of jitter and catch-up after downtime.
 The systemd service runs a local Ansible playbook using native Talos and restic
 commands. Each copy is restored to private staging and checked against its
 SHA-256 manifest before success is recorded. No snapshots are automatically pruned.
@@ -85,7 +85,7 @@ credentials are installed on Houston. Existing configuration files retain all
 Talos documents, including log forwarding; concurrent configuration changes
 make capture fail rather than accept mismatched recovery material.
 
-After the first success, synchronize `logging` for failure and 36-hour freshness
+After the first success, synchronize `logging` for failure and eight-day freshness
 alerts through Houston's journal, Alloy and Loki. A separate warning starts 30
 days before the client certificate expires. Renew it with a new private output
 file and reapply the role; never replace the repository password during renewal.

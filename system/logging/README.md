@@ -34,7 +34,7 @@ collector startup. The freshness matcher and game-log mount target the current
 ATM10 server; update both when replacing it. A completion log does not replace a ZIP restore test.
 `CraftyBackupStartFailed` reports startup errors seen in the last 15 minutes.
 `TalosEtcdBackupUnhealthy` reports a Houston backup failure without a later
-verified success, or no success for 36 hours. The systemd unit emits completion
+verified success, or no success for eight days. The systemd unit emits completion
 markers into the existing journal stream; only fully verified copies count.
 `TalosBackupClientExpiring` warns when its dedicated client needs renewal within
 30 days. Enable these rules after the first successful

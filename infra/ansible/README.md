@@ -12,7 +12,7 @@ labelled `houston-data`, mounted at `/srv/terraform`.
 | `garage` | Garage 2.4.1, `terraform-state` bucket and S3 credentials |
 | `terraform_cli` | Terraform 1.16.4, shared lock and backup tools |
 | `restic_server` | Private TLS endpoint for encrypted application backup repositories |
-| `talos_backup` | Opt-in daily Talos/etcd capture, encrypted read-back checks and systemd timer |
+| `talos_backup` | Opt-in weekly Talos/etcd capture, encrypted read-back checks and systemd timer |
 | `github_runner` | Private runner 2.337.0 and its systemd service |
 
 ## Configure the host
@@ -139,7 +139,7 @@ ssh houston-01 'systemctl status restic-server.service'
 ```
 
 Talos/etcd recovery copies use a separate encrypted repository. The opt-in
-`talos_backup` role writes it locally from a daily systemd service; SSH/SFTP
+`talos_backup` role writes it locally from a weekly systemd service; SSH/SFTP
 provides recovery access from another computer. See
 [setup, capture and recovery](../../docs/talos-etcd-recovery.md).
 
