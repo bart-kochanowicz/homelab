@@ -14,9 +14,6 @@ data:
       internal_url: https://ha.thecavespace.net
       external_url: https://ha.thecavespace.net
 
-    frontend:
-      themes: !include_dir_merge_named themes
-
     http:
       ssl_certificate: /etc/home-assistant/tls/tls.crt
       ssl_key: /etc/home-assistant/tls/tls.key
@@ -26,14 +23,9 @@ data:
         - 127.0.0.1
         - ::1
 
-    tts:
-      - platform: google_translate
-
     automation: !include automations.yaml
     script: !include scripts.yaml
     scene: !include scenes.yaml
-
-    logger:
-      default: warning
-      logs:
-        pychromecast.socket_client: critical  # Suppress LG TV socket errors
+  automations.yaml: '[]'
+  scripts.yaml: '{}'
+  scenes.yaml: '[]'
