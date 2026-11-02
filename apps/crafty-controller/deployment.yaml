@@ -46,6 +46,15 @@ spec:
           env:
             - name: TZ
               value: "Europe/Warsaw"
+          readinessProbe:
+            httpGet:
+              path: /api/v2/crafty/check
+              port: web
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           volumeMounts:
             - name: backend-tls
               mountPath: /crafty/app/config/web/certs

@@ -27,6 +27,8 @@ metadata:
 spec:
   type: NodePort
   externalTrafficPolicy: Local
+  # The panel's readiness must not remove a running game from this Service.
+  publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: crafty-controller
   ports:

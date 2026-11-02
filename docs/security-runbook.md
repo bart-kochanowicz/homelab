@@ -53,6 +53,12 @@ Home, Admin and WireGuard clients can connect. There is no public DNS record or
 WAN port forwarding. The NodePort uses `externalTrafficPolicy: Local`; only the
 node running Crafty accepts game connections.
 
+Crafty's HTTPS readiness probe checks `/api/v2/crafty/check` on the panel port.
+It controls panel routing only: the Minecraft Service publishes not-ready endpoints
+so a panel failure does not remove the game's backend. No startup or liveness probe
+restarts the shared container. Minecraft startup remains manual. Deployment changes
+still restart the shared pod; apply them while the game is stopped.
+
 HTTPS listeners live in [system/gateways](../system/gateways/); routes live with
 their applications. Envoy proxy egress and backend ingress must both allow the
 backend port. Prometheus can scrape ArgoCD on `8083` and Grafana on `3000`.

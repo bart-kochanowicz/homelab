@@ -2,6 +2,38 @@ from .support import GatewayTestCase
 
 
 class CraftyGatewayTests(GatewayTestCase):
+    def test_panel_readiness_does_not_restart_or_withdraw_the_game(self):
+        resources = self.rendered("apps-crafty-controller.yaml")
+        deployment = next(item for item in resources if item["kind"] == "Deployment")
+        pod = deployment["spec"]["template"]["spec"]
+        container = pod["containers"][0]
+        probe = container["readinessProbe"]
+        self.assertEqual(probe["httpGet"]["path"], "/api/v2/crafty/check")
+        self.assertEqual(probe["httpGet"]["scheme"], "HTTPS")
+        port = next(
+            item
+            for item in container["ports"]
+            if item["name"] == probe["httpGet"]["port"]
+        )
+        self.assertEqual(port["containerPort"], 8443)
+        self.assertNotIn("startupProbe", container)
+        self.assertNotIn("livenessProbe", container)
+        services = {
+            item["metadata"]["name"]: item
+            for item in resources
+            if item["kind"] == "Service"
+        }
+        panel = services["crafty-controller"]["spec"]
+        game = services["crafty-minecraft"]["spec"]
+        self.assertFalse(panel.get("publishNotReadyAddresses", False))
+        self.assertTrue(game["publishNotReadyAddresses"])
+        self.assertEqual(game["type"], "NodePort")
+        self.assertEqual(game["externalTrafficPolicy"], "Local")
+        self.assertEqual(
+            game["selector"], deployment["spec"]["template"]["metadata"]["labels"]
+        )
+        self.assertEqual(game["ports"][0]["nodePort"], 30000)
+
     def test_crafty_admin_route_requires_verified_tls_on_the_panel_port(self):
         resources = self.rendered("apps-crafty-controller.yaml")
         route = next(item for item in resources if item["kind"] == "HTTPRoute")
