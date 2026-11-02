@@ -1,0 +1,5 @@
+---
+talos_backup_enabled: false
+talos_backup_talosconfig_source: ''
+talos_backup_password_source: ''
+talos_backup_schedule: 'Mon *-*-* 04:30:00 Europe/Warsaw'

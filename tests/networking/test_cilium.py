@@ -2,6 +2,27 @@ from .support import GatewayTestCase
 
 
 class CiliumTests(GatewayTestCase):
+    def test_houston_backup_can_reach_only_the_control_plane_talos_api(self):
+        policy = next(
+            item
+            for item in self.rendered("system-network-policies.yaml")
+            if item["kind"] == "CiliumClusterwideNetworkPolicy"
+            and item["metadata"]["name"] == "homelab-talos-backup-access"
+        )
+        self.assertEqual(
+            policy["spec"]["nodeSelector"]["matchLabels"],
+            {"node-role.kubernetes.io/control-plane": ""},
+        )
+        self.assertEqual(
+            policy["spec"]["ingress"],
+            [
+                {
+                    "fromCIDR": ["10.0.70.10/32"],
+                    "toPorts": [{"ports": [{"port": "50000", "protocol": "TCP"}]}],
+                }
+            ],
+        )
+
     def test_cilium_keeps_the_existing_dataplane_and_host_firewall(self):
         config = next(
             item

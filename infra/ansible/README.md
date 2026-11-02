@@ -12,6 +12,7 @@ labelled `houston-data`, mounted at `/srv/terraform`.
 | `garage` | Garage 2.4.1, `terraform-state` bucket and S3 credentials |
 | `terraform_cli` | Terraform 1.16.4, shared lock and backup tools |
 | `restic_server` | Private TLS endpoint for encrypted application backup repositories |
+| `talos_backup` | Opt-in weekly Talos/etcd capture, encrypted read-back checks and systemd timer |
 | `github_runner` | Private runner 2.337.0 and its systemd service |
 
 ## Configure the host
@@ -51,6 +52,7 @@ mode `600`, owned by `capcom`. See [local plans](../../terraform/LOCAL_PLAN.md).
 | `runner/{home,work,tmp,app-<version>}` | Private runner files |
 | `backups/talos` | Encrypted Talos recovery repository over SFTP, `700 capcom:capcom` |
 | `backups/restic` | Encrypted application repositories, `700 restic-svc:restic-svc` |
+| `talos-backup` | Private capture staging, cache and last verified snapshot ID, `700 capcom:capcom` |
 | `backup-staging` | Per-operation directories, `1770 root:terraform-ops` |
 | `tools` | Root-owned executables and release archives |
 
@@ -136,8 +138,11 @@ ANSIBLE_CONFIG=infra/ansible/ansible.cfg ansible-playbook \
 ssh houston-01 'systemctl status restic-server.service'
 ```
 
-Talos/etcd recovery copies use a separate encrypted repository over SSH/SFTP;
-see [capture and recovery](../../docs/talos-etcd-recovery.md).
+Talos/etcd recovery copies use a separate encrypted repository. The opt-in
+`talos_backup` role writes it locally from a weekly systemd service; SSH/SFTP
+provides recovery access from another computer. After a verified capture, retention
+keeps the last 30 days and the latest copy, then prunes unused data. See
+[setup, capture and recovery](../../docs/talos-etcd-recovery.md).
 
 ## Recovery
 

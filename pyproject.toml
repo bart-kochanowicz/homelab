@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 
 [dependency-groups]
 dev = [
+  "ansible-core==2.19.11",
   "pyright[nodejs]==1.1.414",
   "PyYAML>=6,<7",
   "ruff==0.17.3",

@@ -1,0 +1,250 @@
+---
+- name: Capture and verify Talos recovery material
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    backup_root: "{{ lookup('env', 'TALOS_BACKUP_WORK_ROOT') }}"
+    backup_endpoint: 10.0.70.11
+    backup_nodes:
+      - address: 10.0.70.11
+        filename: controlplane.yaml
+        type: controlplane
+      - address: 10.0.70.12
+        filename: worker.yaml
+        type: worker
+    talos_command:
+      - talosctl
+      - --talosconfig
+      - "{{ lookup('env', 'TALOSCONFIG') }}"
+      - --endpoints
+      - "{{ backup_endpoint }}"
+  tasks:
+    - name: Require explicit private credentials and working directories
+      ansible.builtin.assert:
+        that:
+          - backup_root is match('^/')
+          - lookup('env', 'TALOSCONFIG') is match('^/')
+          - lookup('env', 'RESTIC_PASSWORD_FILE') is match('^/')
+          - lookup('env', 'RESTIC_REPOSITORY') | length > 0
+          - lookup('env', 'TALOS_BACKUP_EXPECTED_UUID') | length > 0
+        fail_msg: Run through the configured talos-etcd-backup service.
+
+    - name: Read the mounted SSD identity
+      ansible.builtin.command:
+        argv: [findmnt, --noheadings, --output, UUID, --target, /srv/terraform]
+      register: mounted_ssd
+      changed_when: false
+
+    - name: Require the configured SSD before writing any backup data
+      ansible.builtin.assert:
+        that: mounted_ssd.stdout | trim == lookup('env', 'TALOS_BACKUP_EXPECTED_UUID')
+        fail_msg: The expected Houston SSD is not mounted.
+
+    - name: Check existing repository access without initializing or pruning it
+      ansible.builtin.command:
+        argv: [restic, cat, config]
+      changed_when: false
+      no_log: true
+
+    - name: Read the dedicated client configuration
+      ansible.builtin.slurp:
+        src: "{{ lookup('env', 'TALOSCONFIG') }}"
+      register: client_configuration
+      no_log: true
+
+    - name: Check whether the client certificate expires within 30 days
+      ansible.builtin.command:
+        argv: [openssl, x509, -noout, -checkend, '2592000']
+        stdin: >-
+          {{ (client_configuration.content | b64decode | from_yaml)
+          ['contexts'][(client_configuration.content | b64decode | from_yaml)['context']]['crt'] | b64decode }}
+      register: client_expiry
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Warn about a client certificate requiring renewal
+      ansible.builtin.debug:
+        msg: TALOS_ETCD_BACKUP_CLIENT_EXPIRING
+      when: client_expiry.rc != 0
+
+    - name: Create private per-run staging on the SSD
+      ansible.builtin.tempfile:
+        state: directory
+        path: "{{ backup_root }}"
+        prefix: capture.
+      register: staging
+
+    - name: Capture full machine configurations without exposing their contents
+      ansible.builtin.command:
+        argv: "{{ talos_command + ['--nodes', item.address, 'get', 'mc', 'v1alpha1', '-o', 'jsonpath={.spec}'] }}"
+        strip_empty_ends: false
+      loop: "{{ backup_nodes }}"
+      register: configurations
+      changed_when: false
+      no_log: true
+
+    - name: Reject empty, redacted or incorrectly targeted machine configurations
+      ansible.builtin.assert:
+        that:
+          - machine_documents | length == 1
+          - machine_documents[0].machine.type == item.item.type
+          - >-
+            item.item.type != 'controlplane' or
+            (machine_documents[0].machine.ca.key | default('') | length > 0 and
+             machine_documents[0].cluster.ca.key | default('') | length > 0)
+        fail_msg: Full recovery configuration is unavailable; retain staging and inspect Talos access.
+      vars:
+        machine_documents: "{{ item.stdout | from_yaml_all | selectattr('machine', 'defined') | list }}"
+      loop: "{{ configurations.results }}"
+      no_log: true
+
+    - name: Preserve raw configuration including additional Talos documents
+      ansible.builtin.copy:
+        content: "{{ item.stdout }}"
+        dest: "{{ staging.path }}/{{ item.item.filename }}"
+        mode: '0600'
+      loop: "{{ configurations.results }}"
+      no_log: true
+
+    - name: Take the control-plane etcd snapshot
+      ansible.builtin.command:
+        argv: "{{ talos_command + ['--nodes', backup_endpoint, 'etcd', 'snapshot', staging.path + '/etcd.snapshot'] }}"
+      no_log: true
+
+    - name: Inspect the completed snapshot
+      ansible.builtin.stat:
+        path: "{{ staging.path }}/etcd.snapshot"
+      register: snapshot_file
+
+    - name: Reject missing or empty snapshots
+      ansible.builtin.assert:
+        that:
+          - snapshot_file.stat.isreg | default(false)
+          - snapshot_file.stat.size | default(0) > 32
+        fail_msg: No complete etcd snapshot was captured.
+
+    - name: Record client and node versions
+      ansible.builtin.command:
+        argv: "{{ talos_command + ['--nodes', backup_nodes | map(attribute='address') | join(','), 'version'] }}"
+      register: versions
+      changed_when: false
+
+    - name: Save version information with the recovery bundle
+      ansible.builtin.copy:
+        content: "{{ versions.stdout }}\n"
+        dest: "{{ staging.path }}/versions.txt"
+        mode: '0600'
+
+    - name: Re-read machine configurations after taking the snapshot
+      ansible.builtin.command:
+        argv: "{{ talos_command + ['--nodes', item.address, 'get', 'mc', 'v1alpha1', '-o', 'jsonpath={.spec}'] }}"
+        strip_empty_ends: false
+      loop: "{{ backup_nodes }}"
+      register: configurations_after
+      changed_when: false
+      no_log: true
+
+    - name: Reject configuration changes during capture
+      ansible.builtin.assert:
+        that: item[0].stdout == item[1].stdout
+        fail_msg: Talos configuration changed during capture; take another copy after maintenance.
+      loop: "{{ configurations.results | zip(configurations_after.results) | list }}"
+      no_log: true
+
+    - name: Hash every recovery input
+      ansible.builtin.command:
+        argv: [sha256sum, etcd.snapshot, controlplane.yaml, worker.yaml, versions.txt]
+        chdir: "{{ staging.path }}"
+      register: checksums
+      changed_when: false
+
+    - name: Save the integrity manifest
+      ansible.builtin.copy:
+        content: "{{ checksums.stdout }}\n"
+        dest: "{{ staging.path }}/SHA256SUMS"
+        mode: '0600'
+
+    - name: Stream the bundle into the existing encrypted repository
+      ansible.builtin.command:
+        argv:
+          - restic
+          - backup
+          - --json
+          - --tag
+          - talos-etcd
+          - --stdin-from-command
+          - --stdin-filename
+          - talos-etcd-recovery.tar
+          - --
+          - tar
+          - -C
+          - "{{ staging.path }}"
+          - -cf
+          - '-'
+          - etcd.snapshot
+          - controlplane.yaml
+          - worker.yaml
+          - versions.txt
+          - SHA256SUMS
+      register: uploaded
+
+    - name: Require a concrete snapshot receipt
+      ansible.builtin.set_fact:
+        receipt: "{{ uploaded.stdout_lines | map('from_json') | selectattr('message_type', 'equalto', 'summary') | first }}"
+
+    - name: Read back and verify exactly the new snapshot
+      ansible.builtin.command:
+        argv: [restic, restore, "{{ receipt.snapshot_id }}", --target, "{{ staging.path }}/verify", --verify]
+
+    - name: Extract the verified recovery bundle
+      ansible.builtin.command:
+        argv: [tar, -xf, "{{ staging.path }}/verify/talos-etcd-recovery.tar", -C, "{{ staging.path }}/verify"]
+
+    - name: Require the read-back integrity manifest to match this capture
+      ansible.builtin.command:
+        argv: [cmp, "{{ staging.path }}/SHA256SUMS", "{{ staging.path }}/verify/SHA256SUMS"]
+      changed_when: false
+
+    - name: Verify every restored recovery input
+      ansible.builtin.command:
+        argv: [sha256sum, --check, SHA256SUMS]
+        chdir: "{{ staging.path }}/verify"
+      changed_when: false
+
+    - name: Check repository structure before retention
+      ansible.builtin.command:
+        argv: [restic, check]
+      changed_when: false
+
+    - name: Record the verified snapshot before expiring older recovery points
+      ansible.builtin.copy:
+        content: "{{ receipt.snapshot_id }}\n"
+        dest: "{{ backup_root }}/last-success"
+        mode: '0600'
+
+    - name: Retain the last 30 days and latest Talos recovery copy
+      ansible.builtin.command:
+        argv:
+          - restic
+          - forget
+          - --tag
+          - talos-etcd
+          - --group-by
+          - paths
+          - --keep-within
+          - 30d
+          - --keep-last
+          - '1'
+          - --prune
+
+    - name: Check repository structure after retention
+      ansible.builtin.command:
+        argv: [restic, check]
+      changed_when: false
+
+    - name: Remove plaintext staging only after complete verification
+      ansible.builtin.file:
+        path: "{{ staging.path }}"
+        state: absent

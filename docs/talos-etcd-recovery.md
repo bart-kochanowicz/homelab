@@ -6,7 +6,15 @@ An etcd snapshot contains Kubernetes objects and Secrets, including sealing keys
 It does not contain PVC contents or the Talos configuration needed to rebuild a
 machine. Preserve the snapshot and both complete machine configurations together.
 
-Backups are manual. Take one before Talos, Kubernetes or control-plane changes.
+The opt-in Houston `talos_backup` role schedules a weekly copy on Mondays at
+04:30 Europe/Warsaw, with up to 15 minutes of jitter and catch-up after downtime.
+The systemd service runs a local Ansible playbook using native Talos and restic
+commands. Each copy is restored to private staging and checked against its
+SHA-256 manifest before success is recorded. After verification, restic retains
+the last 30 days of `talos-etcd` snapshots and always keeps the latest copy,
+then prunes unreferenced data. Retention groups by archive paths across hosts,
+so controller-created and Houston-created copies share the same policy.
+Take an additional copy before Talos, Kubernetes or control-plane changes.
 Encrypted copies live in `/srv/terraform/backups/talos` on Houston's SSD, owned by
 `capcom` with mode `700`, independently of the application REST-server repositories
 and their 90 GiB limit. Access and the encryption password must work without
@@ -36,6 +44,80 @@ restic init
 Save the generated password in a password manager before relying on this copy.
 For an existing repository, load its original password; do not regenerate it or
 repeat `restic init`. Keep SSH recovery access outside Kubernetes as well.
+
+## Enable scheduled backups
+
+The existing repository and its original password must be available first.
+Use a dedicated Talos client; exporting complete machine configurations requires
+`os:admin`, not only `os:etcd:backup`. Protect this credential as administrative
+cluster access. Generate a one-year client in an ignored private directory:
+
+```bash
+umask 077
+install -d -m 700 .secrets/talos-backup
+talosctl --context admin@homelab-prod -e 10.0.70.11 -n 10.0.70.11 \
+  config new .secrets/talos-backup/talosconfig --roles=os:admin --crt-ttl=8760h
+```
+
+Set these absolute source paths in `.secrets/talos-backup.yml`, mode `600`:
+
+```yaml
+talos_backup_enabled: true
+talos_backup_talosconfig_source: /absolute/private/path/talosconfig
+talos_backup_password_source: /absolute/private/path/existing-repository-password
+```
+
+Synchronize `network-policies` first. Its dedicated host rule permits only
+Houston's `10.0.70.10` to reach the control-plane Talos API on TCP50000; the
+control plane proxies worker configuration reads. Then configure Houston:
+
+```bash
+uv run --locked ansible-galaxy collection install -r infra/ansible/requirements.yml
+ANSIBLE_CONFIG=infra/ansible/ansible.cfg uv run --locked ansible-playbook \
+  infra/ansible/playbooks/houston.yml --tags talos_backup --ask-become-pass \
+  -e @.secrets/talos-backup.yml
+```
+
+The role installs checksum-pinned talosctl plus Debian's restic and ansible-core,
+and completes a verified backup on first installation or service/credential
+changes before enabling the timer. Apply updates while the service is inactive.
+Credential sources are root-owned under `/etc/talos-backup`; systemd supplies private runtime
+copies through `LoadCredential`. The service runs as `capcom`, with writable
+access limited to the repository and `/srv/terraform/talos-backup`. No Kubernetes
+credentials are installed on Houston. Existing configuration files retain all
+Talos documents, including log forwarding; concurrent configuration changes
+make capture fail rather than accept mismatched recovery material.
+
+After the first success, synchronize `logging` for failure and eight-day freshness
+alerts through Houston's journal, Alloy and Loki. A separate warning starts 30
+days before the client certificate expires. Renew it with a new private output
+file and reapply the role; never replace the repository password during renewal.
+
+```bash
+ssh houston-01 'systemctl list-timers talos-etcd-backup.timer'
+ssh houston-01 'systemctl show talos-etcd-backup.service -p Result -p ExecMainStatus'
+ssh houston-01 'journalctl -u talos-etcd-backup.service --since today'
+ssh houston-01 'cat /srv/terraform/talos-backup/last-success'
+```
+
+`last-success` contains the most recently verified snapshot ID. The oneshot
+service normally returns to `inactive` after success. Failed plaintext staging
+stays private for diagnosis; inspect it before intentional cleanup. Read-back
+checks do not replace the offline etcd recovery rehearsal below.
+
+The verified receipt is updated before retention: if pruning fails after older
+snapshots were removed, it still points to the new verified copy. Retention
+failure fails the service and alerts; failed capture or read-back never runs
+retention or advances the receipt. Preview the policy with the Restic environment
+variables below before changing it:
+
+```bash
+restic forget --tag talos-etcd --group-by paths --keep-within 30d --keep-last 1 --dry-run
+```
+
+Before planned control-plane or CA maintenance, stop `talos-etcd-backup.timer`
+and wait for any active backup to finish. Take a manual copy, perform maintenance,
+then start the service once and re-enable the timer after successful verification.
 
 ## Capture and encrypt
 
@@ -74,8 +156,8 @@ restic snapshots --tag talos-etcd
 Keep the successful snapshot ID and verify the encrypted copy below before
 accepting it. `.secrets/` contains plaintext recovery credentials: retain private
 permissions, never print or commit them, and keep failed staging for diagnosis.
-Repeat capture after machine configuration or CA changes. Retain older verified
-snapshots; inspect SSD usage before planning retention changes.
+Repeat capture after machine configuration or CA changes. Manual copies tagged
+`talos-etcd` follow the same 30-day policy when the next automated run succeeds.
 
 ## Verify and prepare recovery offline
 

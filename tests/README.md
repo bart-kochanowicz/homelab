@@ -14,6 +14,9 @@ dependencies pinned by [`uv.lock`](../uv.lock). Run commands from the repository
 uv sync --locked
 ```
 
+The locked dependencies include ansible-core to exercise Houston's backup
+playbook against disposable local restic repositories and simulated Talos responses.
+
 | Command | Purpose |
 | --- | --- |
 | `make validate` | Full repository validation, including all tests |
