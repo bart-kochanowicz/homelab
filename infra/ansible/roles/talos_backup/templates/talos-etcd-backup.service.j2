@@ -1,0 +1,45 @@
+[Unit]
+Description=Capture and verify encrypted Talos and etcd recovery data
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/srv/terraform
+
+[Service]
+Type=oneshot
+User=capcom
+Group=capcom
+LoadCredential=talosconfig:/etc/talos-backup/talosconfig
+LoadCredential=restic-password:/etc/talos-backup/restic-password
+Environment=TALOSCONFIG=%d/talosconfig
+Environment=RESTIC_PASSWORD_FILE=%d/restic-password
+Environment=RESTIC_REPOSITORY=/srv/terraform/backups/talos
+Environment=RESTIC_CACHE_DIR=/srv/terraform/talos-backup/cache
+Environment=TALOS_BACKUP_WORK_ROOT=/srv/terraform/talos-backup
+Environment=TALOS_BACKUP_EXPECTED_UUID={{ houston_ssd_uuid.stdout }}
+Environment=ANSIBLE_LOCAL_TEMP=/srv/terraform/talos-backup/ansible-local
+Environment=ANSIBLE_REMOTE_TEMP=/srv/terraform/talos-backup/ansible-remote
+Environment=ANSIBLE_CONFIG=/srv/terraform/tools/talos-backup/ansible.cfg
+Environment=ANSIBLE_NOCOLOR=true
+ExecStartPre=/usr/bin/mountpoint --quiet /srv/terraform
+ExecStart=/usr/bin/ansible-playbook -i localhost, /srv/terraform/tools/talos-backup/backup.yml
+ExecStartPost=/usr/bin/echo TALOS_ETCD_BACKUP_SUCCESS
+ExecStopPost=/usr/bin/echo TALOS_ETCD_BACKUP_RESULT=${SERVICE_RESULT}
+TimeoutStartSec=30m
+UMask=0077
+MemoryMax=768M
+CPUQuota=75%
+IOWeight=20
+Nice=10
+TasksMax=256
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/srv/terraform/backups/talos /srv/terraform/talos-backup
+RestrictAddressFamilies=AF_UNIX AF_INET
+IPAddressDeny=any
+IPAddressAllow=10.0.70.11/32

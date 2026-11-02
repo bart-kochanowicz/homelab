@@ -24,4 +24,4 @@ spec:
             severity: critical
           annotations:
             summary: Loki cannot evaluate log alerts
-            description: Minecraft backup alerts may be unavailable. Inspect Loki ruler errors.
+            description: Minecraft and Talos backup alerts may be unavailable. Inspect Loki ruler errors.

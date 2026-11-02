@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Talos and etcd recovery backup
+
+[Timer]
+OnCalendar={{ talos_backup_schedule }}
+RandomizedDelaySec=15m
+Persistent=true
+Unit=talos-etcd-backup.service
+
+[Install]
+WantedBy=timers.target

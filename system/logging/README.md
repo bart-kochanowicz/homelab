@@ -33,6 +33,12 @@ after eight days without success. Event timestamps come from Crafty logs, not
 collector startup. The freshness matcher and game-log mount target the current
 ATM10 server; update both when replacing it. A completion log does not replace a ZIP restore test.
 `CraftyBackupStartFailed` reports startup errors seen in the last 15 minutes.
+`TalosEtcdBackupUnhealthy` reports a Houston backup failure without a later
+verified success, or no success for 36 hours. The systemd unit emits completion
+markers into the existing journal stream; only fully verified copies count.
+`TalosBackupClientExpiring` warns when its dedicated client needs renewal within
+30 days. Enable these rules after the first successful
+[scheduled backup setup](../../docs/talos-etcd-recovery.md#enable-scheduled-backups).
 Delivery failures and Loki rule-evaluation errors alert separately through Prometheus.
 
 Run `make validate`; Docker is needed for native Loki/Alloy integration tests.

@@ -1,0 +1,184 @@
+---
+- name: Require the supported host, verified SSD and explicit credential sources
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == 'Debian'
+      - ansible_distribution_major_version == '13'
+      - ansible_architecture == 'x86_64'
+      - houston_ssd_uuid.stdout | default('') | length > 0
+      - houston_ssd_uuid.stdout == houston_mounted_uuid.stdout
+      - talos_backup_talosconfig_source is match('^/')
+      - talos_backup_password_source is match('^/')
+    fail_msg: Use Houston's SSD preflight and absolute paths to the private Talos client and existing repository password.
+
+- name: Validate backup credentials on the controller
+  delegate_to: localhost
+  become: false
+  no_log: true
+  check_mode: false
+  block:
+    - name: Inspect credential source files without following symlinks
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - "{{ talos_backup_talosconfig_source }}"
+        - "{{ talos_backup_password_source }}"
+      register: credential_sources
+
+    - name: Require nonempty regular mode-0600 credential files
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not item.stat.islnk | default(false)
+          - item.stat.size | default(0) > 0
+          - item.stat.mode | default('') == '0600'
+        fail_msg: Backup credentials must be private regular files without symlinks.
+      loop: "{{ credential_sources.results }}"
+
+    - name: Read the dedicated Talos configuration
+      ansible.builtin.slurp:
+        src: "{{ talos_backup_talosconfig_source }}"
+      register: client_source
+
+    - name: Require a single dedicated Talos context
+      ansible.builtin.assert:
+        that:
+          - client.contexts | length == 1
+          - client.context in client.contexts
+      vars:
+        client: "{{ client_source.content | b64decode | from_yaml }}"
+
+    - name: Require more than one day of client certificate validity
+      ansible.builtin.command:
+        argv: [openssl, x509, -noout, -checkend, '86400']
+        stdin: "{{ client.contexts[client.context].crt | b64decode }}"
+      vars:
+        client: "{{ client_source.content | b64decode | from_yaml }}"
+      changed_when: false
+
+- name: Install native backup and automation tools
+  ansible.builtin.apt:
+    name: [ansible-core, ca-certificates, openssl, restic, util-linux]
+    state: present
+
+- name: Create root-owned executable directories on the SSD
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /srv/terraform/tools
+    - /srv/terraform/tools/talos-backup
+
+- name: Install the checksum-pinned Talos client
+  ansible.builtin.get_url:
+    url: "https://github.com/siderolabs/talos/releases/download/v{{ talos_backup_version }}/talosctl-linux-amd64"
+    dest: "/srv/terraform/tools/talosctl-{{ talos_backup_version }}"
+    checksum: "sha256:{{ talos_backup_binary_sha256 }}"
+    owner: root
+    group: root
+    mode: '0755'
+  register: backup_client_install
+
+- name: Link the pinned Talos client
+  ansible.builtin.file:
+    src: "/srv/terraform/tools/talosctl-{{ talos_backup_version }}"
+    dest: /usr/local/bin/talosctl
+    state: link
+    owner: root
+    group: root
+  when: not ansible_check_mode
+
+- name: Create private backup staging and cache directories
+  ansible.builtin.file:
+    path: /srv/terraform/talos-backup
+    state: directory
+    owner: capcom
+    group: capcom
+    mode: '0700'
+
+- name: Create the protected credential source directory
+  ansible.builtin.file:
+    path: /etc/talos-backup
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install root-owned credential sources for systemd LoadCredential
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/etc/talos-backup/{{ item.name }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - src: "{{ talos_backup_talosconfig_source }}"
+      name: talosconfig
+    - src: "{{ talos_backup_password_source }}"
+      name: restic-password
+  no_log: true
+  register: backup_credentials_install
+
+- name: Install the native backup playbook and isolated Ansible configuration
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/srv/terraform/tools/talos-backup/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: [backup.yml, ansible.cfg]
+  register: backup_runtime_install
+
+- name: Install the backup service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - talos-etcd-backup.service
+    - talos-etcd-backup.timer
+  register: backup_units_install
+  notify:
+    - Reload Talos backup units
+    - Restart Talos backup timer
+
+- name: Validate the installed systemd units
+  ansible.builtin.command:
+    argv:
+      - systemd-analyze
+      - verify
+      - /etc/systemd/system/talos-etcd-backup.service
+      - /etc/systemd/system/talos-etcd-backup.timer
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Check whether a verified backup has completed
+  ansible.builtin.stat:
+    path: /srv/terraform/talos-backup/last-success
+  register: first_backup
+
+- name: Verify the installed service before enabling its timer
+  ansible.builtin.systemd_service:
+    name: talos-etcd-backup.service
+    daemon_reload: true
+    state: started
+  when:
+    - not ansible_check_mode
+    - >-
+      not first_backup.stat.exists or backup_client_install.changed or
+      backup_credentials_install.changed or backup_runtime_install.changed or
+      backup_units_install.changed
+
+- name: Enable the daily persistent timer
+  ansible.builtin.systemd_service:
+    name: talos-etcd-backup.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
