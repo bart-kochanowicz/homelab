@@ -163,6 +163,13 @@
     path: /srv/terraform/talos-backup/last-success
   register: first_backup
 
+- name: Reload units and inspect the previous backup result
+  ansible.builtin.systemd_service:
+    name: talos-etcd-backup.service
+    daemon_reload: true
+  register: backup_service
+  when: not ansible_check_mode
+
 - name: Verify the installed service before enabling its timer
   ansible.builtin.systemd_service:
     name: talos-etcd-backup.service
@@ -173,7 +180,8 @@
     - >-
       not first_backup.stat.exists or backup_client_install.changed or
       backup_credentials_install.changed or backup_runtime_install.changed or
-      backup_units_install.changed
+      backup_units_install.changed or
+      (backup_service.status.Result | default('') != 'success')
 
 - name: Enable the weekly persistent timer
   ansible.builtin.systemd_service:

@@ -140,7 +140,8 @@ ssh houston-01 'systemctl status restic-server.service'
 
 Talos/etcd recovery copies use a separate encrypted repository. The opt-in
 `talos_backup` role writes it locally from a weekly systemd service; SSH/SFTP
-provides recovery access from another computer. See
+provides recovery access from another computer. After a verified capture, retention
+keeps the last 30 days and the latest copy, then prunes unused data. See
 [setup, capture and recovery](../../docs/talos-etcd-recovery.md).
 
 ## Recovery

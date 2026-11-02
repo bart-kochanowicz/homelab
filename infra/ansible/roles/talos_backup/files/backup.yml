@@ -213,7 +213,33 @@
         chdir: "{{ staging.path }}/verify"
       changed_when: false
 
-    - name: Check repository structure without deleting snapshots
+    - name: Check repository structure before retention
+      ansible.builtin.command:
+        argv: [restic, check]
+      changed_when: false
+
+    - name: Record the verified snapshot before expiring older recovery points
+      ansible.builtin.copy:
+        content: "{{ receipt.snapshot_id }}\n"
+        dest: "{{ backup_root }}/last-success"
+        mode: '0600'
+
+    - name: Retain the last 30 days and latest Talos recovery copy
+      ansible.builtin.command:
+        argv:
+          - restic
+          - forget
+          - --tag
+          - talos-etcd
+          - --group-by
+          - paths
+          - --keep-within
+          - 30d
+          - --keep-last
+          - '1'
+          - --prune
+
+    - name: Check repository structure after retention
       ansible.builtin.command:
         argv: [restic, check]
       changed_when: false
@@ -222,9 +248,3 @@
       ansible.builtin.file:
         path: "{{ staging.path }}"
         state: absent
-
-    - name: Record the last fully verified snapshot for provisioning checks
-      ansible.builtin.copy:
-        content: "{{ receipt.snapshot_id }}\n"
-        dest: "{{ backup_root }}/last-success"
-        mode: '0600'

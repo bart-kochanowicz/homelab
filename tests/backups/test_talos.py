@@ -9,6 +9,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -151,6 +152,37 @@ else: sys.exit(43)
             )
         )
 
+    def seed_snapshot(self, age_days: int, tag: str = "talos-etcd") -> str:
+        timestamp = (datetime.now() - timedelta(days=age_days)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        result = subprocess.run(
+            [
+                str(self.restic),
+                "backup",
+                "--json",
+                "--stdin",
+                "--stdin-filename",
+                "talos-etcd-recovery.tar",
+                "--time",
+                timestamp,
+                "--host",
+                "controller-fixture",
+                "--tag",
+                tag,
+            ],
+            input=b"retention recovery fixture",
+            capture_output=True,
+            check=True,
+            env=self.environment,
+        )
+        reports = (json.loads(line) for line in result.stdout.splitlines())
+        return next(
+            report["snapshot_id"]
+            for report in reports
+            if report["message_type"] == "summary"
+        )
+
     def test_capture_preserves_multidocument_configs_and_reads_back_the_bundle(self):
         result = self.capture()
         self.assertEqual(result.returncode, 0, result.stdout)
@@ -207,9 +239,8 @@ else: sys.exit(43)
         self.assertTrue(list((self.root / "work").glob("capture.*")))
 
     def test_failed_readback_cannot_advance_success_or_remove_private_staging(self):
-        first = self.capture()
-        self.assertEqual(first.returncode, 0, first.stdout)
-        receipt = (self.root / "work/last-success").read_text()
+        receipt = self.seed_snapshot(45) + "\n"
+        (self.root / "work/last-success").write_text(receipt)
         self.tool(
             "restic",
             f"""#!/usr/bin/env python3
@@ -221,6 +252,43 @@ os.execv({str(self.restic)!r},[{str(self.restic)!r}]+sys.argv[1:])
         result = self.capture()
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual((self.root / "work/last-success").read_text(), receipt)
+        self.assertTrue(
+            any(s["id"].startswith(receipt.strip()) for s in self.snapshots())
+        )
+        self.assertTrue(list((self.root / "work").glob("capture.*")))
+
+    def test_retention_expires_old_copies_across_hosts_and_keeps_other_tags(self):
+        old = self.seed_snapshot(45)
+        recent = self.seed_snapshot(29)
+        unrelated = self.seed_snapshot(60, "another-backup")
+        result = self.capture()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        ids = [s["id"] for s in self.snapshots()]
+        for snapshot, kept in [(old, False), (recent, True), (unrelated, True)]:
+            self.assertEqual(any(i.startswith(snapshot) for i in ids), kept)
+        latest = (self.root / "work/last-success").read_text().strip()
+        self.assertTrue(any(i.startswith(latest) for i in ids))
+
+    def test_prune_failure_keeps_a_valid_receipt_after_expiring_old_snapshots(self):
+        old = self.seed_snapshot(45)
+        (self.root / "work/last-success").write_text(old + "\n")
+        self.tool(
+            "restic",
+            f"""#!/usr/bin/env python3
+import os,sys,subprocess
+if sys.argv[1]=='forget':
+    subprocess.run([{str(self.restic)!r}]+[a for a in sys.argv[1:] if a!='--prune'],check=True)
+    sys.exit(42)
+os.execv({str(self.restic)!r},[{str(self.restic)!r}]+sys.argv[1:])
+""",
+        )
+        result = self.capture()
+        self.assertNotEqual(result.returncode, 0)
+        latest = (self.root / "work/last-success").read_text().strip()
+        self.assertNotEqual(latest, old)
+        ids = [s["id"] for s in self.snapshots()]
+        self.assertFalse(any(i.startswith(old) for i in ids))
+        self.assertTrue(any(i.startswith(latest) for i in ids))
         self.assertTrue(list((self.root / "work").glob("capture.*")))
 
     def test_wrong_mount_is_rejected_before_capture(self):
