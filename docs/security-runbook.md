@@ -173,6 +173,15 @@ Envoy verifies backend hostnames against system CAs:
 | n8n | `5678` | `n8n-backend-tls` | `n8n.thecavespace.net` | Reloader restarts n8n |
 | Grafana | `3000` | `grafana-backend-tls` | `grafana-backend.thecavespace.net` | Native reload every 30 seconds |
 
+Home Assistant imports `http:` YAML once into `/config/.storage/http`. On a fresh
+configuration, verify HTTPS access and confirm the imported settings in
+**Settings > System > Network > HTTP server** within five minutes. An unconfirmed
+configuration reverts to plain HTTP, breaking Envoy backend TLS and the HTTPS
+probes. Later HTTP/proxy changes belong in that UI; YAML changes are ignored
+after import. Keep port `8123`, the mounted `/etc/home-assistant/tls/` certificate
+and key paths, and the configured trusted proxies. See the
+[upstream HTTP configuration guide](https://www.home-assistant.io/integrations/http/).
+
 HA and n8n renewals briefly interrupt those applications. Their Reloader instances
 are namespace-scoped and require manual Application sync. ArgoCD ignores only
 the reload hash environment variable.
