@@ -446,3 +446,184 @@ tests:
         exp_samples:
           - labels: '{}'
             value: 0
+
+  - name: Completed backups and duplicate scrapes cannot inflate node requests
+    interval: 1m
+    input_series:
+    - series: kube_node_status_allocatable{node="worker",resource="cpu"}
+      values: 4+0x40
+    - series: kube_node_status_allocatable{node="worker",resource="memory"}
+      values: 100+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="live",uid="live",container="app",resource="cpu"}
+      values: 1+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="live",uid="live",container="app",resource="cpu",instance="duplicate"}
+      values: 1+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="pending",uid="pending",container="app",resource="cpu"}
+      values: 0.5+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="backups",pod="completed",uid="completed",container="app",resource="cpu"}
+      values: 10+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="backups",pod="failed",uid="failed",container="app",resource="cpu"}
+      values: 10+0x40
+    - series: kube_node_status_allocatable{node="worker",resource="cpu",instance="duplicate"}
+      values: 4+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="live",uid="live",container="app",resource="memory"}
+      values: 40+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="live",uid="live",container="app",resource="memory",instance="duplicate"}
+      values: 40+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="pending",uid="pending",container="app",resource="memory"}
+      values: 10+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="backups",pod="completed",uid="completed",container="app",resource="memory"}
+      values: 1000+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="backups",pod="failed",uid="failed",container="app",resource="memory"}
+      values: 1000+0x40
+    - series: kube_node_status_allocatable{node="worker",resource="memory",instance="duplicate"}
+      values: 100+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="live",uid="live",phase="Running"}
+      values: 1+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="live",uid="live",phase="Succeeded"}
+      values: 0+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="pending",uid="pending",phase="Pending"}
+      values: 1+0x40
+    - series: kube_pod_status_phase{namespace="backups",pod="completed",uid="completed",phase="Succeeded"}
+      values: 1+0x40
+    - series: kube_pod_status_phase{namespace="backups",pod="failed",uid="failed",phase="Failed"}
+      values: 1+0x40
+    alert_rule_test:
+    - eval_time: 16m
+      alertname: NodeCpuRequestsHigh
+      exp_alerts: []
+    - eval_time: 16m
+      alertname: NodeMemoryRequestsHigh
+      exp_alerts: []
+  - name: Pending pods reserve the largest ordinary init request and still alert
+    interval: 1m
+    input_series:
+    - series: kube_node_status_allocatable{node="worker",resource="cpu"}
+      values: 4+0x40
+    - series: kube_node_status_allocatable{node="worker",resource="memory"}
+      values: 100+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="main",resource="cpu"}
+      values: 1+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="helper",resource="cpu"}
+      values: 1+0x40
+    - series: kube_pod_init_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="init-large",resource="cpu"}
+      values: 3.8+0x40
+    - series: kube_pod_init_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="init-small",resource="cpu"}
+      values: 1.5+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="main",resource="memory"}
+      values: 10+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="helper",resource="memory"}
+      values: 10+0x40
+    - series: kube_pod_init_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="init-large",resource="memory"}
+      values: 95+0x40
+    - series: kube_pod_init_container_resource_requests{node="worker",namespace="app",pod="starting",uid="starting",container="init-small",resource="memory"}
+      values: 30+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="starting",uid="starting",phase="Pending"}
+      values: 1+0x40
+    alert_rule_test:
+    - eval_time: 16m
+      alertname: NodeCpuRequestsHigh
+      exp_alerts:
+      - exp_labels:
+          node: worker
+          severity: warning
+        exp_annotations:
+          summary: Pod CPU requests exceed 90% of a node's allocatable CPU
+          description: Review CPU requests and scheduling capacity on worker. This is reserved capacity, not measured CPU use.
+    - eval_time: 16m
+      alertname: NodeMemoryRequestsHigh
+      exp_alerts:
+      - exp_labels:
+          node: worker
+          severity: warning
+        exp_annotations:
+          summary: Pod memory requests exceed 90% of a node's allocatable memory
+          description: Review memory requests and scheduling capacity on worker. This is reserved capacity, not measured memory use.
+  - name: Terminal phases are matched by namespace and UID while Unknown pods remain reserved
+    interval: 1m
+    input_series:
+    - series: kube_node_status_allocatable{node="worker",resource="cpu"}
+      values: 4+0x40
+    - series: kube_node_status_allocatable{node="worker",resource="memory"}
+      values: 100+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="unknown",uid="current",container="app",resource="cpu"}
+      values: 3.8+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="unknown",uid="old",container="app",resource="cpu"}
+      values: 1000+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="other",pod="unknown",uid="current",container="app",resource="cpu"}
+      values: 1000+0x40
+    - series: kube_pod_container_resource_requests{node="",namespace="app",pod="unassigned",uid="unassigned",container="app",resource="cpu"}
+      values: 1000+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="unknown",uid="current",container="app",resource="memory"}
+      values: 95+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="unknown",uid="old",container="app",resource="memory"}
+      values: 1000+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="other",pod="unknown",uid="current",container="app",resource="memory"}
+      values: 1000+0x40
+    - series: kube_pod_container_resource_requests{node="",namespace="app",pod="unassigned",uid="unassigned",container="app",resource="memory"}
+      values: 1000+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="unknown",uid="old",phase="Succeeded"}
+      values: 1+0x40
+    - series: kube_pod_status_phase{namespace="other",pod="unknown",uid="current",phase="Failed"}
+      values: 1+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="unknown",uid="current",phase="Unknown"}
+      values: 1+0x40
+    alert_rule_test:
+    - eval_time: 16m
+      alertname: NodeCpuRequestsHigh
+      exp_alerts:
+      - exp_labels:
+          node: worker
+          severity: warning
+        exp_annotations:
+          summary: Pod CPU requests exceed 90% of a node's allocatable CPU
+          description: Review CPU requests and scheduling capacity on worker. This is reserved capacity, not measured CPU use.
+    - eval_time: 16m
+      alertname: NodeMemoryRequestsHigh
+      exp_alerts:
+      - exp_labels:
+          node: worker
+          severity: warning
+        exp_annotations:
+          summary: Pod memory requests exceed 90% of a node's allocatable memory
+          description: Review memory requests and scheduling capacity on worker. This is reserved capacity, not measured memory use.
+  - name: Capacity alerts clear when a pod completes even if its requests remain exported
+    interval: 1m
+    input_series:
+    - series: kube_node_status_allocatable{node="worker",resource="cpu"}
+      values: 4+0x40
+    - series: kube_node_status_allocatable{node="worker",resource="memory"}
+      values: 100+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="finishing",uid="finishing",container="app",resource="cpu"}
+      values: 3.8+0x40
+    - series: kube_pod_container_resource_requests{node="worker",namespace="app",pod="finishing",uid="finishing",container="app",resource="memory"}
+      values: 95+0x40
+    - series: kube_pod_status_phase{namespace="app",pod="finishing",uid="finishing",phase="Running"}
+      values: 1+0x19 0+0x20
+    - series: kube_pod_status_phase{namespace="app",pod="finishing",uid="finishing",phase="Succeeded"}
+      values: 0+0x19 1+0x20
+    alert_rule_test:
+    - eval_time: 16m
+      alertname: NodeCpuRequestsHigh
+      exp_alerts:
+      - exp_labels:
+          node: worker
+          severity: warning
+        exp_annotations:
+          summary: Pod CPU requests exceed 90% of a node's allocatable CPU
+          description: Review CPU requests and scheduling capacity on worker. This is reserved capacity, not measured CPU use.
+    - eval_time: 16m
+      alertname: NodeMemoryRequestsHigh
+      exp_alerts:
+      - exp_labels:
+          node: worker
+          severity: warning
+        exp_annotations:
+          summary: Pod memory requests exceed 90% of a node's allocatable memory
+          description: Review memory requests and scheduling capacity on worker. This is reserved capacity, not measured memory use.
+    - eval_time: 22m
+      alertname: NodeCpuRequestsHigh
+      exp_alerts: []
+    - eval_time: 22m
+      alertname: NodeMemoryRequestsHigh
+      exp_alerts: []
