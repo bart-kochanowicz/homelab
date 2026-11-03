@@ -48,6 +48,12 @@ request alerts warn above 90% allocatable CPU or memory for 15 minutes; cluster-
 N+1 overcommit alerts are disabled because local-path workloads cannot fail over.
 Existing node pressure, filesystem, pod and Prometheus alerts remain enabled.
 
+Request panels and alerts exclude `Succeeded`/`Failed` pods and deduplicate scrapes.
+Per pod, they take the larger of the application-container sum and the largest
+ordinary init-container request. Current workloads use no pod-level requests,
+native init sidecars or RuntimeClass overhead; introducing these requires updating
+the calculation or collecting the scheduler's effective pod-resource metrics.
+
 Unexpected Cilium drops alert above 1 packet/second per reason for 10 minutes.
 Policy denials, load-balancer source rejection and unsupported L2/L3 protocols are
 visible on the Network dashboard but do not send emails. Cilium and ArgoCD use

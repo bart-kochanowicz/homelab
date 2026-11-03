@@ -109,8 +109,18 @@ spec:
             description: 'Check kube-controller-manager on {{ with query (printf "homelab:node_info{node=%q}" $labels.node) }}{{ . | first | label "node_name" }}{{ else }}{{ $labels.node }}{{ end }} through Kubernetes and Talos. Pod readiness does not validate the loopback metrics endpoint.'
         - alert: NodeMemoryRequestsHigh
           expr: |
-            sum by (node) (kube_pod_container_resource_requests{resource="memory",node!=""})
-            / sum by (node) (kube_node_status_allocatable{resource="memory"}) > 0.9
+            sum by (node) (
+              max by (node, namespace, pod, uid, resource) (
+                sum by (node, namespace, pod, uid, resource) (
+                  max by (node, namespace, pod, uid, resource, container) (
+                    kube_pod_container_resource_requests{resource="memory",node!=""}
+                  )
+                )
+                or kube_pod_init_container_resource_requests{resource="memory",node!=""}
+              )
+              unless on (namespace, pod, uid)
+              (kube_pod_status_phase{phase=~"Succeeded|Failed"} == 1)
+            ) / max by (node) (kube_node_status_allocatable{resource="memory"}) > 0.9
           for: 15m
           labels:
             severity: warning
@@ -119,8 +129,18 @@ spec:
             description: 'Review memory requests and scheduling capacity on {{ with query (printf "homelab:node_info{node=%q}" $labels.node) }}{{ . | first | label "node_name" }}{{ else }}{{ $labels.node }}{{ end }}. This is reserved capacity, not measured memory use.'
         - alert: NodeCpuRequestsHigh
           expr: |
-            sum by (node) (kube_pod_container_resource_requests{resource="cpu",node!=""})
-            / sum by (node) (kube_node_status_allocatable{resource="cpu"}) > 0.9
+            sum by (node) (
+              max by (node, namespace, pod, uid, resource) (
+                sum by (node, namespace, pod, uid, resource) (
+                  max by (node, namespace, pod, uid, resource, container) (
+                    kube_pod_container_resource_requests{resource="cpu",node!=""}
+                  )
+                )
+                or kube_pod_init_container_resource_requests{resource="cpu",node!=""}
+              )
+              unless on (namespace, pod, uid)
+              (kube_pod_status_phase{phase=~"Succeeded|Failed"} == 1)
+            ) / max by (node) (kube_node_status_allocatable{resource="cpu"}) > 0.9
           for: 15m
           labels:
             severity: warning
