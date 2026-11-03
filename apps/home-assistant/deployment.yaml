@@ -29,6 +29,35 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+      - name: initialize-config
+        image: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
+        command:
+        - cp
+        - -n
+        - /defaults/automations.yaml
+        - /defaults/scripts.yaml
+        - /defaults/scenes.yaml
+        - /config/
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        resources:
+          requests:
+            cpu: 10m
+            memory: 8Mi
+          limits:
+            cpu: 100m
+            memory: 16Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-file
+          mountPath: /defaults
+          readOnly: true
       containers:
       - name: home-assistant
         image: ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:23f4dfbb69ce76315dbc4de7915504f1c2dcecd7ca2648113a493a385972e133

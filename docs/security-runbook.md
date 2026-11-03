@@ -262,6 +262,10 @@ Home Assistant uses `home-assistant-data-nvme` (32Gi); n8n uses `n8n-data-nvme`
 (20Gi); Grafana uses `grafana-data-nvme` (10Gi). These claims use NVMe, and their
 backups are stored on Houston.
 
+Home Assistant's `configuration.yaml` is managed in Git. Integrations, accounts
+and UI-managed automations live on its PVC. An init container creates missing
+automation, script and scene files without overwriting existing settings.
+
 Prometheus (50Gi) and Alertmanager (5Gi) also use NVMe. Their StatefulSet claims
 are retained on scaling and deletion. Changing claim templates requires pausing
 operator reconciliation and recreating the StatefulSets during a maintenance window.
