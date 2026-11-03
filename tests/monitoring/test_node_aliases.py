@@ -46,13 +46,13 @@ class NodeAliasTests(MonitoringTestCase):
                 ),
                 (
                     "kube_pod_container_resource_requests",
-                    f'node="{node}",resource="cpu"',
-                    "1+0x10",
+                    f'node="{node}",namespace="app",pod="live-{node}",uid="live-{node}",container="app",resource="cpu"',
+                    "0.6+0x10",
                 ),
                 (
                     "kube_pod_container_resource_requests",
-                    f'node="{node}",resource="memory"',
-                    "50+0x10",
+                    f'node="{node}",namespace="app",pod="live-{node}",uid="live-{node}",container="app",resource="memory"',
+                    "30+0x10",
                 ),
                 (
                     "node_uname_info",
@@ -86,6 +86,57 @@ class NodeAliasTests(MonitoringTestCase):
                 ),
             ):
                 series.append({"series": f"{metric}{{{labels}}}", "values": values})
+            for resource, sidecar, init, duplicate, capacity in (
+                ("cpu", 0.4, 0.9, 0.6, 4),
+                ("memory", 20, 40, 30, 100),
+            ):
+                labels = f'node="{node}",namespace="app",pod="live-{node}",uid="live-{node}",resource="{resource}"'
+                for metric, extra, value in (
+                    (
+                        "kube_pod_container_resource_requests",
+                        'container="sidecar"',
+                        sidecar,
+                    ),
+                    (
+                        "kube_pod_init_container_resource_requests",
+                        'container="init"',
+                        init,
+                    ),
+                    (
+                        "kube_pod_container_resource_requests",
+                        'container="app",instance="ksm-b"',
+                        duplicate,
+                    ),
+                ):
+                    series.append(
+                        {
+                            "series": f"{metric}{{{labels},{extra}}}",
+                            "values": f"{value}+0x10",
+                        }
+                    )
+                series.append(
+                    {
+                        "series": f'kube_node_status_allocatable{{node="{node}",resource="{resource}",instance="ksm-b"}}',
+                        "values": f"{capacity}+0x10",
+                    }
+                )
+            for phase in ("Succeeded", "Failed"):
+                labels = (
+                    f'namespace="backups",pod="{phase}-{node}",uid="{phase}-{node}"'
+                )
+                series.append(
+                    {
+                        "series": f'kube_pod_status_phase{{{labels},phase="{phase}"}}',
+                        "values": "1+0x10",
+                    }
+                )
+                for resource, value in (("cpu", 3), ("memory", 100)):
+                    series.append(
+                        {
+                            "series": f'kube_pod_container_resource_requests{{node="{node}",{labels},container="backup",resource="{resource}"}}',
+                            "values": f"{value}+0x10",
+                        }
+                    )
         series.append(
             {
                 "series": 'kube_node_labels{node="talos-control",label_homelab_thecavespace_net_name="control-plane-01"}',

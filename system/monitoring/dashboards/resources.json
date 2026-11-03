@@ -160,7 +160,7 @@
       "id": 3,
       "title": "CPU requests / allocatable",
       "type": "timeseries",
-      "description": "Reserved scheduling capacity across all namespaces; not actual CPU use. Warning above 90% for 15 minutes.",
+      "description": "Reserved scheduling capacity of non-terminal pods, including ordinary init containers; not actual CPU use. Warning above 90% for 15 minutes.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -184,7 +184,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 * sum by (node) (kube_pod_container_resource_requests{resource=\"cpu\",node!=\"\"}) / sum by (node) (kube_node_status_allocatable{resource=\"cpu\"})) * on (node) group_left (node_name) (homelab:node_info or on (node) label_replace(max by (node) (kube_node_info), \"node_name\", \"$1\", \"node\", \"(.+)\"))",
+          "expr": "(100 * (sum by (node) ( max by (node, namespace, pod, uid, resource) ( sum by (node, namespace, pod, uid, resource) ( max by (node, namespace, pod, uid, resource, container) ( kube_pod_container_resource_requests{resource=\"cpu\",node!=\"\"} ) ) or kube_pod_init_container_resource_requests{resource=\"cpu\",node!=\"\"} ) unless on (namespace, pod, uid) (kube_pod_status_phase{phase=~\"Succeeded|Failed\"} == 1) ) / max by (node) (kube_node_status_allocatable{resource=\"cpu\"}))) * on (node) group_left (node_name) (homelab:node_info or on (node) label_replace(max by (node) (kube_node_info), \"node_name\", \"$1\", \"node\", \"(.+)\"))",
           "legendFormat": "{{node_name}}",
           "range": true,
           "instant": false
@@ -205,7 +205,7 @@
       "id": 4,
       "title": "Memory requests / allocatable",
       "type": "timeseries",
-      "description": "Reserved scheduling capacity across all namespaces; not actual RAM use. Warning above 90% for 15 minutes.",
+      "description": "Reserved scheduling capacity of non-terminal pods, including ordinary init containers; not actual RAM use. Warning above 90% for 15 minutes.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -229,7 +229,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 * sum by (node) (kube_pod_container_resource_requests{resource=\"memory\",node!=\"\"}) / sum by (node) (kube_node_status_allocatable{resource=\"memory\"})) * on (node) group_left (node_name) (homelab:node_info or on (node) label_replace(max by (node) (kube_node_info), \"node_name\", \"$1\", \"node\", \"(.+)\"))",
+          "expr": "(100 * (sum by (node) ( max by (node, namespace, pod, uid, resource) ( sum by (node, namespace, pod, uid, resource) ( max by (node, namespace, pod, uid, resource, container) ( kube_pod_container_resource_requests{resource=\"memory\",node!=\"\"} ) ) or kube_pod_init_container_resource_requests{resource=\"memory\",node!=\"\"} ) unless on (namespace, pod, uid) (kube_pod_status_phase{phase=~\"Succeeded|Failed\"} == 1) ) / max by (node) (kube_node_status_allocatable{resource=\"memory\"}))) * on (node) group_left (node_name) (homelab:node_info or on (node) label_replace(max by (node) (kube_node_info), \"node_name\", \"$1\", \"node\", \"(.+)\"))",
           "legendFormat": "{{node_name}}",
           "range": true,
           "instant": false
