@@ -19,14 +19,14 @@ KUSTOMIZE_DIRS := \
 	validate-python format-python validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-cert-manager validate-metallb validate-envoy-gateway validate-backups \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring \
-	image-inventory scan-images
+	image-inventory scan-images validate-dependencies
 
 default: system
 
 system:
 	make -C system bootstrap
 
-validate: validate-tools validate-python validate-format validate-yaml validate-shell \
+validate: validate-tools validate-dependencies validate-python validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
 	validate-terraform-tests validate-workflows validate-monitoring
 
@@ -34,6 +34,17 @@ validate-tools:
 	@for tool in terraform yamllint shellcheck kubectl helm kustomize kubeconform kube-linter trivy gitleaks uv yq jq curl amtool promtool sqlite3 restic docker; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
+
+validate-dependencies:
+	@rm -rf .cache/dependency-scan && mkdir -p .cache/dependency-scan
+	@test -s uv.lock
+	trivy fs --scanners vuln --include-dev-deps \
+		--format json --output .cache/dependency-scan/report.json uv.lock
+	@jq -e 'any(.Results[]?; .Type == "uv" and (.Packages | length > 0))' \
+		.cache/dependency-scan/report.json >/dev/null || \
+		{ echo "Trivy did not analyze uv.lock dependencies" >&2; exit 1; }
+	trivy convert --scanners vuln --format table --severity HIGH,CRITICAL --exit-code 1 \
+		.cache/dependency-scan/report.json
 
 validate-python:
 	uv run --locked pyright

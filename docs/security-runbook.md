@@ -284,6 +284,18 @@ talosctl -n 10.0.70.12 patch machineconfig \
   --patch @talos/patches/worker-nvme.yaml --mode=no-reboot
 ```
 
+## Dependency scanning
+
+Run `make validate-dependencies` to scan the root `uv.lock` with the pinned Trivy,
+including development and transitive dependencies. `make validate` includes this
+check. HIGH/CRITICAL vulnerabilities fail it even when no fix is available;
+missing, empty or unanalyzed lockfiles and scanner errors also fail.
+
+The full JSON report is saved to `.cache/dependency-scan/report.json`. The
+`Validate` and weekly/manual `Dependency Scan` workflows retain it as the
+`dependency-scan` artifact for 14 days, including failed checks. Only the lockfile
+is scanned; local environments and credentials are outside this scan's scope.
+
 ## Container image scanning
 
 Run `make scan-images` to render application and platform manifests, including

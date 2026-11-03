@@ -20,6 +20,7 @@ playbook against disposable local restic repositories and simulated Talos respon
 | Command | Purpose |
 | --- | --- |
 | `make validate` | Full repository validation, including all tests |
+| `make validate-dependencies` | Scan locked dependencies, including development tools, for vulnerabilities |
 | `make validate-workflows` | Python tests with freshly rendered manifests and schemas |
 | `make validate-python` | Pyright types, Ruff lint and format checks |
 | `make format-python` | Fix imports and formatting |
