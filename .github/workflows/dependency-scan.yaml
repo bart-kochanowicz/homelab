@@ -1,0 +1,35 @@
+name: Dependency Scan
+
+on:
+  schedule:
+    - cron: "37 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
+
+      - name: Install validation tools
+        uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
+        with:
+          aqua_version: v2.55.0
+
+      - name: Scan locked dependencies
+        run: make validate-dependencies
+
+      - name: Upload dependency vulnerability report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-scan
+          path: .cache/dependency-scan/report.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
