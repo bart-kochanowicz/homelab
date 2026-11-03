@@ -14,6 +14,7 @@ data:
       internal_url: https://ha.thecavespace.net
       external_url: https://ha.thecavespace.net
 
+    # Imported once: confirm HTTP server settings in HA on first startup.
     http:
       ssl_certificate: /etc/home-assistant/tls/tls.crt
       ssl_key: /etc/home-assistant/tls/tls.key
