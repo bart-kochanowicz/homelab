@@ -13,6 +13,8 @@ data "unifi_firewall_zone" "builtin" {
 }
 
 locals {
+  sunshine_ipv4_address = "10.0.80.127"
+
   firewall_zone_network_ids = {
     for key in keys(local.vlan_ids) : key => [module.networks.network_ids[key]]
   }
@@ -92,6 +94,20 @@ locals {
         ip_version  = "IPV4"
         source      = { zone = "orbit" }
         destination = { zone = "launchpad", ips = [local.private_dns_records["home-assistant"].address], ports = "443" }
+      }
+      home-sunshine-tcp = {
+        description = "Home Moonlight pairing and session setup on the Admin PC."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "orbit" }
+        destination = { zone = "apollo", ips = [local.sunshine_ipv4_address], ports = "47984,47989,48010" }
+      }
+      home-sunshine-udp = {
+        description = "Home Moonlight video, audio and control on the Admin PC."
+        protocol    = "udp"
+        ip_version  = "IPV4"
+        source      = { zone = "orbit" }
+        destination = { zone = "apollo", ips = [local.sunshine_ipv4_address], ports = "47998-48000" }
       }
       management-inform = {
         description = "Infrastructure inform traffic to the Network controller."
