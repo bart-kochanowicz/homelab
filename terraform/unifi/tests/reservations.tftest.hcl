@@ -40,6 +40,51 @@ run "reject_dynamic_pool_address" {
   expect_failures = [var.reservations]
 }
 
+run "explicitly_allow_dynamic_pool_reservation" {
+  command = plan
+  module {
+    source = "../modules/unifi/reservations"
+  }
+  variables {
+    networks = {
+      admin = {
+        subnet = "10.0.80.1/24"
+        dhcp   = { start = "10.0.80.100", stop = "10.0.80.199" }
+      }
+    }
+    reservations = {
+      windowspc-01 = {
+        mac                = "02:00:00:00:00:80"
+        ip                 = "10.0.80.127"
+        network            = "admin"
+        allow_dynamic_pool = true
+      }
+    }
+  }
+  assert {
+    condition = (
+      unifi_client.this["windowspc-01"].fixed_ip == "10.0.80.127" &&
+      unifi_client.this["windowspc-01"].mac == "02:00:00:00:00:80" &&
+      unifi_client.this["windowspc-01"].allow_existing &&
+      unifi_client.this["windowspc-01"].skip_forget_on_destroy
+    )
+    error_message = "An explicit dynamic-pool reservation must preserve the client's address and existing identity."
+  }
+}
+
+run "dynamic_pool_exception_does_not_allow_gateway" {
+  command = plan
+  module {
+    source = "../modules/unifi/reservations"
+  }
+  variables {
+    reservations = {
+      gateway = { mac = "02:00:00:00:00:01", ip = "10.0.70.1", network = "servers", allow_dynamic_pool = true }
+    }
+  }
+  expect_failures = [var.reservations]
+}
+
 run "reject_gateway" {
   command = plan
   module {
