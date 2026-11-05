@@ -148,6 +148,30 @@ run "least_privilege_access_matrix" {
   }
 }
 
+run "home_moonlight_is_limited_to_sunshine_on_one_admin_pc" {
+  command = plan
+
+  assert {
+    condition = (
+      toset([for name, rule in local.firewall_rules : name
+        if rule.source.zone == "orbit" && rule.destination.zone == "apollo"
+      ]) == toset(["home-sunshine-tcp", "home-sunshine-udp"]) &&
+      alltrue([for name in ["home-sunshine-tcp", "home-sunshine-udp"] :
+        local.firewall_rules[name].ip_version == "IPV4" &&
+        local.firewall_rules[name].destination.ips == ["10.0.80.127"] &&
+        !try(local.firewall_rules[name].destination.invert_ips, false) &&
+        try(local.firewall_rules[name].reply, true) &&
+        try(local.firewall_rules[name].track_state, true)
+      ]) &&
+      local.firewall_rules.home-sunshine-tcp.protocol == "tcp" &&
+      local.firewall_rules.home-sunshine-tcp.destination.ports == "47984,47989,48010" &&
+      local.firewall_rules.home-sunshine-udp.protocol == "udp" &&
+      local.firewall_rules.home-sunshine-udp.destination.ports == "47998-48000"
+    )
+    error_message = "Home may reach only the Sunshine PC on its streaming ports, with stateful replies and no web UI or discovery access."
+  }
+}
+
 run "home_https_uses_only_its_private_gateway" {
   command = plan
   assert {

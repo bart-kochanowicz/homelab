@@ -63,6 +63,14 @@ firewall. Server rules follow reservation MACs/addresses; renew leases after
 changes. Cilium controls Kubernetes traffic. Guest has Internet and required
 gateway services only.
 
+Moonlight clients in Home can reach Sunshine at `10.0.80.127` in Admin using
+TCP `47984,47989,48010` and UDP `47998-48000`, with stateful replies. Keep this
+PC address fixed with a DHCP reservation; it is inside the DHCP pool. Add
+`10.0.80.127` manually in Moonlight on Apple TV/iPad and enter the pairing PIN
+in Sunshine on the PC. The PC firewall must allow these ports from
+`10.0.40.0/24`. Sunshine uses its default port family; its web UI (`47990`)
+and cross-VLAN discovery remain unavailable from Home.
+
 Allow/reply rules must precede denies. `firewall_policy_order` checks indices;
 the provider cannot reorder existing rules. Correct the order in UniFi when
 needed. See [provider constraints](../../infra/unifi/docs/provider-exceptions.md).
