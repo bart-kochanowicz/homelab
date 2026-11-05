@@ -45,6 +45,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["windowspc-01"]
+  values = { id = "02:00:00:00:00:80", mac = "02:00:00:00:00:80" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = {
     id  = "02:00:00:00:00:05"
@@ -77,6 +82,7 @@ variables {
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
     worker-01        = "02:00:00:00:00:12"
+    windowspc-01     = "02:00:00:00:00:80"
   }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
@@ -103,7 +109,9 @@ run "local_authentication" {
       issensitive(local.server_macs["worker-01"]) &&
       issensitive(output.device_ids) &&
       local.devices["flex-5"].mac == var.infrastructure_macs["flex-5"] &&
-      local.server_reservations["worker-01"].mac == var.infrastructure_macs["worker-01"]
+      local.server_reservations["worker-01"].mac == var.infrastructure_macs["worker-01"] &&
+      issensitive(local.dhcp_reservations["windowspc-01"].mac) &&
+      local.dhcp_reservations["windowspc-01"].mac == var.infrastructure_macs["windowspc-01"]
     )
     error_message = "Private MAC inputs must reach device/client selectors and keep MAC-derived device IDs sensitive."
   }
@@ -119,6 +127,7 @@ run "reject_duplicate_infrastructure_mac" {
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
       worker-01        = "02:00:00:00:00:11"
+      windowspc-01     = "02:00:00:00:00:80"
     }
   }
   expect_failures = [var.infrastructure_macs]
@@ -134,6 +143,7 @@ run "reject_invalid_infrastructure_mac" {
       houston-01       = "02:00:00:00:00:10"
       control-plane-01 = "02:00:00:00:00:11"
       worker-01        = "not-a-mac"
+      windowspc-01     = "02:00:00:00:00:80"
     }
   }
   expect_failures = [var.infrastructure_macs]

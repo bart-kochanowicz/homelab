@@ -37,6 +37,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["windowspc-01"]
+  values = { id = "02:00:00:00:00:80", mac = "02:00:00:00:00:80" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -75,6 +80,7 @@ variables {
     houston-01       = "02:00:00:00:00:10"
     control-plane-01 = "02:00:00:00:00:11"
     worker-01        = "02:00:00:00:00:12"
+    windowspc-01     = "02:00:00:00:00:80"
   }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
@@ -153,6 +159,10 @@ run "home_moonlight_is_limited_to_sunshine_on_one_admin_pc" {
 
   assert {
     condition = (
+      local.dhcp_reservations["windowspc-01"].ip == "10.0.80.127" &&
+      local.dhcp_reservations["windowspc-01"].network == "apollo" &&
+      local.dhcp_reservations["windowspc-01"].allow_dynamic_pool &&
+      local.sunshine_ipv4_address == local.dhcp_reservations["windowspc-01"].ip &&
       toset([for name, rule in local.firewall_rules : name
         if rule.source.zone == "orbit" && rule.destination.zone == "apollo"
       ]) == toset(["home-sunshine-tcp", "home-sunshine-udp"]) &&
