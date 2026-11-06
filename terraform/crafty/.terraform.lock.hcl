@@ -2,17 +2,17 @@
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/bart-kochanowicz/crafty" {
-  version     = "0.1.9"
-  constraints = "0.1.9"
+  version     = "0.1.10"
+  constraints = "0.1.10"
   hashes = [
-    "h1:LuSIwbEK+FfV8zL3BcJG2kmLV0rsnbUCipRTxjCvH5w=",
-    "h1:upLWQvXSLKr5WR2XfMIFe/Bn3XB7iE4HYTCDMOG/sHg=",
-    "zh:a2e5cfc218f38a0c8c8cbf80830a6d56cc772366285c43b32ca853bf8211b3a3",
-    "zh:ad0258b54ee9885f308dbf839f81cdbcad919a3619203d46539dfeb6f4aab9e0",
-    "zh:c65dc983a0b259b2b7bd4bfc55b0adfa7b55e8a74637367b19a2fabc67745b93",
-    "zh:d3c1931be0592438c343ae53cb748046e1111e22337b7d204452947ee1e5a4b9",
-    "zh:da624a59418a4a5723496eff709a18625a4de2e645cb9d80323ef58c877157c4",
-    "zh:e176c034ab68e671f3993f1225d64aef03f05a8852b710d46858470ab19cfdd9",
+    "h1:JKGUbu1GvWp8zvvT5m7A/MT74ao736xzYKSG7AqKpwk=",
+    "h1:JqXAH2gwX5iogDQjX61Fyrhb95CATj2jUyJB6MeeVb4=",
+    "zh:3764fa5e39bf781d937e4178799d2a1e80e45e89ee38dc3a1568046f7bb1f4fb",
+    "zh:797964f5dabc3892fc04c4b642a8bc47c7e100a9f8323fd30824e28ce051432c",
+    "zh:823600cc7906faefa2eb09a0e999b761dad820f26b52126ca8aa7ca9229c1385",
+    "zh:9cfb6e8a9d417bda18fcc11cbec0fabf347dfad47b9953ba5aa33c6f5473cb37",
+    "zh:9db6c6cd21ba4740f6fe515c24025dff70b657dac2af4663c22410e1e7973fbb",
+    "zh:edc4affa5776609ab5b092c3536251f9f74f06929f16789df1943993f77d761a",
     "zh:f26e0763dbe6a6b2195c94b44696f2110f7f55433dc142839be16b9697fa5597",
   ]
 }
