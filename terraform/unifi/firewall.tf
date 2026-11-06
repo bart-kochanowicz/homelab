@@ -13,7 +13,7 @@ data "unifi_firewall_zone" "builtin" {
 }
 
 locals {
-  sunshine_ipv4_address = "10.0.80.127"
+  sunshine_ipv4_address = local.dhcp_reservations["windowspc-01"].ip
 
   firewall_zone_network_ids = {
     for key in keys(local.vlan_ids) : key => [module.networks.network_ids[key]]

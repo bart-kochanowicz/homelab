@@ -19,9 +19,10 @@ variable "networks" {
 variable "reservations" {
   description = "MAC-to-IPv4 reservations keyed by public logical name; import existing clients before applying."
   type = map(object({
-    mac     = string
-    ip      = string
-    network = string
+    mac                = string
+    ip                 = string
+    network            = string
+    allow_dynamic_pool = optional(bool, false)
   }))
   nullable = false
 
@@ -47,14 +48,14 @@ variable "reservations" {
           cidrhost(var.networks[reservation.network].subnet, -1),
           split("/", var.networks[reservation.network].subnet)[0]
         ], reservation.ip) &&
-        !(
+        (reservation.allow_dynamic_pool || !(
           sum([for i, octet in split(".", reservation.ip) : tonumber(octet) * pow(256, 3 - i)]) >=
           sum([for i, octet in split(".", var.networks[reservation.network].dhcp.start) : tonumber(octet) * pow(256, 3 - i)]) &&
           sum([for i, octet in split(".", reservation.ip) : tonumber(octet) * pow(256, 3 - i)]) <=
           sum([for i, octet in split(".", var.networks[reservation.network].dhcp.stop) : tonumber(octet) * pow(256, 3 - i)])
-        ), false
+        )), false
       )
     ])
-    error_message = "Reserved IPv4 addresses must belong to a declared DHCP LAN and exclude its gateway, network, broadcast and dynamic pool."
+    error_message = "Reserved IPv4 addresses must belong to a declared DHCP LAN, exclude its gateway, network and broadcast, and require allow_dynamic_pool inside its dynamic pool."
   }
 }
