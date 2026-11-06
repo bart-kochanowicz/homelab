@@ -79,7 +79,7 @@ spec:
               subPath: app-config
           resources:
             requests:
-              memory: "24Gi"
+              memory: "4Gi"
               cpu: "2000m"
             limits:
               memory: "24Gi"

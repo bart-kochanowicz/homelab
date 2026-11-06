@@ -21,7 +21,8 @@ and `atm10_8_3_archive_path`. Keep these on Houston's SSD under
 `/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`). They include
 the saved world and server settings. Both launch commands select Java 21.
 ATM10 8.3 uses a 20 GiB maximum heap; 4.14 keeps a 12 GiB maximum heap. The shared
-container reserves 24 GiB of memory and 2 CPUs, with limits of 24 GiB and 5 CPUs.
+container reserves 4 GiB of memory and 2 CPUs, with limits of 24 GiB and 5 CPUs.
+Memory above the request depends on available node capacity during gameplay.
 Keep at least 4 GiB outside the active game's maximum heap for native allocations
 and Crafty. Automatic startup is disabled. Run only one game at a time; both use
 TCP30000. Apply the container memory increase before raising the game heap;
