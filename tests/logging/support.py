@@ -199,7 +199,7 @@ class LoggingTestCase(unittest.TestCase):
             self.assertEqual(response.status, 204)
 
     def unhealthy(self, server: str, at: float | None = None) -> bool:
-        expression = self.expression.replace("ATM10 8.3", server)
+        expression = self.expression.replace("ATM10 8.5", server)
         return any(
             result["metric"].get("server_name") == server
             for result in self.query(expression, at)

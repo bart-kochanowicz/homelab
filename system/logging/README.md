@@ -7,10 +7,8 @@ volumes do not apply `fsGroup` ownership changes.
 Filesystem lookback matches retention so imported historical events are queryable immediately.
 Loki has no public route. Network policies allow Alloy, Grafana, Prometheus and Houston.
 
-Alloy reads Kubernetes container logs through the API and mounts Crafty's logs
-and server directories read-only. Minecraft logs are discovered at
-`servers/*/logs/latest.log`, without pinning a server ID.
-Its separate 1 GiB PVC stores file positions.
+Alloy reads Kubernetes container logs through the API and mounts Crafty/Minecraft
+log directories read-only. Its separate 1 GiB PVC stores file positions.
 Delivery retries use memory; this is not an audit log with guaranteed delivery.
 Alloy has no Secret-read, exec or filesystem-write access to Crafty.
 Houston's Alloy service reads journald with the `adm`/`systemd-journal` groups;
@@ -32,8 +30,8 @@ The datasource and alert rules are managed in Git.
 
 `MinecraftBackupUnhealthy` alerts after a failed copy without a later success, or
 after eight days without success. Event timestamps come from Crafty logs, not
-collector startup. The freshness matcher targets ATM10 8.3; update it when
-switching the active server's backup policy. A completion log does not replace a ZIP restore test.
+collector startup. The freshness matcher and game-log mount target the current
+ATM10 server; update both when replacing it. A completion log does not replace a ZIP restore test.
 `CraftyBackupStartFailed` reports startup errors seen in the last 15 minutes.
 `TalosEtcdBackupUnhealthy` reports a Houston backup failure without a later
 verified success, or no success for eight days. The systemd unit emits completion
