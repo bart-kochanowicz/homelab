@@ -16,26 +16,25 @@ Existing panel servers cannot be imported. ZIP server packs must be prepared
 for server use, pinned by SHA-256, and available on Houston; the provider does
 not accept the Minecraft EULA or start the game.
 
-ATM10 4.14 and the active ATM10 server use checksum-pinned creation archives at
-`atm10_archive_path` and `atm10_8_3_archive_path`. Keep these on Houston's SSD under
-`/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`). They include
-the saved world and server settings. Both launch commands select Java 21.
-The active server runs ATM10 8.5 with NeoForge 21.1.265 and Astral Sorcery 2.0.3.59.
-Its resource address, output key and creation inputs retain the original 8.3
-identity. The provider uses the archive and executable only for initial import;
-changing them replaces the server. Pack files are updated separately while the
+ATM10 8.5 uses NeoForge 21.1.265, Astral Sorcery 2.0.3.59 and Java 21.
+Its checksum-pinned creation archive is `atm10_archive_path`, kept on Houston's
+SSD under `/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`).
+It includes the saved world and server settings.
+The provider uses the archive and executable only for initial import. These
+creation inputs are ignored for existing servers, so a new creation archive
+does not replace the active server. Pack files are updated separately while the
 game is stopped, preserving `world`, root-level `DIM_*` data and server settings.
+Keep the existing resource address and output key across upgrades.
 Keep the existing ID, backup policy and log mount when updating the pack.
 The active server enables `manage_memory` for in-place heap updates and drift
 detection.
 Its memory inputs and JVM flags share the same locals: 4/20 units mean
 4000/20000 MiB (1000 MiB per unit, approximately 19.53 GiB maximum heap).
-ATM10 4.14 keeps a 12 GiB maximum heap and creation-only memory inputs. The shared
-container reserves 4 GiB of memory and 1 CPU, with limits of 24 GiB and 5 CPUs.
+The container reserves 4 GiB of memory and 1 CPU, with limits of 24 GiB and 5 CPUs.
 Memory above the request depends on available node capacity during gameplay.
 Keep at least 4 GiB outside the active game's maximum heap for native allocations
-and Crafty. Automatic startup is disabled. Run only one game at a time; both use
-TCP30000. Apply the container memory increase before raising the game heap;
+and Crafty. Automatic startup is disabled. The game uses TCP30000.
+Apply the container memory increase before raising the game heap;
 changing the Deployment restarts Crafty, and the game needs a manual start.
 
 The active ATM10 server uses a native ZIP backup policy on the worker's SATA disk.
