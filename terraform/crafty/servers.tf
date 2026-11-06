@@ -27,7 +27,7 @@ resource "crafty_minecraft_server" "atm10" {
 }
 
 resource "crafty_minecraft_server" "atm10_8_3" {
-  name           = "ATM10 8.3"
+  name           = "ATM10 8.5"
   archive_path   = var.atm10_8_3_archive_path
   archive_sha256 = "9c6b994c334490e85a04ec986c9ef4a903d13d38afb54d5231793540f8449596"
   executable     = "libraries/net/neoforged/neoforge/21.1.259/neoforge-21.1.259-server.jar"
@@ -38,7 +38,7 @@ resource "crafty_minecraft_server" "atm10_8_3" {
   manage_memory  = true
   auto_start     = false
 
-  execution_command = "/usr/lib/jvm/java-21-openjdk-amd64/bin/java @user_jvm_args.txt -Xms${local.atm10_8_3_mem_min * 1000}M -Xmx${local.atm10_8_3_mem_max * 1000}M @libraries/net/neoforged/neoforge/21.1.259/unix_args.txt nogui"
+  execution_command = "/usr/lib/jvm/java-21-openjdk-amd64/bin/java @user_jvm_args.txt -Xms${local.atm10_8_3_mem_min * 1000}M -Xmx${local.atm10_8_3_mem_max * 1000}M @libraries/net/neoforged/neoforge/21.1.265/unix_args.txt nogui"
 
   lifecycle {
     prevent_destroy = true

@@ -9,6 +9,6 @@ output "atm10_server_id" {
 }
 
 output "atm10_8_3_server_id" {
-  description = "Terraform-managed ATM10 8.3 server ID."
+  description = "Terraform-managed active ATM10 server ID."
   value       = crafty_minecraft_server.atm10_8_3.id
 }
