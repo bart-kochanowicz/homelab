@@ -23,15 +23,8 @@ variable "crafty_token" {
 }
 
 variable "atm10_archive_path" {
-  description = "Private ATM10 4.14 server archive, including the world, available to the Terraform process."
+  description = "Private ATM10 8.5 creation archive, including the world, available to the Terraform process."
   type        = string
-  default     = "/srv/terraform/artifacts/atm10-4.14-d8985a62529c.zip"
-  nullable    = false
-}
-
-variable "atm10_8_3_archive_path" {
-  description = "Private ATM10 8.3 server archive, including the copied world, available to the Terraform process."
-  type        = string
-  default     = "/srv/terraform/artifacts/atm10-8.3-9c6b994c3344.zip"
+  default     = "/srv/terraform/artifacts/atm10-8.5-5eb960515d5f.zip"
   nullable    = false
 }
