@@ -16,18 +16,20 @@ Existing panel servers cannot be imported. ZIP server packs must be prepared
 for server use, pinned by SHA-256, and available on Houston; the provider does
 not accept the Minecraft EULA or start the game.
 
-ATM10 4.14 and 8.3 use checksum-pinned private archives at `atm10_archive_path`
-and `atm10_8_3_archive_path`. Keep these on Houston's SSD under
+ATM10 4.14, 8.3 and 8.5 use checksum-pinned private archives at `atm10_archive_path`,
+`atm10_8_3_archive_path` and `atm10_8_5_archive_path`. Keep these on Houston's SSD under
 `/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`). They include
-the saved world and server settings. Both launch commands select Java 21.
-ATM10 8.3 enables `manage_memory` for in-place heap updates and drift detection.
-Its memory inputs and JVM flags share the same locals: 4/20 units mean
+the saved world and server settings, including Astral Sorcery's root-level
+`DIM_minecraft_overworld` data. All launch commands select Java 21.
+ATM10 8.5 uses NeoForge 21.1.265 and Astral Sorcery 2.0.3.59.
+ATM10 8.3 and 8.5 enable `manage_memory` for in-place heap updates and drift detection.
+Their memory inputs and JVM flags share the same locals: 4/20 units mean
 4000/20000 MiB (1000 MiB per unit, approximately 19.53 GiB maximum heap).
 ATM10 4.14 keeps a 12 GiB maximum heap and creation-only memory inputs. The shared
 container reserves 4 GiB of memory and 1 CPU, with limits of 24 GiB and 5 CPUs.
 Memory above the request depends on available node capacity during gameplay.
 Keep at least 4 GiB outside the active game's maximum heap for native allocations
-and Crafty. Automatic startup is disabled. Run only one game at a time; both use
+and Crafty. Automatic startup is disabled. Run only one game at a time; all use
 TCP30000. Apply the container memory increase before raising the game heap;
 changing the Deployment restarts Crafty, and the game needs a manual start.
 
