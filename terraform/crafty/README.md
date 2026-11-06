@@ -16,6 +16,10 @@ Existing panel servers cannot be imported. ZIP server packs must be prepared
 for server use, pinned by SHA-256, and available on Houston; the provider does
 not accept the Minecraft EULA or start the game.
 
+`mem_min` and `mem_max` are creation inputs; keep their original values for
+existing servers. Set the runtime heap through `execution_command`; changes take
+effect after restarting the game.
+
 ATM10 4.14 and 8.3 use checksum-pinned private archives at `atm10_archive_path`
 and `atm10_8_3_archive_path`. Keep these on Houston's SSD under
 `/srv/terraform/artifacts`, readable by `terraform-ops` (mode `0640`). They include
