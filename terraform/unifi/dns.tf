@@ -28,6 +28,10 @@ locals {
       name    = "ha-backend.thecavespace.net"
       address = local.server_reservations["worker-01"].ip
     }
+    tv-ambient = {
+      name    = "tv-ambient.thecavespace.net"
+      address = local.dhcp_reservations["tv-ambient"].ip
+    }
     minecraft-atm = {
       name    = "atm.mc.thecavespace.net"
       address = local.server_reservations["worker-01"].ip

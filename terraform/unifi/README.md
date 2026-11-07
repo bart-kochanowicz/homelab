@@ -7,7 +7,7 @@ Terraform configures the UCG-Fiber LANs and adopted switches/AP. See the
 | --- | --- |
 | [networks.tf](networks.tf) | LANs and port profiles |
 | [devices.tf](devices.tf) | Switch/AP ports |
-| [reservations.tf](reservations.tf) | Server and Sunshine PC DHCP reservations |
+| [reservations.tf](reservations.tf) | Server, PC and IoT DHCP reservations |
 | [dns.tf](dns.tf) | Private A/SRV records |
 | [wifi.tf](wifi.tf) | SSIDs and per-key VLANs |
 | [firewall.tf](firewall.tf) | Trust zones and allowed traffic |
@@ -63,6 +63,13 @@ firewall. Server rules follow reservation MACs/addresses; renew leases after
 changes. Cilium controls Kubernetes traffic. Guest has Internet and required
 gateway services only.
 
+Home Assistant on the worker may reach the MiBoxer FUT037W+ in IoT at
+`tv-ambient.thecavespace.net` (`10.0.50.124`) on TCP `6668`, with stateful
+replies. Keep the controller on DHCP using Orbit's IoT PPSK. Its reservation
+explicitly preserves an address inside the dynamic pool. Configure local
+control in HA with the device ID and current local key; re-pairing changes
+the key. Cross-VLAN discovery is not forwarded.
+
 Moonlight clients in Home can reach Sunshine at `10.0.80.127` in Admin using
 TCP `47984,47989,48010` and UDP `47998-48000`, with stateful replies. Terraform
 reserves this address for `windowspc-01`, explicitly allowing it inside the DHCP
@@ -107,9 +114,9 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | `vpn_public_ip` | `UNIFI_VPN_PUBLIC_IP` |
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
-`infrastructure_macs` includes the Ethernet MAC for `windowspc-01`. Keep local
-inputs and the private automation repository's `UNIFI_INFRASTRUCTURE_MACS`
-secret consistent before planning.
+`infrastructure_macs` includes `windowspc-01` and the Wi-Fi MAC for
+`tv-ambient`. Keep local inputs and the private automation repository's
+`UNIFI_INFRASTRUCTURE_MACS` secret consistent before planning.
 
 Device MACs appear in import diagnostics and state. [Local plans](../LOCAL_PLAN.md)
 use the [controller certificate](CERTIFICATE.md). Network-policy changes also
