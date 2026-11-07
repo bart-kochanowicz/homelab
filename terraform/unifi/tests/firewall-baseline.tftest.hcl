@@ -52,6 +52,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["sonoff-zigbee"]
+  values = { id = "02:00:00:00:00:52", mac = "02:00:00:00:00:52" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -91,6 +96,7 @@ variables {
     control-plane-01  = "02:00:00:00:00:11"
     worker-01         = "02:00:00:00:00:12"
     front-door-camera = "02:00:00:00:00:51"
+    sonoff-zigbee     = "02:00:00:00:00:52"
     tv-ambient        = "02:00:00:00:00:50"
     windowspc-01      = "02:00:00:00:00:80"
   }
@@ -144,13 +150,17 @@ run "least_privilege_access_matrix" {
   assert {
     condition = (
       alltrue([for rule in values(local.firewall_rules) :
-        rule.source.zone != "apollo" || !contains(["endeavour", "comet", "orbit", "stardust"], rule.destination.zone)
+        rule.source.zone != "apollo" || !contains(["endeavour", "comet", "orbit", "stardust"], rule.destination.zone) ||
+        (rule.destination.zone == "stardust" && try(
+          rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip] &&
+          rule.protocol == "tcp" && rule.destination.ports == "80" && rule.ip_version == "IPV4", false
+        ))
       ]) &&
       local.firewall_rules.admin-servers.destination.zone == "launchpad" &&
       local.firewall_rules.admin-management.destination.zone == "mission-control" &&
       local.firewall_rules.admin-gateway.destination.zone == "gateway"
     )
-    error_message = "Admin must reach Servers, Management and Gateway without blanket client access."
+    error_message = "Admin must reach Servers, Management, Gateway and only the exact SONOFF HTTP console without blanket client access."
   }
   assert {
     condition = alltrue([
@@ -223,15 +233,16 @@ run "camera_address_is_stable_without_new_inter_zone_permissions" {
         !contains(try(rule.destination.ips, []), "10.0.50.190") &&
         (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
           try(contains(["icmp", "icmpv6"], rule.protocol) && rule.states == ["RELATED"], false) ||
-          try(rule.destination.ips == ["10.0.50.124"], false)
+          try(rule.destination.ips == ["10.0.50.124"], false) ||
+          try(rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip], false)
         )
       ])
     )
-    error_message = "The camera must retain its reserved IoT address and private DNS without new access; only gateway services, related ICMP errors and the exact LED allowance may enter IoT."
+    error_message = "The camera must retain its reserved IoT address and private DNS without new access; only gateway services, related ICMP errors and exact LED/coordinator allowances may enter IoT."
   }
 }
 
-run "ha_controls_only_the_reserved_iot_light" {
+run "ha_iot_access_is_limited_to_the_light_and_coordinator" {
   command = plan
 
   assert {
@@ -243,7 +254,7 @@ run "ha_controls_only_the_reserved_iot_light" {
       local.private_dns_records["tv-ambient"].address == local.dhcp_reservations["tv-ambient"].ip &&
       toset([for name, rule in local.firewall_rules : name
         if rule.source.zone == "launchpad" && rule.destination.zone == "stardust"
-      ]) == toset(["ha-tv-ambient"]) &&
+      ]) == toset(["ha-tv-ambient", "ha-zigbee"]) &&
       local.firewall_rules.ha-tv-ambient.source.ips == ["10.0.70.12"] &&
       local.firewall_rules.ha-tv-ambient.destination.ips == ["10.0.50.124"] &&
       local.firewall_rules.ha-tv-ambient.destination.ports == "6668" &&
@@ -255,7 +266,38 @@ run "ha_controls_only_the_reserved_iot_light" {
       !try(local.firewall_rules.ha-tv-ambient.destination.invert_ips, false) &&
       alltrue([for rule in values(local.firewall_rules) : rule.source.zone != "stardust" || rule.destination.zone != "launchpad"])
     )
-    error_message = "Only HA's worker may initiate local Tuya TCP6668 to the reserved light; IoT must not initiate connections to Servers."
+    error_message = "HA may initiate only the declared light/coordinator services; Tuya TCP6668 must target the reserved light and IoT must not initiate connections to Servers."
+  }
+}
+
+run "sonoff_address_and_services_are_scoped" {
+  command = plan
+  assert {
+    condition = (
+      local.dhcp_reservations["sonoff-zigbee"].network == "stardust" &&
+      local.dhcp_reservations["sonoff-zigbee"].ip == "10.0.50.182" &&
+      local.dhcp_reservations["sonoff-zigbee"].allow_dynamic_pool &&
+      local.private_dns_records["sonoff-zigbee"].name == "zigbee.thecavespace.net" &&
+      local.private_dns_records["sonoff-zigbee"].address == local.dhcp_reservations["sonoff-zigbee"].ip &&
+      toset([for name, rule in local.firewall_rules : name
+        if try(rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip], false)
+      ]) == toset(["ha-zigbee", "admin-zigbee"]) &&
+      local.firewall_rules.ha-zigbee.source.zone == "launchpad" &&
+      local.firewall_rules.ha-zigbee.source.ips == ["10.0.70.12"] &&
+      local.firewall_rules.ha-zigbee.destination.ports == "6638" &&
+      local.firewall_rules.admin-zigbee.source.zone == "apollo" &&
+      local.firewall_rules.admin-zigbee.destination.ports == "80" &&
+      alltrue([for name in ["ha-zigbee", "admin-zigbee"] :
+        local.firewall_rules[name].destination.zone == "stardust" &&
+        local.firewall_rules[name].protocol == "tcp" &&
+        local.firewall_rules[name].ip_version == "IPV4" &&
+        try(local.firewall_rules[name].reply, true) &&
+        try(local.firewall_rules[name].track_state, true) &&
+        !try(local.firewall_rules[name].source.invert_ips, false) &&
+        !try(local.firewall_rules[name].destination.invert_ips, false)
+      ])
+    )
+    error_message = "Only HA's worker may reach coordinator TCP6638 and Admin its HTTP console, at the reserved IoT address with stateful replies."
   }
 }
 
@@ -281,6 +323,9 @@ run "home_https_uses_only_its_private_gateway" {
         }
         front-door-camera = {
           name = "front-door-camera.thecavespace.net", address = local.dhcp_reservations["front-door-camera"].ip
+        }
+        sonoff-zigbee = {
+          name = "zigbee.thecavespace.net", address = local.dhcp_reservations["sonoff-zigbee"].ip
         }
       } &&
       local.firewall_rules.home-ha-https.source.zone == "orbit" &&
