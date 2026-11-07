@@ -80,7 +80,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", access-parking = "test-parking-profile", switch-trunk = "test-trunk-profile", ap = "test-ap-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-stardust = "test-iot-profile", access-launchpad = "test-servers-profile", access-parking = "test-parking-profile", switch-trunk = "test-trunk-profile", ap = "test-ap-profile" }
   }
 }
 

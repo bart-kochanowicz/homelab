@@ -69,7 +69,7 @@ override_resource {
 override_module {
   target = module.port_profiles
   outputs = {
-    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-launchpad = "test-servers-profile", access-parking = "test-parking-profile", switch-trunk = "test-trunk-profile", ap = "test-ap-profile" }
+    port_profile_ids = { access-apollo = "test-admin-profile", access-orbit = "test-home-profile", access-stardust = "test-iot-profile", access-launchpad = "test-servers-profile", access-parking = "test-parking-profile", switch-trunk = "test-trunk-profile", ap = "test-ap-profile" }
   }
 }
 
@@ -107,6 +107,20 @@ variables {
     "orbit/home"  = "test-home-passphrase"
     "orbit/iot"   = "test-iot-passphrase"
     "orbit/guest" = "test-guest-passphrase"
+  }
+}
+
+run "sonoff_uses_only_flex8_port2_in_iot" {
+  command = plan
+
+  assert {
+    condition = (
+      flatten([for key, device in local.devices : [for port in values(device.ports) :
+        "${key}/${port.index}" if port.profile == "access-stardust"
+      ]]) == ["flex-8/2"] &&
+      local.port_profiles["access-stardust"].native_network == "stardust"
+    )
+    error_message = "Only Flex 8 port 2 must use the SONOFF IoT access profile."
   }
 }
 
@@ -389,7 +403,7 @@ run "switch_uplinks_carry_only_required_tagged_vlans" {
   assert {
     condition = (
       local.port_profiles["switch-trunk"].native_network == "parking" &&
-      toset(local.port_profiles["switch-trunk"].tagged_networks) == toset(["launchpad", "apollo", "mission-control"]) &&
+      toset(local.port_profiles["switch-trunk"].tagged_networks) == toset(["stardust", "launchpad", "apollo", "mission-control"]) &&
       alltrue([for port in [
         local.devices["voyager-01"].ports.switches,
         local.devices["flex-5"].ports.uplink,
@@ -401,7 +415,7 @@ run "switch_uplinks_carry_only_required_tagged_vlans" {
       local.devices["flex-5"].ports.flex-8.index == 3 &&
       local.devices["flex-8"].ports.uplink.index == 9
     )
-    error_message = "Both ends of each switch link must use Parking native and only Servers, Admin and Management tags."
+    error_message = "Both ends of each switch link must use Parking native and only IoT, Servers, Admin and Management tags."
   }
 }
 
@@ -412,7 +426,7 @@ run "unused_lan_ports_are_parked_and_wan_is_unmanaged" {
       local.port_profiles["access-parking"].native_network == "parking" &&
       alltrue(flatten([for device, ports in {
         flex-5     = [4]
-        flex-8     = [2, 3, 4, 5, 6, 10]
+        flex-8     = [3, 4, 5, 6, 10]
         voyager-01 = [3, 5, 6]
         } : [for port in ports :
         local.devices[device].ports["parking-${port}"].index == port &&

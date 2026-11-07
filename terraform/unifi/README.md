@@ -27,16 +27,22 @@ Trunks exclude every LAN outside their native/tagged set. Include all LANs in
 | --- | --- | --- |
 | Flex 5 / 1–2 | Admin devices | Admin 80 |
 | Flex 8 / 1 | Houston, `10.0.70.10` | Servers 70 |
+| Flex 8 / 2 | SONOFF Dongle Max | IoT 50, untagged only |
 | Flex 8 / 7 | Worker, `10.0.70.12` | Servers 70 |
 | Flex 8 / 8 | Control plane, `10.0.70.11` | Servers 70 |
 | Voyager / 2 | Apple TV / LG TV switch | Home 40 |
 | Voyager / 4 | U7 Lite | Native Management 90, tagged client VLANs |
-| Voyager / 1 ↔ Flex 5 / 5 | Uplink | Native Parking 999, tagged 70/80/90 |
-| Flex 5 / 3 ↔ Flex 8 / 9 | Uplink | Native Parking 999, tagged 70/80/90 |
+| Voyager / 1 ↔ Flex 5 / 5 | Uplink | Native Parking 999, tagged 50/70/80/90 |
+| Flex 5 / 3 ↔ Flex 8 / 9 | Uplink | Native Parking 999, tagged 50/70/80/90 |
 
 Switch management is tagged on VLAN 90. AP management is native VLAN 90 without
 a Network Override. Unused ports use Parking with no tags; Voyager WAN port 7
 is unmanaged.
+
+Flex 8 port 2 supplies IoT connectivity for SONOFF. This does not grant HA or
+Admin access to the coordinator; its verified address and service ports need
+explicit firewall rules. Power the dongle separately if the switch has no PoE;
+USB power from the worker retains a worker-power dependency.
 
 ## Wi-Fi and DNS
 
