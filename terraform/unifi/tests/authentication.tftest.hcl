@@ -50,6 +50,16 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["tv-ambient"]
+  values = { id = "02:00:00:00:00:50", mac = "02:00:00:00:00:50" }
+}
+
+override_resource {
+  target = module.reservations.unifi_client.this["front-door-camera"]
+  values = { id = "02:00:00:00:00:51", mac = "02:00:00:00:00:51" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = {
     id  = "02:00:00:00:00:05"
@@ -76,13 +86,15 @@ override_module {
 
 variables {
   infrastructure_macs = {
-    flex-5           = "02:00:00:00:00:05"
-    flex-8           = "02:00:00:00:00:07"
-    voyager-01       = "02:00:00:00:00:06"
-    houston-01       = "02:00:00:00:00:10"
-    control-plane-01 = "02:00:00:00:00:11"
-    worker-01        = "02:00:00:00:00:12"
-    windowspc-01     = "02:00:00:00:00:80"
+    flex-5            = "02:00:00:00:00:05"
+    flex-8            = "02:00:00:00:00:07"
+    voyager-01        = "02:00:00:00:00:06"
+    houston-01        = "02:00:00:00:00:10"
+    control-plane-01  = "02:00:00:00:00:11"
+    worker-01         = "02:00:00:00:00:12"
+    front-door-camera = "02:00:00:00:00:51"
+    tv-ambient        = "02:00:00:00:00:50"
+    windowspc-01      = "02:00:00:00:00:80"
   }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
@@ -111,7 +123,11 @@ run "local_authentication" {
       local.devices["flex-5"].mac == var.infrastructure_macs["flex-5"] &&
       local.server_reservations["worker-01"].mac == var.infrastructure_macs["worker-01"] &&
       issensitive(local.dhcp_reservations["windowspc-01"].mac) &&
-      local.dhcp_reservations["windowspc-01"].mac == var.infrastructure_macs["windowspc-01"]
+      local.dhcp_reservations["windowspc-01"].mac == var.infrastructure_macs["windowspc-01"] &&
+      issensitive(local.dhcp_reservations["tv-ambient"].mac) &&
+      local.dhcp_reservations["tv-ambient"].mac == var.infrastructure_macs["tv-ambient"] &&
+      issensitive(local.dhcp_reservations["front-door-camera"].mac) &&
+      local.dhcp_reservations["front-door-camera"].mac == var.infrastructure_macs["front-door-camera"]
     )
     error_message = "Private MAC inputs must reach device/client selectors and keep MAC-derived device IDs sensitive."
   }
@@ -121,13 +137,15 @@ run "reject_duplicate_infrastructure_mac" {
   command = plan
   variables {
     infrastructure_macs = {
-      flex-5           = "02:00:00:00:00:05"
-      flex-8           = "02:00:00:00:00:07"
-      voyager-01       = "02:00:00:00:00:06"
-      houston-01       = "02:00:00:00:00:10"
-      control-plane-01 = "02:00:00:00:00:11"
-      worker-01        = "02:00:00:00:00:11"
-      windowspc-01     = "02:00:00:00:00:80"
+      flex-5            = "02:00:00:00:00:05"
+      flex-8            = "02:00:00:00:00:07"
+      voyager-01        = "02:00:00:00:00:06"
+      houston-01        = "02:00:00:00:00:10"
+      control-plane-01  = "02:00:00:00:00:11"
+      worker-01         = "02:00:00:00:00:11"
+      front-door-camera = "02:00:00:00:00:51"
+      tv-ambient        = "02:00:00:00:00:50"
+      windowspc-01      = "02:00:00:00:00:80"
     }
   }
   expect_failures = [var.infrastructure_macs]
@@ -137,13 +155,15 @@ run "reject_invalid_infrastructure_mac" {
   command = plan
   variables {
     infrastructure_macs = {
-      flex-5           = "02:00:00:00:00:05"
-      flex-8           = "02:00:00:00:00:07"
-      voyager-01       = "02:00:00:00:00:06"
-      houston-01       = "02:00:00:00:00:10"
-      control-plane-01 = "02:00:00:00:00:11"
-      worker-01        = "not-a-mac"
-      windowspc-01     = "02:00:00:00:00:80"
+      flex-5            = "02:00:00:00:00:05"
+      flex-8            = "02:00:00:00:00:07"
+      voyager-01        = "02:00:00:00:00:06"
+      houston-01        = "02:00:00:00:00:10"
+      control-plane-01  = "02:00:00:00:00:11"
+      worker-01         = "not-a-mac"
+      front-door-camera = "02:00:00:00:00:51"
+      tv-ambient        = "02:00:00:00:00:50"
+      windowspc-01      = "02:00:00:00:00:80"
     }
   }
   expect_failures = [var.infrastructure_macs]

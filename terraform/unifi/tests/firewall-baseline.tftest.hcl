@@ -42,6 +42,16 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["tv-ambient"]
+  values = { id = "02:00:00:00:00:50", mac = "02:00:00:00:00:50" }
+}
+
+override_resource {
+  target = module.reservations.unifi_client.this["front-door-camera"]
+  values = { id = "02:00:00:00:00:51", mac = "02:00:00:00:00:51" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -74,13 +84,15 @@ override_module {
 
 variables {
   infrastructure_macs = {
-    flex-5           = "02:00:00:00:00:05"
-    flex-8           = "02:00:00:00:00:07"
-    voyager-01       = "02:00:00:00:00:06"
-    houston-01       = "02:00:00:00:00:10"
-    control-plane-01 = "02:00:00:00:00:11"
-    worker-01        = "02:00:00:00:00:12"
-    windowspc-01     = "02:00:00:00:00:80"
+    flex-5            = "02:00:00:00:00:05"
+    flex-8            = "02:00:00:00:00:07"
+    voyager-01        = "02:00:00:00:00:06"
+    houston-01        = "02:00:00:00:00:10"
+    control-plane-01  = "02:00:00:00:00:11"
+    worker-01         = "02:00:00:00:00:12"
+    front-door-camera = "02:00:00:00:00:51"
+    tv-ambient        = "02:00:00:00:00:50"
+    windowspc-01      = "02:00:00:00:00:80"
   }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
@@ -182,6 +194,57 @@ run "home_moonlight_is_limited_to_sunshine_on_one_admin_pc" {
   }
 }
 
+run "camera_address_is_stable_without_new_inter_zone_permissions" {
+  command = plan
+
+  assert {
+    condition = (
+      local.dhcp_reservations["front-door-camera"].network == "stardust" &&
+      local.dhcp_reservations["front-door-camera"].ip == "10.0.50.190" &&
+      local.dhcp_reservations["front-door-camera"].allow_dynamic_pool &&
+      local.private_dns_records["front-door-camera"].name == "front-door-camera.thecavespace.net" &&
+      local.private_dns_records["front-door-camera"].address == local.dhcp_reservations["front-door-camera"].ip &&
+      alltrue([for rule in values(local.firewall_rules) :
+        !contains(try(rule.source.ips, []), "10.0.50.190") &&
+        !contains(try(rule.destination.ips, []), "10.0.50.190") &&
+        (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
+          try(contains(["icmp", "icmpv6"], rule.protocol) && rule.states == ["RELATED"], false) ||
+          try(rule.destination.ips == ["10.0.50.124"], false)
+        )
+      ])
+    )
+    error_message = "The camera must retain its reserved IoT address and private DNS without new access; only gateway services, related ICMP errors and the exact LED allowance may enter IoT."
+  }
+}
+
+run "ha_controls_only_the_reserved_iot_light" {
+  command = plan
+
+  assert {
+    condition = (
+      local.dhcp_reservations["tv-ambient"].network == "stardust" &&
+      local.dhcp_reservations["tv-ambient"].ip == "10.0.50.124" &&
+      local.dhcp_reservations["tv-ambient"].allow_dynamic_pool &&
+      local.private_dns_records["tv-ambient"].name == "tv-ambient.thecavespace.net" &&
+      local.private_dns_records["tv-ambient"].address == local.dhcp_reservations["tv-ambient"].ip &&
+      toset([for name, rule in local.firewall_rules : name
+        if rule.source.zone == "launchpad" && rule.destination.zone == "stardust"
+      ]) == toset(["ha-tv-ambient"]) &&
+      local.firewall_rules.ha-tv-ambient.source.ips == ["10.0.70.12"] &&
+      local.firewall_rules.ha-tv-ambient.destination.ips == ["10.0.50.124"] &&
+      local.firewall_rules.ha-tv-ambient.destination.ports == "6668" &&
+      local.firewall_rules.ha-tv-ambient.protocol == "tcp" &&
+      local.firewall_rules.ha-tv-ambient.ip_version == "IPV4" &&
+      try(local.firewall_rules.ha-tv-ambient.reply, true) &&
+      try(local.firewall_rules.ha-tv-ambient.track_state, true) &&
+      !try(local.firewall_rules.ha-tv-ambient.source.invert_ips, false) &&
+      !try(local.firewall_rules.ha-tv-ambient.destination.invert_ips, false) &&
+      alltrue([for rule in values(local.firewall_rules) : rule.source.zone != "stardust" || rule.destination.zone != "launchpad"])
+    )
+    error_message = "Only HA's worker may initiate local Tuya TCP6668 to the reserved light; IoT must not initiate connections to Servers."
+  }
+}
+
 run "home_https_uses_only_its_private_gateway" {
   command = plan
   assert {
@@ -198,6 +261,12 @@ run "home_https_uses_only_its_private_gateway" {
         }
         minecraft-atm = {
           name = "atm.mc.thecavespace.net", address = local.server_reservations["worker-01"].ip
+        }
+        tv-ambient = {
+          name = "tv-ambient.thecavespace.net", address = local.dhcp_reservations["tv-ambient"].ip
+        }
+        front-door-camera = {
+          name = "front-door-camera.thecavespace.net", address = local.dhcp_reservations["front-door-camera"].ip
         }
       } &&
       local.firewall_rules.home-ha-https.source.zone == "orbit" &&

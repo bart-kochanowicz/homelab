@@ -95,6 +95,13 @@ locals {
         source      = { zone = "orbit" }
         destination = { zone = "launchpad", ips = [local.private_dns_records["home-assistant"].address], ports = "443" }
       }
+      ha-tv-ambient = {
+        description = "Home Assistant local control of the MiBoxer LED controller."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
+        destination = { zone = local.dhcp_reservations["tv-ambient"].network, ips = [local.dhcp_reservations["tv-ambient"].ip], ports = "6668" }
+      }
       home-sunshine-tcp = {
         description = "Home Moonlight pairing and session setup on the Admin PC."
         protocol    = "tcp"

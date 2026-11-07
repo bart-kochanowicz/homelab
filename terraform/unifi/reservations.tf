@@ -18,6 +18,18 @@ locals {
   }
 
   dhcp_reservations = merge(local.server_reservations, {
+    front-door-camera = {
+      mac                = var.infrastructure_macs["front-door-camera"]
+      network            = "stardust"
+      ip                 = "10.0.50.190"
+      allow_dynamic_pool = true
+    }
+    tv-ambient = {
+      mac                = var.infrastructure_macs["tv-ambient"]
+      network            = "stardust"
+      ip                 = "10.0.50.124"
+      allow_dynamic_pool = true
+    }
     windowspc-01 = {
       mac                = var.infrastructure_macs["windowspc-01"]
       network            = "apollo"
