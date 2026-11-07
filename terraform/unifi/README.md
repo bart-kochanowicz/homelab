@@ -76,6 +76,14 @@ explicitly preserves an address inside the dynamic pool. Configure local
 control in HA with the device ID and current local key; re-pairing changes
 the key. Cross-VLAN discovery is not forwarded.
 
+SONOFF Dongle Max uses `zigbee.thecavespace.net` (`10.0.50.182`) in IoT on
+Flex 8 port 2. Its reservation preserves the current dynamic-pool address.
+HA's worker may reach TCP `6638`; Admin may reach the web console on TCP `80`,
+both with stateful replies. Select DHCP in the dongle console rather than
+Smart IP, which caches its first lease as a static address. Verify installed
+firmware and coordinator/TCP settings before adding ZHA. Use a strong console
+password and restrict the dongle's ZHA/Z2M IP whitelist to HA's worker.
+
 The RH-PD10 camera uses DHCP reservation `10.0.50.190` and private DNS name
 `front-door-camera.thecavespace.net` in IoT. The reservation preserves its
 current dynamic-pool address. No camera-specific inter-zone access is allowed.
@@ -125,8 +133,9 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
 `infrastructure_macs` includes `windowspc-01` and the Wi-Fi MACs for
-`tv-ambient` and `front-door-camera`. Keep local inputs and the private automation
-repository's `UNIFI_INFRASTRUCTURE_MACS` secret consistent before planning.
+`tv-ambient`, `front-door-camera` and the wired MAC for `sonoff-zigbee`. Keep
+local inputs and the private automation repository's `UNIFI_INFRASTRUCTURE_MACS`
+secret consistent before planning.
 
 Device MACs appear in import diagnostics and state. [Local plans](../LOCAL_PLAN.md)
 use the [controller certificate](CERTIFICATE.md). Network-policy changes also

@@ -24,6 +24,12 @@ locals {
       ip                 = "10.0.50.190"
       allow_dynamic_pool = true
     }
+    sonoff-zigbee = {
+      mac                = var.infrastructure_macs["sonoff-zigbee"]
+      network            = "stardust"
+      ip                 = "10.0.50.182"
+      allow_dynamic_pool = true
+    }
     tv-ambient = {
       mac                = var.infrastructure_macs["tv-ambient"]
       network            = "stardust"
