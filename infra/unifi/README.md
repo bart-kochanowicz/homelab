@@ -28,12 +28,13 @@ Port profiles use the `cavespace-` prefix:
 | --- | --- | --- |
 | `access-<network>` | Named LAN | None |
 | `ap` | Management 90 | 30, 40, 50, 60, 80 |
-| `switch-trunk` | Parking 999 | 70, 80, 90 |
+| `switch-trunk` | Parking 999 | 50, 70, 80, 90 |
 | `access-parking` | Parking 999 | None |
 
 `cavespace-parking` (999) has no gateway, DHCP or SSID. Switch management uses
 tagged VLAN 90; AP management uses native VLAN 90 without a Network Override.
 Switch uplinks use `switch-trunk`; unused LAN ports use `access-parking`.
+Flex 8 port 2 is an untagged IoT access port for SONOFF Dongle Max.
 
 Three SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30), and
 `cavespace-orbit` (WPA2 PPSK: HOME → 40, IOT → 50, GUEST → 60).

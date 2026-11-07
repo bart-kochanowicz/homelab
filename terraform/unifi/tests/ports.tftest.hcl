@@ -4,6 +4,7 @@ variables {
   site = "default"
   network_ids = {
     orbit           = "test-home"
+    stardust        = "test-iot"
     launchpad       = "test-servers"
     apollo          = "test-admin"
     mission-control = "test-management"
@@ -12,6 +13,7 @@ variables {
   reserved_network_ids = ["test-default"]
   port_profiles = {
     access  = { native_network = "orbit" }
+    iot     = { native_network = "stardust" }
     parking = { native_network = "parking" }
     ap = {
       native_network  = "mission-control"
@@ -19,7 +21,7 @@ variables {
     }
     trunk = {
       native_network  = "parking"
-      tagged_networks = ["launchpad", "apollo", "mission-control"]
+      tagged_networks = ["stardust", "launchpad", "apollo", "mission-control"]
     }
   }
 }
@@ -42,7 +44,7 @@ run "port_boundaries" {
     condition = (
       unifi_port_profile.this["ap"].native_networkconf_id == "test-management" &&
       unifi_port_profile.this["ap"].tagged_vlan_mgmt == "custom" &&
-      unifi_port_profile.this["ap"].excluded_networkconf_ids == toset(["test-default", "test-servers", "test-parking", "test-admin"])
+      unifi_port_profile.this["ap"].excluded_networkconf_ids == toset(["test-default", "test-servers", "test-parking", "test-admin", "test-iot"])
     )
     error_message = "The AP profile must exclude every LAN outside its native and tagged set."
   }
@@ -51,7 +53,15 @@ run "port_boundaries" {
       unifi_port_profile.this["trunk"].native_networkconf_id == "test-parking" &&
       unifi_port_profile.this["trunk"].excluded_networkconf_ids == toset(["test-home", "test-default"])
     )
-    error_message = "The switch trunk must allow only Servers, Admin and Management tags."
+    error_message = "The switch trunk must allow only IoT, Servers, Admin and Management tags."
+  }
+  assert {
+    condition = (
+      unifi_port_profile.this["iot"].native_networkconf_id == "test-iot" &&
+      unifi_port_profile.this["iot"].forward == "native" &&
+      unifi_port_profile.this["iot"].tagged_vlan_mgmt == "block_all"
+    )
+    error_message = "The SONOFF access profile must assign IoT and reject all tagged VLANs."
   }
   assert {
     condition = (

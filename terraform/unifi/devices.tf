@@ -45,6 +45,11 @@ locals {
             profile = "access-launchpad"
             name    = "${var.name_prefix}houston-01"
           }
+          sonoff = {
+            index   = 2
+            profile = "access-stardust"
+            name    = "${var.name_prefix}sonoff"
+          }
           worker = {
             index   = 7
             profile = "access-launchpad"
@@ -62,7 +67,7 @@ locals {
           }
         },
         {
-          for port in [2, 3, 4, 5, 6, 10] : "parking-${port}" => {
+          for port in [3, 4, 5, 6, 10] : "parking-${port}" => {
             index   = port
             profile = "access-parking"
             name    = "${var.name_prefix}parking-${port}"

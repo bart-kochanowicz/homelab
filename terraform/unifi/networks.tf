@@ -29,7 +29,7 @@ locals {
       }
       switch-trunk = {
         native_network  = "parking"
-        tagged_networks = ["launchpad", "apollo", "mission-control"]
+        tagged_networks = ["stardust", "launchpad", "apollo", "mission-control"]
       }
       access-parking = { native_network = "parking" }
     }
