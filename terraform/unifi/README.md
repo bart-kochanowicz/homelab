@@ -70,6 +70,10 @@ explicitly preserves an address inside the dynamic pool. Configure local
 control in HA with the device ID and current local key; re-pairing changes
 the key. Cross-VLAN discovery is not forwarded.
 
+The RH-PD10 camera uses DHCP reservation `10.0.50.190` and private DNS name
+`front-door-camera.thecavespace.net` in IoT. The reservation preserves its
+current dynamic-pool address. No camera-specific inter-zone access is allowed.
+
 Moonlight clients in Home can reach Sunshine at `10.0.80.127` in Admin using
 TCP `47984,47989,48010` and UDP `47998-48000`, with stateful replies. Terraform
 reserves this address for `windowspc-01`, explicitly allowing it inside the DHCP
@@ -114,9 +118,9 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | `vpn_public_ip` | `UNIFI_VPN_PUBLIC_IP` |
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
-`infrastructure_macs` includes `windowspc-01` and the Wi-Fi MAC for
-`tv-ambient`. Keep local inputs and the private automation repository's
-`UNIFI_INFRASTRUCTURE_MACS` secret consistent before planning.
+`infrastructure_macs` includes `windowspc-01` and the Wi-Fi MACs for
+`tv-ambient` and `front-door-camera`. Keep local inputs and the private automation
+repository's `UNIFI_INFRASTRUCTURE_MACS` secret consistent before planning.
 
 Device MACs appear in import diagnostics and state. [Local plans](../LOCAL_PLAN.md)
 use the [controller certificate](CERTIFICATE.md). Network-policy changes also

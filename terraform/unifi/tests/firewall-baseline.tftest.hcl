@@ -47,6 +47,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["front-door-camera"]
+  values = { id = "02:00:00:00:00:51", mac = "02:00:00:00:00:51" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -79,14 +84,15 @@ override_module {
 
 variables {
   infrastructure_macs = {
-    flex-5           = "02:00:00:00:00:05"
-    flex-8           = "02:00:00:00:00:07"
-    voyager-01       = "02:00:00:00:00:06"
-    houston-01       = "02:00:00:00:00:10"
-    control-plane-01 = "02:00:00:00:00:11"
-    worker-01        = "02:00:00:00:00:12"
-    tv-ambient       = "02:00:00:00:00:50"
-    windowspc-01     = "02:00:00:00:00:80"
+    flex-5            = "02:00:00:00:00:05"
+    flex-8            = "02:00:00:00:00:07"
+    voyager-01        = "02:00:00:00:00:06"
+    houston-01        = "02:00:00:00:00:10"
+    control-plane-01  = "02:00:00:00:00:11"
+    worker-01         = "02:00:00:00:00:12"
+    front-door-camera = "02:00:00:00:00:51"
+    tv-ambient        = "02:00:00:00:00:50"
+    windowspc-01      = "02:00:00:00:00:80"
   }
   vpn_public_ip = "198.51.100.10"
   vpn_peer_public_keys = {
@@ -188,6 +194,29 @@ run "home_moonlight_is_limited_to_sunshine_on_one_admin_pc" {
   }
 }
 
+run "camera_address_is_stable_without_new_inter_zone_permissions" {
+  command = plan
+
+  assert {
+    condition = (
+      local.dhcp_reservations["front-door-camera"].network == "stardust" &&
+      local.dhcp_reservations["front-door-camera"].ip == "10.0.50.190" &&
+      local.dhcp_reservations["front-door-camera"].allow_dynamic_pool &&
+      local.private_dns_records["front-door-camera"].name == "front-door-camera.thecavespace.net" &&
+      local.private_dns_records["front-door-camera"].address == local.dhcp_reservations["front-door-camera"].ip &&
+      alltrue([for rule in values(local.firewall_rules) :
+        !contains(try(rule.source.ips, []), "10.0.50.190") &&
+        !contains(try(rule.destination.ips, []), "10.0.50.190") &&
+        (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
+          try(contains(["icmp", "icmpv6"], rule.protocol) && rule.states == ["RELATED"], false) ||
+          try(rule.destination.ips == ["10.0.50.124"], false)
+        )
+      ])
+    )
+    error_message = "The camera must retain its reserved IoT address and private DNS without new access; only gateway services, related ICMP errors and the exact LED allowance may enter IoT."
+  }
+}
+
 run "ha_controls_only_the_reserved_iot_light" {
   command = plan
 
@@ -235,6 +264,9 @@ run "home_https_uses_only_its_private_gateway" {
         }
         tv-ambient = {
           name = "tv-ambient.thecavespace.net", address = local.dhcp_reservations["tv-ambient"].ip
+        }
+        front-door-camera = {
+          name = "front-door-camera.thecavespace.net", address = local.dhcp_reservations["front-door-camera"].ip
         }
       } &&
       local.firewall_rules.home-ha-https.source.zone == "orbit" &&

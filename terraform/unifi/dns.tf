@@ -32,6 +32,10 @@ locals {
       name    = "tv-ambient.thecavespace.net"
       address = local.dhcp_reservations["tv-ambient"].ip
     }
+    front-door-camera = {
+      name    = "front-door-camera.thecavespace.net"
+      address = local.dhcp_reservations["front-door-camera"].ip
+    }
     minecraft-atm = {
       name    = "atm.mc.thecavespace.net"
       address = local.server_reservations["worker-01"].ip
