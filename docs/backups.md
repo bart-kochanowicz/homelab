@@ -27,8 +27,8 @@ has a 4 GiB staging limit for both intermediate and final archives and does not
 change PVC ownership.
 
 Home Assistant also backs up ZHA's `zigbee.db` through SQLite's backup API.
-Every database listed in `additionalDatabases` is required: a missing or corrupt
-database fails preparation. Restore both HA databases alongside `files.tar`.
+Every database listed in `additionalDatabases` is required. Missing databases and
+SQLite backup errors fail preparation. Restore both HA databases alongside `files.tar`.
 Keep a protected ZHA network export from **Settings > Zigbee > Download Backup**
 and the SONOFF console configuration export; network exports contain secret keys.
 Never connect a restored ZHA instance to the production coordinator while the
