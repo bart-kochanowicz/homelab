@@ -31,6 +31,8 @@ jobs:
 
       - name: Install validation tools
         uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
+        env:
+          AQUA_MAX_PARALLELISM: '16'
         with:
           aqua_version: v2.66.1
           skip_install_aqua: ${{ steps.aqua-cache.outputs.cache-hit == 'true' }}
