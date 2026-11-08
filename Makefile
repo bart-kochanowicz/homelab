@@ -217,7 +217,7 @@ validate-envoy-gateway: validate-helm
 
 validate-backups: validate-kustomize
 	@rm -rf .cache/backup-schemas && mkdir -p .cache/backup-schemas
-	helm show crds k8up --repo https://k8up-io.github.io/k8up --version 4.10.0 > .cache/backup-crds.yaml
+	helm show crds "system/backup-operator/charts/k8up-$$(yq '.helmCharts[] | select(.name == "k8up") | .version' system/backup-operator/kustomization.yaml)/k8up" > .cache/backup-crds.yaml
 	yq -o=json --split-exp '".cache/backup-schemas/" + .title' \
 		'select(.kind == "CustomResourceDefinition") | .spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
 		.cache/backup-crds.yaml
