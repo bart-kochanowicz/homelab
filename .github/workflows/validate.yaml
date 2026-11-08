@@ -38,6 +38,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y sqlite3
 
       - name: Validate repository
+        env:
+          TF_REGISTRY_DISCOVERY_RETRY: '3'
         run: make validate
 
       - name: Upload dependency vulnerability report
