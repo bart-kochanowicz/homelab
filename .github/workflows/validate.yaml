@@ -29,14 +29,31 @@ jobs:
           path: ~/.local/share/aquaproj-aqua
           key: aqua-v1-${{ runner.os }}-${{ runner.arch }}-2.66.1-validate-${{ hashFiles('aqua.yaml', '.github/workflows/validate.yaml') }}
 
-      - name: Install validation tools
+      - name: Install Aqua
         uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
-        env:
-          AQUA_MAX_PARALLELISM: '16'
         with:
           aqua_version: v2.66.1
           skip_install_aqua: ${{ steps.aqua-cache.outputs.cache-hit == 'true' }}
-          packages: uv terraform kubectl helm kustomize shellcheck kubeconform kube-linter trivy gitleaks restic jq yq amtool promtool
+          enable_aqua_install: 'false'
+
+      - name: Install validation tools
+        env:
+          AQUA_MAX_PARALLELISM: '16'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          aqua i -- uv terraform kubectl helm kustomize shellcheck kubeconform kube-linter trivy gitleaks restic jq yq amtool promtool &
+          aqua_pid=$!
+          # Only Aqua needs the token to verify downloaded packages.
+          unset GITHUB_TOKEN
+          pipx install yamllint==1.37.1 &
+          yamllint_pid=$!
+          (sudo apt-get update && sudo apt-get install -y sqlite3) &
+          sqlite_pid=$!
+          failed=0
+          for installer_pid in "$aqua_pid" "$yamllint_pid" "$sqlite_pid"; do
+            if ! wait "$installer_pid"; then failed=1; fi
+          done
+          exit "$failed"
 
       - name: Save Aqua tools
         if: steps.aqua-cache.outputs.cache-hit != 'true'
@@ -44,12 +61,6 @@ jobs:
         with:
           path: ~/.local/share/aquaproj-aqua
           key: ${{ steps.aqua-cache.outputs.cache-primary-key }}
-
-      - name: Install yamllint
-        run: pipx install yamllint==1.37.1
-
-      - name: Install SQLite
-        run: sudo apt-get update && sudo apt-get install -y sqlite3
 
       - name: Validate repository
         run: make validate

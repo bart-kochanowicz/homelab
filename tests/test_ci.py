@@ -1,4 +1,4 @@
-"""Check that parallel test execution preserves discovery and failure reporting."""
+"""Check parallel CI setup, test discovery and failure reporting."""
 
 import os
 import shutil
@@ -8,6 +8,8 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -84,3 +86,84 @@ class ParallelTestTests(unittest.TestCase):
         result = self.run_suite("tests.a.test_failure")
         self.assertNotEqual(result.returncode, 0)
         self.assert_all_modules_executed_once()
+
+
+class ToolInstallationTests(unittest.TestCase):
+    def setUp(self):
+        workflow = yaml.safe_load(
+            (ROOT / ".github/workflows/validate.yaml").read_text()
+        )
+        self.script = next(
+            step["run"]
+            for step in workflow["jobs"]["validate"]["steps"]
+            if step["name"] == "Install validation tools"
+        )
+
+    def install(
+        self, failing_tool: str = ""
+    ) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+        with tempfile.TemporaryDirectory(prefix="homelab-ci-install-") as directory:
+            root = Path(directory)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            for name in ("aqua", "pipx", "sudo"):
+                tool = bin_dir / name
+                tool.write_text(
+                    f"#!{sys.executable}\n"
+                    + textwrap.dedent("""\
+                        import os, sys, time
+                        from pathlib import Path
+                        name = Path(sys.argv[0]).name
+                        if name == "aqua":
+                            assert os.environ.get("GITHUB_TOKEN") == "ci-fixture-token"
+                        else:
+                            assert "GITHUB_TOKEN" not in os.environ
+                        tool = {"aqua": "aqua", "pipx": "yamllint"}.get(name)
+                        if name == "sudo":
+                            tool = "sqlite-update" if "update" in sys.argv else "sqlite-install"
+                        Path(tool + ".started").touch()
+                        with Path("executed").open("a") as log:
+                            log.write(tool + "\\n")
+                        if tool != "sqlite-install":
+                            deadline = time.monotonic() + 5
+                            while not all(Path(t + ".started").exists()
+                                          for t in ("aqua", "yamllint", "sqlite-update")):
+                                if time.monotonic() >= deadline:
+                                    sys.exit("Installers did not start concurrently")
+                                time.sleep(0.01)
+                        sys.exit(42 if tool == os.environ.get("TEST_FAIL_TOOL") else 0)
+                        """)
+                )
+                tool.chmod(0o755)
+            result = subprocess.run(
+                ["bash", "-e", "-o", "pipefail", "-c", self.script],
+                cwd=root,
+                env=os.environ
+                | {
+                    "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+                    "TEST_FAIL_TOOL": failing_tool,
+                    "GITHUB_TOKEN": "ci-fixture-token",
+                },
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            return result, (root / "executed").read_text().splitlines()
+
+    def test_all_installers_start_together_and_complete_before_validation(self):
+        result, executed = self.install()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertCountEqual(
+            executed, ["aqua", "yamllint", "sqlite-update", "sqlite-install"]
+        )
+        self.assertLess(
+            executed.index("sqlite-update"), executed.index("sqlite-install")
+        )
+
+    def test_any_installer_failure_blocks_validation(self):
+        for tool in ("aqua", "yamllint", "sqlite-update", "sqlite-install"):
+            with self.subTest(tool=tool):
+                result, executed = self.install(tool)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertTrue({"aqua", "yamllint", "sqlite-update"} <= set(executed))
+                self.assertEqual("sqlite-install" in executed, tool != "sqlite-update")
