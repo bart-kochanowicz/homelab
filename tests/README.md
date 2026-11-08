@@ -34,6 +34,9 @@ the rendered manifests and schemas prepared by `make validate-workflows` or
 uv run --locked python -m unittest tests.networking.test_n8n -v
 ```
 
+The full suite runs up to three modules concurrently, after rendering completes.
+Use `make validate-workflows PYTHON_TEST_JOBS=1` for serial execution.
+
 Tests are grouped under `networking/`, `backups/`, `logging/` and `monitoring/`;
 shared fixtures live in each package's `support.py`. Terraform's native tests
 live under `terraform/unifi/tests/` and run through `make validate-terraform-tests`.

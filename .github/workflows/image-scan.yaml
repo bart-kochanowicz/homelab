@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -24,10 +28,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
 
-      - name: Install validation tools
-        uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
+      - name: Restore Aqua tools
+        id: aqua-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          aqua_version: v2.55.0
+          path: ~/.local/share/aquaproj-aqua
+          key: aqua-v1-${{ runner.os }}-${{ runner.arch }}-2.66.1-images-${{ hashFiles('aqua.yaml', '.github/workflows/image-scan.yaml') }}
+
+      - name: Install validation tools
+        uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
+        with:
+          aqua_version: v2.66.1
+          skip_install_aqua: ${{ steps.aqua-cache.outputs.cache-hit == 'true' }}
+          packages: helm kustomize trivy yq
+
+      - name: Save Aqua tools
+        if: steps.aqua-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/aquaproj-aqua
+          key: ${{ steps.aqua-cache.outputs.cache-primary-key }}
 
       - name: Scan rendered application and platform images
         run: make scan-images
