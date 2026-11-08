@@ -1,18 +1,5 @@
 SHELL := /bin/bash
 
-define DOWNLOAD_RETRY
-retry() { \
-	for attempt in 1 2 3; do \
-		"$$@" && return 0; \
-		if [ "$$attempt" -lt 3 ]; then \
-			echo "retrying: $$*" >&2; \
-			sleep "$$((attempt * 2))"; \
-		fi; \
-	done; \
-	return 1; \
-}
-endef
-
 KUSTOMIZE_DIRS := \
 	apps/crafty-controller \
 	apps/home-assistant \
@@ -132,22 +119,30 @@ validate-shell:
 
 validate-kustomize:
 	@rm -rf .cache/rendered && mkdir -p .cache/rendered
-	@set -e; $(DOWNLOAD_RETRY); \
-	for dir in $(KUSTOMIZE_DIRS); do \
+	@set -e; for dir in $(KUSTOMIZE_DIRS); do \
 		kustomize build "$$dir" > ".cache/rendered/$$(echo "$$dir" | tr / -).yaml"; \
-	done; \
-	retry kustomize build --enable-helm system/monitoring --output .cache/rendered/system-monitoring.yaml; \
-	retry kustomize build --enable-helm system/backup-operator --output .cache/rendered/system-backup-operator.yaml; \
-	helm lint system/backups; \
-	helm template backups system/backups --namespace monitoring > .cache/rendered/system-backups.yaml; \
-	retry helm repo add --force-update grafana https://grafana.github.io/helm-charts >/dev/null; \
-	retry helm repo add --force-update grafana-community https://grafana-community.github.io/helm-charts >/dev/null; \
-	retry helm dependency build --skip-refresh system/logging; \
-	helm lint system/logging; \
+	done
+	kustomize build --enable-helm system/monitoring > .cache/rendered/system-monitoring.yaml
+	kustomize build --enable-helm system/backup-operator > .cache/rendered/system-backup-operator.yaml
+	helm lint system/backups
+	helm template backups system/backups --namespace monitoring > .cache/rendered/system-backups.yaml
+	helm repo add --force-update grafana https://grafana.github.io/helm-charts >/dev/null
+	helm repo add --force-update grafana-community https://grafana-community.github.io/helm-charts >/dev/null
+	helm dependency build --skip-refresh system/logging
+	helm lint system/logging
 	helm template logging system/logging --namespace monitoring > .cache/rendered/system-logging.yaml
 
 validate-helm: validate-kustomize
-	@set -e; $(DOWNLOAD_RETRY); \
+	@set -e; retry() { \
+		for attempt in 1 2 3; do \
+			"$$@" && return 0; \
+			if [ "$$attempt" -lt 3 ]; then \
+				echo "retrying: $$*" >&2; \
+				sleep "$$((attempt * 2))"; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
 	retry helm repo add --force-update jetstack https://charts.jetstack.io >/dev/null; \
 	retry helm repo add --force-update cilium https://helm.cilium.io/ >/dev/null; \
 	retry helm repo add --force-update sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null; \
@@ -215,8 +210,7 @@ validate-envoy-gateway: validate-helm
 
 validate-backups: validate-kustomize
 	@rm -rf .cache/backup-schemas && mkdir -p .cache/backup-schemas
-	@set -e; $(DOWNLOAD_RETRY); \
-	retry bash -ec 'helm show crds k8up --repo https://k8up-io.github.io/k8up --version 4.10.0 > .cache/backup-crds.yaml'
+	helm show crds k8up --repo https://k8up-io.github.io/k8up --version 4.10.0 > .cache/backup-crds.yaml
 	yq -o=json --split-exp '".cache/backup-schemas/" + .title' \
 		'select(.kind == "CustomResourceDefinition") | .spec as $$crd | .spec.versions[] | select(.served) | .name as $$version | .schema.openAPIV3Schema | .title = ($$crd.names.singular + "_" + $$version) | (.. | select(has("properties"))).additionalProperties |= (. // false)' \
 		.cache/backup-crds.yaml

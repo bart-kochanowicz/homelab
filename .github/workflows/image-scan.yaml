@@ -25,14 +25,6 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
 
       - name: Install validation tools
-        id: install-tools
-        continue-on-error: true
-        uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
-        with:
-          aqua_version: v2.55.0
-
-      - name: Retry validation tool installation
-        if: steps.install-tools.outcome == 'failure'
         uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
         with:
           aqua_version: v2.55.0

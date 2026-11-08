@@ -19,14 +19,6 @@ jobs:
           fetch-depth: 0
 
       - name: Install validation tools
-        id: install-tools
-        continue-on-error: true
-        uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
-        with:
-          aqua_version: v2.55.0
-
-      - name: Retry validation tool installation
-        if: steps.install-tools.outcome == 'failure'
         uses: aquaproj/aqua-installer@097ac59b80cea8bd5afb5d01f5310d26db620742 # v4.0.3
         with:
           aqua_version: v2.55.0
@@ -38,8 +30,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y sqlite3
 
       - name: Validate repository
-        env:
-          TF_REGISTRY_DISCOVERY_RETRY: '3'
         run: make validate
 
       - name: Upload dependency vulnerability report
