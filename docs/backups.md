@@ -26,6 +26,14 @@ normal operation and do not form an atomic application-wide snapshot. Preparatio
 has a 4 GiB staging limit for both intermediate and final archives and does not
 change PVC ownership.
 
+Home Assistant also backs up ZHA's `zigbee.db` through SQLite's backup API.
+Every database listed in `additionalDatabases` is required. Missing databases and
+SQLite backup errors fail preparation. Restore both HA databases alongside `files.tar`.
+Keep a protected ZHA network export from **Settings > Zigbee > Download Backup**
+and the SONOFF console configuration export; network exports contain secret keys.
+Never connect a restored ZHA instance to the production coordinator while the
+running instance owns it.
+
 Crafty's preparation mounts only the `app-config` subdirectory of `crafty-data-nvme`.
 It copies `db/crafty.sqlite` through SQLite's backup API. Runtime `session.lock` and
 recreated `db/servers` statistics/cache data are excluded; game files use Crafty's
@@ -88,7 +96,7 @@ Set `backup_namespace` and `database` from this table; the example uses n8n:
 
 | Application | Namespace | Database |
 | --- | --- | --- |
-| Home Assistant | `home-assistant` | `home-assistant_v2.db` |
+| Home Assistant | `home-assistant` | `home-assistant_v2.db`, `zigbee.db` |
 | n8n | `n8n` | `database.sqlite` |
 | Grafana | `monitoring` | `grafana.db` |
 | Crafty panel | `crafty-controller` | `db/crafty.sqlite` |
@@ -118,6 +126,8 @@ unset RESTIC_REST_PASSWORD
 
 Replace `SNAPSHOT_ID` and `ARCHIVE_PATH` using `snapshots` and `ls` output.
 For Crafty, `data/` contains `app-config/` contents, not the whole PVC.
+For Home Assistant, copy both database files into `data/` and run the integrity
+check for each; the command above copies only the selected database.
 Download the matching Minecraft ZIP from Crafty, check it with `unzip -t` and
 extract it into a separate test directory. Inspect configuration and test each
 application separately.
