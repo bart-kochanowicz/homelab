@@ -11,11 +11,11 @@ from contextlib import closing
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DATABASES = {
-    "home-assistant": "home-assistant_v2.db",
-    "n8n": "database.sqlite",
-    "monitoring": "grafana.db",
-    "crafty-controller": "db/crafty.sqlite",
+DATABASES: dict[str, tuple[str, ...]] = {
+    "home-assistant": ("home-assistant_v2.db", "zigbee.db"),
+    "n8n": ("database.sqlite",),
+    "monitoring": ("grafana.db",),
+    "crafty-controller": ("db/crafty.sqlite",),
 }
 
 
@@ -83,7 +83,8 @@ class PvcBackupTestCase(unittest.TestCase):
         )
         source.mkdir(parents=True)
         staging.mkdir()
-        (source / DATABASES[namespace]).parent.mkdir(parents=True, exist_ok=True)
+        for database in DATABASES[namespace]:
+            (source / database).parent.mkdir(parents=True, exist_ok=True)
         (source / ".storage").mkdir()
         (source / ".storage/settings.json").write_text(
             '{"fixture": "nested configuration"}\n'
@@ -91,19 +92,19 @@ class PvcBackupTestCase(unittest.TestCase):
         (source / "config.yaml").write_text("fixture: application configuration\n")
         return source, staging
 
-    def open_wal(self, namespace: str, source: Path) -> sqlite3.Connection:
-        database = sqlite3.connect(source / DATABASES[namespace])
+    def open_wal(self, name: str, source: Path) -> sqlite3.Connection:
+        database = sqlite3.connect(source / name)
         self.addCleanup(database.close)
         database.execute("PRAGMA journal_mode=WAL")
         database.execute("PRAGMA wal_autocheckpoint=0")
         database.execute("CREATE TABLE settings (value TEXT)")
         database.execute("INSERT INTO settings VALUES ('committed WAL data')")
         database.commit()
-        self.assertGreater((source / (DATABASES[namespace] + "-wal")).stat().st_size, 0)
+        self.assertGreater((source / (name + "-wal")).stat().st_size, 0)
         return database
 
-    def assert_database(self, namespace: str, directory: Path) -> None:
-        with closing(sqlite3.connect(directory / DATABASES[namespace])) as database:
+    def assert_database(self, name: str, directory: Path) -> None:
+        with closing(sqlite3.connect(directory / name)) as database:
             self.assertEqual(
                 database.execute("PRAGMA integrity_check").fetchone(), ("ok",)
             )

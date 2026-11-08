@@ -1,4 +1,5 @@
 {{- range $app := .Values.applications }}
+{{- $databases := concat (list $app.database) ($app.additionalDatabases | default list) }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -35,10 +36,12 @@ spec:
         - -ec
         args:
         - |
-          tar -C /data --exclude='./{{ $app.database }}' --exclude='./{{ $app.database }}-*'{{ if $app.excludeLog }} --exclude='./{{ $app.excludeLog }}'{{ end }}{{ range $path := $app.excludePaths }} --exclude='./{{ $path }}'{{ end }} -cf /staging/files.tar .
-          mkdir -p "/staging/$(dirname '{{ $app.database }}')"
-          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/{{ $app.database }} '.backup /staging/{{ $app.database }}'
-          tar -C /staging -cf /staging/application.tar files.tar {{ $app.database }}
+          tar -C /data{{ range $database := $databases }} --exclude='./{{ $database }}' --exclude='./{{ $database }}-*'{{ end }}{{ if $app.excludeLog }} --exclude='./{{ $app.excludeLog }}'{{ end }}{{ range $path := $app.excludePaths }} --exclude='./{{ $path }}'{{ end }} -cf /staging/files.tar .
+{{- range $database := $databases }}
+          mkdir -p "/staging/$(dirname '{{ $database }}')"
+          sqlite3 -readonly -bail -cmd '.timeout 60000' /data/{{ $database }} '.backup /staging/{{ $database }}'
+{{- end }}
+          tar -C /staging -cf /staging/application.tar files.tar{{ range $database := $databases }} {{ $database }}{{ end }}
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

@@ -13,35 +13,56 @@ class PvcPreparationTests(PvcBackupTestCase):
 
     def test_corrupt_database_fails_before_producing_an_archive(self):
         source, staging = self.source("monitoring")
-        (source / DATABASES["monitoring"]).write_bytes(b"not a SQLite database\n")
+        (source / DATABASES["monitoring"][0]).write_bytes(b"not a SQLite database\n")
         result = self.prepare("monitoring", source, staging)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.archive_path("monitoring", staging).exists())
+
+    def test_missing_or_corrupt_zigbee_database_fails_before_producing_an_archive(self):
+        for state in ("missing", "corrupt"):
+            with self.subTest(state=state):
+                source, staging = (
+                    self.root / state / "source",
+                    self.root / state / "staging",
+                )
+                source.mkdir(parents=True)
+                staging.mkdir()
+                self.open_wal("home-assistant_v2.db", source)
+                if state == "corrupt":
+                    (source / "zigbee.db").write_bytes(b"not a SQLite database\n")
+                result = self.prepare("home-assistant", source, staging)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.archive_path("home-assistant", staging).exists())
 
     def test_archive_contains_prepared_database_without_live_wal_or_application_logs(
         self,
     ):
         source, staging = self.source("home-assistant")
-        self.open_wal("home-assistant", source)
+        for name in DATABASES["home-assistant"]:
+            self.open_wal(name, source)
         (source / "home-assistant.log").write_text("excluded log fixture\n")
         (source / "home-assistant.log.1").write_text("excluded rotated log fixture\n")
         result = self.prepare("home-assistant", source, staging)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         with tarfile.open(self.archive_path("home-assistant", staging)) as bundle:
             names = {name.removeprefix("./") for name in bundle.getnames()}
-        self.assertEqual(names, {DATABASES["home-assistant"], "files.tar"})
+        self.assertEqual(names, {*DATABASES["home-assistant"], "files.tar"})
         with tarfile.open(staging / "files.tar") as files:
             names = {name.removeprefix("./") for name in files.getnames()}
         self.assertIn(".storage/settings.json", names)
         self.assertFalse(
-            {DATABASES["home-assistant"] + suffix for suffix in ("", "-wal", "-shm")}
+            {
+                name + suffix
+                for name in DATABASES["home-assistant"]
+                for suffix in ("", "-wal", "-shm")
+            }
             & names
         )
         self.assertFalse({"home-assistant.log", "home-assistant.log.1"} & names)
 
     def test_crafty_copy_excludes_disposable_stats_and_the_runtime_lock(self):
         source, staging = self.source("crafty-controller")
-        self.open_wal("crafty-controller", source)
+        self.open_wal(DATABASES["crafty-controller"][0], source)
         (source / "db/servers/example").mkdir(parents=True)
         (source / "db/servers/example/crafty_server_stats.sqlite").write_bytes(
             b"live stats fixture"

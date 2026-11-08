@@ -6,6 +6,7 @@ applications:
 - namespace: home-assistant
   pvc: home-assistant-data-nvme
   database: home-assistant_v2.db
+  additionalDatabases: [zigbee.db]
   uid: 0
   gid: 0
   excludeLog: home-assistant.log*

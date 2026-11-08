@@ -29,7 +29,8 @@ class PvcRestoreTests(PvcBackupTestCase):
         for namespace in DATABASES:
             with self.subTest(namespace=namespace):
                 source, staging = self.source(namespace)
-                self.open_wal(namespace, source)
+                for name in DATABASES[namespace]:
+                    self.open_wal(name, source)
                 originals = {
                     path: path.read_bytes()
                     for path in source.rglob("*")
@@ -90,7 +91,8 @@ class PvcRestoreTests(PvcBackupTestCase):
                     bundle.extractall(restored, filter="data")
                 with tarfile.open(restored / "files.tar") as files:
                     files.extractall(restored, filter="data")
-                self.assert_database(namespace, restored)
+                for name in DATABASES[namespace]:
+                    self.assert_database(name, restored)
                 self.assertEqual(
                     (restored / "config.yaml").read_text(),
                     "fixture: application configuration\n",
