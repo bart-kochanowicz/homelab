@@ -16,10 +16,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
 
+      - name: Restore Aqua tools
+        id: aqua-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/aquaproj-aqua
+          key: aqua-v1-${{ runner.os }}-${{ runner.arch }}-2.66.1-dependencies-${{ hashFiles('aqua.yaml', '.github/workflows/dependency-scan.yaml') }}
+
       - name: Install validation tools
         uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         with:
           aqua_version: v2.66.1
+          skip_install_aqua: ${{ steps.aqua-cache.outputs.cache-hit == 'true' }}
+          packages: trivy jq
+
+      - name: Save Aqua tools
+        if: steps.aqua-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/aquaproj-aqua
+          key: ${{ steps.aqua-cache.outputs.cache-primary-key }}
 
       - name: Scan locked dependencies
         run: make validate-dependencies

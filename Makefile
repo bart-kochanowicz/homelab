@@ -1,5 +1,9 @@
 SHELL := /bin/bash
 
+PYTHON_TEST_JOBS ?= 3
+PYTHON_TEST_MODULES := $(sort $(patsubst %.py,%,$(subst /,.,$(shell find tests -type f -name 'test_*.py'))))
+PYTHON_TEST_TARGETS := $(addprefix test-python-,$(PYTHON_TEST_MODULES))
+
 KUSTOMIZE_DIRS := \
 	apps/crafty-controller \
 	apps/home-assistant \
@@ -19,7 +23,7 @@ KUSTOMIZE_DIRS := \
 	validate-python format-python validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-cert-manager validate-metallb validate-envoy-gateway validate-backups \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring \
-	image-inventory scan-images validate-dependencies
+	image-inventory scan-images validate-dependencies $(PYTHON_TEST_TARGETS)
 
 default: system
 
@@ -80,7 +84,10 @@ validate-terraform-tests: validate-format
 	terraform -chdir=terraform/unifi test -no-color
 
 validate-workflows: validate-gateway-api validate-metallb validate-envoy-gateway
-	uv run --locked python -m unittest discover -s tests -t . -v
+	$(MAKE) --no-print-directory --keep-going --jobs=$(PYTHON_TEST_JOBS) $(PYTHON_TEST_TARGETS)
+
+$(PYTHON_TEST_TARGETS): test-python-%:
+	uv run --locked python -m unittest $* -v
 
 validate-monitoring: validate-kustomize
 	@set -euo pipefail; yq -o=json -I=0 '.spec.groups' \
