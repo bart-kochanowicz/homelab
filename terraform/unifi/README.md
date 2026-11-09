@@ -88,6 +88,11 @@ The RH-PD10 camera uses DHCP reservation `10.0.50.190` and private DNS name
 `front-door-camera.thecavespace.net` in IoT. The reservation preserves its
 current dynamic-pool address. No camera-specific inter-zone access is allowed.
 
+The LG C4 uses DHCP reservation `10.0.40.107` and private DNS name
+`lg-tv.thecavespace.net` in Home. HA's worker may reach TCP `3000,3001` with
+stateful replies. Add LG webOS TV manually by hostname and approve pairing
+on the powered-on TV. Cross-VLAN discovery and Wake-on-LAN are not forwarded.
+
 Moonlight clients in Home can reach Sunshine at `10.0.80.127` in Admin using
 TCP `47984,47989,48010` and UDP `47998-48000`, with stateful replies. Terraform
 reserves this address for `windowspc-01`, explicitly allowing it inside the DHCP

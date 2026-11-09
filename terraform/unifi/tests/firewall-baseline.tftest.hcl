@@ -57,6 +57,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["lg-tv"]
+  values = { id = "02:00:00:00:00:40", mac = "02:00:00:00:00:40" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -96,6 +101,7 @@ variables {
     control-plane-01  = "02:00:00:00:00:11"
     worker-01         = "02:00:00:00:00:12"
     front-door-camera = "02:00:00:00:00:51"
+    lg-tv             = "02:00:00:00:00:40"
     sonoff-zigbee     = "02:00:00:00:00:52"
     tv-ambient        = "02:00:00:00:00:50"
     windowspc-01      = "02:00:00:00:00:80"
@@ -242,6 +248,32 @@ run "camera_address_is_stable_without_new_inter_zone_permissions" {
   }
 }
 
+run "ha_lg_access_is_limited_to_the_reserved_webos_service" {
+  command = plan
+
+  assert {
+    condition = (
+      local.dhcp_reservations["lg-tv"].network == "orbit" &&
+      local.dhcp_reservations["lg-tv"].ip == "10.0.40.107" &&
+      local.dhcp_reservations["lg-tv"].allow_dynamic_pool &&
+      local.private_dns_records["lg-tv"].name == "lg-tv.thecavespace.net" &&
+      local.private_dns_records["lg-tv"].address == local.dhcp_reservations["lg-tv"].ip &&
+      toset([for name, rule in local.firewall_rules : name
+        if rule.source.zone == "launchpad" && rule.destination.zone == "orbit" && try(rule.protocol == "tcp", false)
+      ]) == toset(["ha-lg-tv"]) &&
+      local.firewall_rules.ha-lg-tv.source.ips == ["10.0.70.12"] &&
+      local.firewall_rules.ha-lg-tv.destination.ips == ["10.0.40.107"] &&
+      local.firewall_rules.ha-lg-tv.destination.ports == "3000,3001" &&
+      local.firewall_rules.ha-lg-tv.ip_version == "IPV4" &&
+      try(local.firewall_rules.ha-lg-tv.reply, true) &&
+      try(local.firewall_rules.ha-lg-tv.track_state, true) &&
+      !try(local.firewall_rules.ha-lg-tv.source.invert_ips, false) &&
+      !try(local.firewall_rules.ha-lg-tv.destination.invert_ips, false)
+    )
+    error_message = "HA may initiate TCP only to the reserved LG TV's webOS ports in Home, with stateful replies."
+  }
+}
+
 run "ha_iot_access_is_limited_to_the_light_and_coordinator" {
   command = plan
 
@@ -320,6 +352,9 @@ run "home_https_uses_only_its_private_gateway" {
         }
         tv-ambient = {
           name = "tv-ambient.thecavespace.net", address = local.dhcp_reservations["tv-ambient"].ip
+        }
+        lg-tv = {
+          name = "lg-tv.thecavespace.net", address = local.dhcp_reservations["lg-tv"].ip
         }
         front-door-camera = {
           name = "front-door-camera.thecavespace.net", address = local.dhcp_reservations["front-door-camera"].ip

@@ -102,6 +102,13 @@ locals {
         source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
         destination = { zone = local.dhcp_reservations["tv-ambient"].network, ips = [local.dhcp_reservations["tv-ambient"].ip], ports = "6668" }
       }
+      ha-lg-tv = {
+        description = "Home Assistant state tracking and pairing with the LG webOS TV."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
+        destination = { zone = local.dhcp_reservations["lg-tv"].network, ips = [local.dhcp_reservations["lg-tv"].ip], ports = "3000,3001" }
+      }
       ha-zigbee = {
         description = "Home Assistant access to the SONOFF Zigbee coordinator."
         protocol    = "tcp"
