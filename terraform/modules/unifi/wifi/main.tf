@@ -9,9 +9,9 @@ resource "unifi_wlan" "this" {
   user_group_id = var.user_group_id
 
   security        = "wpapsk"
-  wpa3_support    = true
+  wpa3_support    = each.value.wpa_mode == "wpa3"
   wpa3_transition = false
-  pmf_mode        = "required"
+  pmf_mode        = each.value.wpa_mode == "wpa3" ? "required" : "optional"
   enhanced_iot    = false
   wpa_enc         = "ccmp"
   group_rekey     = 3600

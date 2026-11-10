@@ -128,6 +128,11 @@ run "local_authentication" {
   command = plan
 
   assert {
+    condition     = toset(keys(module.wifi.wlan_ids)) == toset(["apollo", "endeavour", "orbit", "stardust"])
+    error_message = "The root must add Stardust while retaining every existing WLAN."
+  }
+
+  assert {
     condition = (
       issensitive(local.devices["flex-5"].mac) &&
       issensitive(local.server_macs["worker-01"]) &&
