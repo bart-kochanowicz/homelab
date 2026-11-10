@@ -61,6 +61,31 @@ run "admin_wifi_boundaries" {
   }
 }
 
+run "home_wifi_boundaries" {
+  command = plan
+  module {
+    source = "../modules/unifi/wifi"
+  }
+  variables {
+    network_ids = { orbit = "test-home-network" }
+    wlans       = { orbit = { network = "orbit", bands = ["2g", "5g"] } }
+    passphrases = { orbit = "test-home-passphrase" }
+  }
+
+  assert {
+    condition = (
+      unifi_wlan.this["orbit"].network_id == "test-home-network" &&
+      unifi_wlan.this["orbit"].wpa3_support &&
+      !unifi_wlan.this["orbit"].wpa3_transition &&
+      unifi_wlan.this["orbit"].pmf_mode == "required" &&
+      !unifi_wlan.this["orbit"].private_preshared_keys_enabled &&
+      unifi_wlan.this["orbit"].wlan_bands == toset(["2g", "5g"]) &&
+      length(unifi_wlan.ppsk) == 0
+    )
+    error_message = "Home must use WPA3-only on both bands with required PMF, its own VLAN and no PPSK WLAN."
+  }
+}
+
 run "iot_wifi_boundaries" {
   command = plan
   module {

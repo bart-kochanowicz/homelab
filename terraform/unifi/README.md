@@ -50,14 +50,14 @@ USB power from the worker retains a worker-power dependency.
 | --- | --- | --- | --- |
 | `cavespace-apollo` | WPA3 | 5 GHz | Admin 80 |
 | `cavespace-endeavour` | WPA3 | 2.4/5 GHz | Work 30 |
-| `cavespace-orbit` | WPA2 PPSK | 2.4/5 GHz | HOME 40, IOT 50, GUEST 60 |
+| `cavespace-orbit` | WPA3 | 2.4/5 GHz | Home 40 |
 | `cavespace-stardust` | WPA2-AES | 2.4 GHz | IoT 50 |
 
-Orbit keys select individual VLANs. Client isolation is disabled; Default is
-the WLAN's base metadata. Stardust shares Orbit's IoT password and VLAN;
-WPA2-AES with optional PMF supports older IoT clients. Single-password WLAN
-passphrases are write-only; PPSKs remain in
-private plans, state and backups. Site mDNS proxy is disabled.
+Orbit uses the Home role password and requires WPA3 with PMF. Stardust uses
+the IoT role password and WPA2-AES with optional PMF for older IoT clients.
+WLAN passphrases are write-only. Role passwords remain private Terraform
+inputs under `wifi_ppsks` (`orbit/home`, `orbit/iot`); no WLAN enables PPSK.
+Site mDNS proxy is disabled.
 
 HA resolves to the Home VIP; administrative panels resolve to the Admin VIP.
 `ha-backend.thecavespace.net` resolves to the worker for HTTPS on `8123`;
@@ -74,7 +74,7 @@ gateway services only.
 
 Home Assistant on the worker may reach the MiBoxer FUT037W+ in IoT at
 `tv-ambient.thecavespace.net` (`10.0.50.124`) on TCP `6668`, with stateful
-replies. Keep the controller on DHCP using Orbit's IoT PPSK. Its reservation
+replies. Keep the controller on DHCP using Stardust Wi-Fi. Its reservation
 explicitly preserves an address inside the dynamic pool. Configure local
 control in HA with the device ID and current local key; re-pairing changes
 the key. Cross-VLAN discovery is not forwarded.

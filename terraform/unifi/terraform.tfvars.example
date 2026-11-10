@@ -28,9 +28,8 @@ wifi_passphrases = {
 }
 
 wifi_ppsks = {
-  "orbit/home"  = "REPLACE_WITH_HOME_PASSPHRASE"
-  "orbit/iot"   = "REPLACE_WITH_IOT_PASSPHRASE"
-  "orbit/guest" = "REPLACE_WITH_GUEST_PASSPHRASE"
+  "orbit/home" = "REPLACE_WITH_HOME_PASSPHRASE"
+  "orbit/iot"  = "REPLACE_WITH_IOT_PASSPHRASE"
 }
 
 vpn_public_ip = "198.51.100.10"

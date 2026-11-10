@@ -116,9 +116,8 @@ variables {
   unifi_auth       = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
   wifi_passphrases = { apollo = "test-only-passphrase", endeavour = "test-work-passphrase" }
   wifi_ppsks = {
-    "orbit/home"  = "test-home-passphrase"
-    "orbit/iot"   = "test-iot-passphrase"
-    "orbit/guest" = "test-guest-passphrase"
+    "orbit/home" = "test-home-passphrase"
+    "orbit/iot"  = "test-iot-passphrase"
   }
 }
 

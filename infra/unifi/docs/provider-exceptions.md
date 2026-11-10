@@ -12,6 +12,7 @@ network overrides, write-only credentials and administrator-managed settings.
 | WPA3 passphrases | `passphrase_wo` has no rotation-version field. A password-only edit produces no diff; rotate it together with a reviewed WLAN change. | Terraform |
 | PPSK base network | UCG-Fiber stores the built-in Default LAN as `network_id`. Each key explicitly selects its managed VLAN; there is no base passphrase. | Terraform |
 | PPSK passwords | No write-only API field; passwords remain in private plans, state and backups. | Terraform |
+| Disabled PPSK keys | The provider omits disabled keys from state. Check the controller for retained keys and clear them when revoking PPSK access. | Administrator |
 | Device ports | Declared overrides replace each port entry. Undeclared ports are preserved, but the provider sends the complete override array. | Terraform |
 | Firewall order | Policy indices are read-only. Allow/reply rules must sit above their zone-pair denies; new rules may need manual reordering. | Administrator |
 | Firewall client targets | Network 10.6.106 rejects `CLIENT` destinations. Rules use `CLIENT` sources and explicit destination IPv4 addresses, including replies. | Terraform |

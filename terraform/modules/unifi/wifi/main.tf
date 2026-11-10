@@ -20,6 +20,8 @@ resource "unifi_wlan" "this" {
   no2ghz_oui      = true
   passphrase_wo   = lookup(var.passphrases, each.key, null)
 
+  private_preshared_keys_enabled = false
+
   wlan_bands = each.value.bands
   wlan_band  = contains(each.value.bands, "2g") && contains(each.value.bands, "5g") ? "both" : contains(each.value.bands, "5g") ? "5g" : "2g"
 
