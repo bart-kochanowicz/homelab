@@ -344,6 +344,7 @@ run "home_https_uses_only_its_private_gateway" {
   assert {
     condition = (
       local.private_dns_records == {
+        unifi             = { name = "unifi.thecavespace.net", address = "10.0.80.1" }
         home-assistant    = { name = "ha.thecavespace.net", address = "10.0.70.200" }
         crafty-controller = { name = "crafty-controller.thecavespace.net", address = "10.0.70.201" }
         argocd            = { name = "argocd.thecavespace.net", address = "10.0.70.201" }

@@ -19,4 +19,5 @@ network overrides, write-only credentials and administrator-managed settings.
 | WireGuard zone | Network 10.6.106 keeps the server network in built-in `Vpn`. Rules scope access to the VPN pool and override built-in permissions. | Terraform / controller |
 | WireGuard server key | If UniFi omits `wireguard_public_key`, derive it from the existing private key with `OJFord/wireguard`. Both copies remain in protected state. | Terraform / controller |
 | Site mDNS | No provider setting; the proxy is disabled and discovery stays within each VLAN. | Administrator |
+| Console certificate | Native UniFi OS manages Let's Encrypt issuance and automatic renewal through Cloudflare DNS-01. Terraform uses the system CA store and `https://unifi.thecavespace.net`. | UniFi OS / administrator |
 | WAN | UPnP/NAT-PMP disabled; no public application forwarding. PPPoE and LEOX route/SNAT are outside this root. | Administrator |

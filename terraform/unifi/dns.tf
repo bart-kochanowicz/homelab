@@ -1,5 +1,9 @@
 locals {
   private_dns_records = {
+    unifi = {
+      name    = "unifi.thecavespace.net"
+      address = split("/", local.networks.apollo.subnet)[0]
+    }
     home-assistant = {
       name    = "ha.thecavespace.net"
       address = "10.0.70.200"
