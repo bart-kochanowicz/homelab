@@ -3,7 +3,6 @@ locals {
     endeavour       = 30
     orbit           = 40
     stardust        = 50
-    comet           = 60
     launchpad       = 70
     apollo          = 80
     mission-control = 90
@@ -25,7 +24,7 @@ locals {
     {
       ap = {
         native_network  = "mission-control"
-        tagged_networks = ["endeavour", "orbit", "stardust", "comet", "apollo"]
+        tagged_networks = ["endeavour", "orbit", "stardust", "apollo"]
       }
       switch-trunk = {
         native_network  = "parking"

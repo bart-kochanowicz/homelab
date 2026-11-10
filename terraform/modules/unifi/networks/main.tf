@@ -1,4 +1,4 @@
-resource "unifi_network" "this" {
+resource "unifi_network" "active" {
   for_each = var.networks
 
   site                = var.site

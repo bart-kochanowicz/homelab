@@ -34,40 +34,40 @@ run "port_boundaries" {
 
   assert {
     condition = (
-      unifi_port_profile.this["access"].native_networkconf_id == "test-home" &&
-      unifi_port_profile.this["access"].forward == "native" &&
-      unifi_port_profile.this["access"].tagged_vlan_mgmt == "block_all"
+      unifi_port_profile.active["access"].native_networkconf_id == "test-home" &&
+      unifi_port_profile.active["access"].forward == "native" &&
+      unifi_port_profile.active["access"].tagged_vlan_mgmt == "block_all"
     )
     error_message = "An access port must assign Home and reject tagged VLANs."
   }
   assert {
     condition = (
-      unifi_port_profile.this["ap"].native_networkconf_id == "test-management" &&
-      unifi_port_profile.this["ap"].tagged_vlan_mgmt == "custom" &&
-      unifi_port_profile.this["ap"].excluded_networkconf_ids == toset(["test-default", "test-servers", "test-parking", "test-admin", "test-iot"])
+      unifi_port_profile.active["ap"].native_networkconf_id == "test-management" &&
+      unifi_port_profile.active["ap"].tagged_vlan_mgmt == "custom" &&
+      unifi_port_profile.active["ap"].excluded_networkconf_ids == toset(["test-default", "test-servers", "test-parking", "test-admin", "test-iot"])
     )
     error_message = "The AP profile must exclude every LAN outside its native and tagged set."
   }
   assert {
     condition = (
-      unifi_port_profile.this["trunk"].native_networkconf_id == "test-parking" &&
-      unifi_port_profile.this["trunk"].excluded_networkconf_ids == toset(["test-home", "test-default"])
+      unifi_port_profile.active["trunk"].native_networkconf_id == "test-parking" &&
+      unifi_port_profile.active["trunk"].excluded_networkconf_ids == toset(["test-home", "test-default"])
     )
     error_message = "The switch trunk must allow only IoT, Servers, Admin and Management tags."
   }
   assert {
     condition = (
-      unifi_port_profile.this["iot"].native_networkconf_id == "test-iot" &&
-      unifi_port_profile.this["iot"].forward == "native" &&
-      unifi_port_profile.this["iot"].tagged_vlan_mgmt == "block_all"
+      unifi_port_profile.active["iot"].native_networkconf_id == "test-iot" &&
+      unifi_port_profile.active["iot"].forward == "native" &&
+      unifi_port_profile.active["iot"].tagged_vlan_mgmt == "block_all"
     )
     error_message = "The SONOFF access profile must assign IoT and reject all tagged VLANs."
   }
   assert {
     condition = (
-      unifi_port_profile.this["parking"].native_networkconf_id == "test-parking" &&
-      unifi_port_profile.this["parking"].forward == "native" &&
-      unifi_port_profile.this["parking"].tagged_vlan_mgmt == "block_all"
+      unifi_port_profile.active["parking"].native_networkconf_id == "test-parking" &&
+      unifi_port_profile.active["parking"].forward == "native" &&
+      unifi_port_profile.active["parking"].tagged_vlan_mgmt == "block_all"
     )
     error_message = "Parking access ports must not carry tagged networks."
   }

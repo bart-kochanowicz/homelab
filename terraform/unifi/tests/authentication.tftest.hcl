@@ -20,7 +20,6 @@ override_module {
       endeavour       = "test-work"
       orbit           = "test-home"
       stardust        = "test-iot"
-      comet           = "test-guest"
       launchpad       = "test-servers"
       apollo          = "test-admin"
       mission-control = "test-management"

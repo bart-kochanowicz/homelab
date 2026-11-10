@@ -13,7 +13,6 @@ Each network uses the `cavespace-` prefix and gateway `10.0.<VLAN>.1`.
 | 30 | endeavour | 10.0.30.0/24 | Work devices |
 | 40 | orbit | 10.0.40.0/24 | Personal devices and trusted Apple/HomeKit devices |
 | 50 | stardust | 10.0.50.0/24 | Untrusted IoT |
-| 60 | comet | 10.0.60.0/24 | Guests |
 | 70 | launchpad | 10.0.70.0/24 | Houston, Talos, Kubernetes, storage and Home Assistant |
 | 80 | apollo | 10.0.80.0/24 | Administrator devices |
 | 90 | mission-control | 10.0.90.0/24 | Network infrastructure management |
@@ -27,7 +26,7 @@ Port profiles use the `cavespace-` prefix:
 | Profile | Native network | Tagged VLANs |
 | --- | --- | --- |
 | `access-<network>` | Named LAN | None |
-| `ap` | Management 90 | 30, 40, 50, 60, 80 |
+| `ap` | Management 90 | 30, 40, 50, 80 |
 | `switch-trunk` | Parking 999 | 50, 70, 80, 90 |
 | `access-parking` | Parking 999 | None |
 
@@ -44,7 +43,7 @@ Inter-zone access is denied by default, with stateful replies and explicit servi
 exceptions. Admin has access to Servers, Management and gateway administration;
 remote administration uses `cavespace-wormhole` WireGuard (`10.0.100.0/24`),
 in the built-in VPN zone with scoped Admin permissions and split routing.
-Guest has Internet access and required gateway services only; mDNS proxy is disabled.
+mDNS proxy is disabled.
 Home Assistant runs in
 Servers; IoT has no access to it without an explicit integration rule. Application endpoints are private.
 

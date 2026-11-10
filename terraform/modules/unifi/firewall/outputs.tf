@@ -1,6 +1,6 @@
 output "zone_ids" {
   description = "Managed custom zone IDs keyed by logical name."
-  value       = { for key, zone in unifi_firewall_zone.this : key => zone.id }
+  value       = { for key, zone in unifi_firewall_zone.active : key => zone.id }
 }
 
 output "policy_order" {
