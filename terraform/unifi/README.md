@@ -59,7 +59,11 @@ WLAN passphrases are write-only. Role passwords remain private Terraform
 inputs under `wifi_ppsks` (`orbit/home`, `orbit/iot`); no WLAN enables PPSK.
 Site mDNS proxy is disabled.
 
-HA resolves to the Home VIP; administrative panels resolve to the Admin VIP.
+UniFi resolves directly to `10.0.80.1` at `unifi.thecavespace.net`, independently
+of Kubernetes. Its [native certificate](CERTIFICATE.md) uses automatic renewal.
+Admin and administrative WireGuard can reach the console; Houston retains its
+controller API exception. HA resolves to the Home VIP; Kubernetes administrative
+panels resolve to the Admin VIP.
 `ha-backend.thecavespace.net` resolves to the worker for HTTPS on `8123`;
 Minecraft A/SRV records select that worker on `30000`. Router and Cilium rules
 enforce access. Public DNS and ACME challenge records are outside this root.
@@ -143,5 +147,5 @@ local inputs and the private automation repository's `UNIFI_INFRASTRUCTURE_MACS`
 secret consistent before planning.
 
 Device MACs appear in import diagnostics and state. [Local plans](../LOCAL_PLAN.md)
-use the [controller certificate](CERTIFICATE.md). Network-policy changes also
+use the controller's public certificate chain. Network-policy changes also
 need a manual ArgoCD sync.

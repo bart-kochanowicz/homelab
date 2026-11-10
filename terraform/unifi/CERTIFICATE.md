@@ -1,49 +1,33 @@
-# UniFi certificate on macOS
+# UniFi console certificate
 
-Run from the repository root after [local setup](../LOCAL_PLAN.md#one-time-setup).
-Install GitHub CLI and OpenSSL; `gh auth login` needs private automation
-repository access. The gateway generates the certificate; never copy its private key.
+`https://unifi.thecavespace.net` resolves privately to `10.0.80.1`. The router
+serves a publicly trusted Let's Encrypt certificate, independently of Kubernetes.
+Browsers and Terraform use their system CA stores; keep TLS verification enabled.
 
-## Download the certificate
+## Native issuance and renewal
 
-```bash
-mkdir -p .secrets/unifi
-gh api repos/bart-kochanowicz/homelab-automation/actions/variables/UNIFI_CA_CERT_PEM \
-  --jq '.value' > .secrets/unifi/controller-certificate.pem
-openssl x509 -in .secrets/unifi/controller-certificate.pem -noout -fingerprint -sha256 -dates
-openssl x509 -in .secrets/unifi/controller-certificate.pem -noout -text
-```
+In UniFi Control Plane → Console → Certificates, configure automatic Let's
+Encrypt for `unifi.thecavespace.net` using Cloudflare DNS-01. Use a dedicated
+API token with DNS Edit and Zone Read scoped to `thecavespace.net`. Keep the
+token and certificate private key on the router; do not commit or log them.
+Manual TXT validation does not provide unattended renewal.
 
-Check validity dates and the `localhost` SAN used by the tunnel.
+UniFi owns temporary `_acme-challenge.unifi.thecavespace.net` TXT records.
+Do not manage them with Terraform or create public A/AAAA records, port
+forwarding, or a Cloudflare Tunnel. Check native certificate status for renewal
+failures and expiry. Retain the factory certificate for console recovery.
 
-## First enrollment or replacement
+## Verify access
 
-```bash
-mkdir -p .cache .secrets/unifi
-ssh houston-01 'openssl s_client -connect 192.168.1.1:443 -servername unifi.local </dev/null 2>/dev/null' \
-  | openssl x509 -outform PEM -out .cache/unifi-controller-candidate.pem
-openssl x509 -in .cache/unifi-controller-candidate.pem -noout -fingerprint -sha256 -dates
-openssl x509 -in .cache/unifi-controller-candidate.pem -noout -text
-```
-
-Verify SHA256 against the console certificate viewer over a trusted administration
-connection or a trusted backup; download alone does not establish trust.
-Check dates and the `localhost` SAN, then register the verified public certificate:
+From Admin or administrative WireGuard, using UniFi DNS:
 
 ```bash
-gh variable set UNIFI_CA_CERT_PEM --repo bart-kochanowicz/homelab-automation \
-  < .cache/unifi-controller-candidate.pem
-cp .cache/unifi-controller-candidate.pem .secrets/unifi/controller-certificate.pem
+dig @10.0.80.1 unifi.thecavespace.net A +short
+curl --fail --head https://unifi.thecavespace.net
 ```
 
-## Trust in Keychain
-
-Authorize the macOS prompt; verification must succeed before planning.
-Repeat enrollment and trust when the gateway certificate changes or expires.
-
-```bash
-security add-trusted-cert -r trustRoot -p ssl -s localhost \
-  -k "$HOME/Library/Keychains/login.keychain-db" \
-  .secrets/unifi/controller-certificate.pem
-security verify-cert -c .secrets/unifi/controller-certificate.pem -p ssl -s localhost
-```
+Require `10.0.80.1` and successful HTTPS without certificate exceptions. Verify
+the same HTTPS endpoint from Houston before running Actions. The private
+automation repository's `UNIFI_CONTROLLER` must use this hostname and its
+workflow must use the system CA store rather than pinning a leaf certificate.
+Renewals must not require changes to Keychain or Actions variables.

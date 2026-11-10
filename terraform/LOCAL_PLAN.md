@@ -40,10 +40,11 @@ chmod 600 terraform.tfvars
 | Root | Inputs |
 | --- | --- |
 | `cloudflare` | Account ID and management API token with R2 read, Zone Read and DNS Read access for `thecavespace.net`; S3 keys are separate. |
-| `unifi` | Local credentials or API key; `controller.url=https://localhost:18443` and your site. |
+| `unifi` | Local credentials or API key; `controller.url=https://unifi.thecavespace.net` and your site. |
 
-UniFi also requires Houston access to `192.168.1.1` and the verified
-[controller certificate in Keychain](unifi/CERTIFICATE.md).
+UniFi requires direct HTTPS access through Admin or administrative WireGuard,
+using UniFi DNS to resolve `unifi.thecavespace.net` to `10.0.80.1`. Verify its
+[public certificate chain](unifi/CERTIFICATE.md) before planning.
 
 For `terraform/crafty`, use the same Garage tunnel and initialization after its
 first Actions apply. No `.tfvars` file is needed: load the dedicated API token
@@ -54,13 +55,13 @@ Admin or WireGuard. Unset the token after planning.
 ## Terminal 1: tunnel
 
 Keep this session open; wait for `Local plan session ready`. It holds Houston's
-shared lock and forwards Garage and UniFi to loopback. Cloudflare uses only Garage.
+shared lock and forwards Garage to loopback. UniFi HTTPS uses its direct private
+endpoint.
 
 ```bash
 ssh -T -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
   -L 127.0.0.1:13900:127.0.0.1:3900 \
-  -L 127.0.0.1:18443:192.168.1.1:443 \
   houston-01 'flock --exclusive /run/houston-terraform/operation.lock bash -c "echo Local plan session ready; read -r"'
 ```
 
