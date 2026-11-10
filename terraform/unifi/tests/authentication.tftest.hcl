@@ -118,9 +118,8 @@ variables {
   unifi_auth       = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
   wifi_passphrases = { apollo = "test-only-passphrase", endeavour = "test-work-passphrase" }
   wifi_ppsks = {
-    "orbit/home"  = "test-home-passphrase"
-    "orbit/iot"   = "test-iot-passphrase"
-    "orbit/guest" = "test-guest-passphrase"
+    "orbit/home" = "test-home-passphrase"
+    "orbit/iot"  = "test-iot-passphrase"
   }
 }
 
@@ -129,7 +128,7 @@ run "local_authentication" {
 
   assert {
     condition     = toset(keys(module.wifi.wlan_ids)) == toset(["apollo", "endeavour", "orbit", "stardust"])
-    error_message = "The root must add Stardust while retaining every existing WLAN."
+    error_message = "The root must retain the Admin, Work, Home and IoT WLANs."
   }
 
   assert {

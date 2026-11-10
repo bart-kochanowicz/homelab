@@ -1,7 +1,7 @@
 # UniFi WiFi
 
-WPA3 SSIDs and WPA2 PPSK SSIDs use managed network IDs and existing AP/QoS groups.
-WPA3 passphrases are ephemeral/write-only; PPSKs persist in private plans and
+WPA2/WPA3 SSIDs and WPA2 PPSK SSIDs use managed network IDs and existing AP/QoS groups.
+Single-password passphrases are ephemeral/write-only; PPSKs persist in private plans and
 state. `ppsk_wlans` binds each role explicitly to a managed network. The
 controller requires the read-only Default LAN ID for PPSK base metadata; client
 VLANs come from the per-key bindings. No base passphrase is configured.

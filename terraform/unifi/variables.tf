@@ -70,7 +70,7 @@ variable "wifi_passphrases" {
 }
 
 variable "wifi_ppsks" {
-  description = "Sensitive PPSK passwords keyed by WLAN/role; stored in Terraform plans and state."
+  description = "Home and IoT role passwords keyed as orbit/home and orbit/iot."
   type        = map(string)
   sensitive   = true
   nullable    = false

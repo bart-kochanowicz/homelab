@@ -8,6 +8,11 @@ data "unifi_client_qos_rate" "default" {
   name = "Default"
 }
 
+moved {
+  from = module.wifi.unifi_wlan.ppsk["orbit"]
+  to   = module.wifi.unifi_wlan.this["orbit"]
+}
+
 module "wifi" {
   source = "../modules/unifi/wifi"
 
@@ -17,10 +22,9 @@ module "wifi" {
   ap_group_id   = data.unifi_ap_group.all.id
   user_group_id = data.unifi_client_qos_rate.default.id
   passphrases = merge(var.wifi_passphrases, {
+    orbit    = var.wifi_ppsks["orbit/home"]
     stardust = var.wifi_ppsks["orbit/iot"]
   })
-  ppsk_passphrases     = var.wifi_ppsks
-  ppsk_base_network_id = data.unifi_network.default.id
   wlans = {
     apollo = {
       network = "apollo"
@@ -30,20 +34,14 @@ module "wifi" {
       network = "endeavour"
       bands   = ["2g", "5g"]
     }
+    orbit = {
+      network = "orbit"
+      bands   = ["2g", "5g"]
+    }
     stardust = {
       network  = "stardust"
       bands    = ["2g"]
       wpa_mode = "wpa2"
-    }
-  }
-  ppsk_wlans = {
-    orbit = {
-      bands = ["2g", "5g"]
-      keys = {
-        home  = "orbit"
-        iot   = "stardust"
-        guest = "comet"
-      }
     }
   }
 }
