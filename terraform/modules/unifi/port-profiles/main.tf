@@ -1,4 +1,4 @@
-resource "unifi_port_profile" "this" {
+resource "unifi_port_profile" "active" {
   for_each = var.port_profiles
 
   site                  = var.site

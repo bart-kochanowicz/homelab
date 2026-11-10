@@ -35,7 +35,7 @@ locals {
 
   firewall_rules = merge(
     {
-      for zone in ["endeavour", "orbit", "stardust", "comet", "launchpad", "apollo"] : "${zone}-internet" => {
+      for zone in ["endeavour", "orbit", "stardust", "launchpad", "apollo"] : "${zone}-internet" => {
         description = "${zone} to public Internet destinations."
         source      = { zone = zone }
         destination = { zone = "external", ips = local.non_public_destinations, invert_ips = true }
@@ -94,13 +94,6 @@ locals {
         ip_version  = "IPV4"
         source      = { zone = "orbit" }
         destination = { zone = "launchpad", ips = [local.private_dns_records["home-assistant"].address], ports = "443" }
-      }
-      ha-tv-ambient = {
-        description = "Home Assistant local control of the MiBoxer LED controller."
-        protocol    = "tcp"
-        ip_version  = "IPV4"
-        source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
-        destination = { zone = local.dhcp_reservations["tv-ambient"].network, ips = [local.dhcp_reservations["tv-ambient"].ip], ports = "6668" }
       }
       ha-lg-tv = {
         description = "Home Assistant state tracking and pairing with the LG webOS TV."

@@ -12,7 +12,6 @@ override_module {
       endeavour       = "test-work"
       orbit           = "test-home"
       stardust        = "test-iot"
-      comet           = "test-guest"
       launchpad       = "test-servers"
       apollo          = "test-admin"
       mission-control = "test-management"
@@ -121,6 +120,23 @@ variables {
   }
 }
 
+run "only_active_lans_have_profiles_and_firewall_zones" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(keys(local.vlan_ids)) == toset(["endeavour", "orbit", "stardust", "launchpad", "apollo", "mission-control"]) &&
+      !contains(keys(local.port_profiles), "access-comet") &&
+      !contains(local.port_profiles.ap.tagged_networks, "comet") &&
+      toset(keys(module.firewall.zone_ids)) == toset(keys(local.vlan_ids)) &&
+      alltrue([for rule in values(local.firewall_rules) :
+        rule.source.zone != "comet" && rule.destination.zone != "comet"
+      ])
+    )
+    error_message = "Only active LANs may have access profiles, AP tags and firewall zones or rules."
+  }
+}
+
 run "sonoff_uses_only_flex8_port2_in_iot" {
   command = plan
 
@@ -141,7 +157,7 @@ run "least_privilege_access_matrix" {
   assert {
     condition = alltrue([
       for rule in values(local.firewall_rules) :
-      !contains(["endeavour", "stardust", "comet"], rule.source.zone) ? true : (
+      !contains(["endeavour", "stardust"], rule.source.zone) ? true : (
         rule.destination.zone == "external" ? try(rule.destination.invert_ips, false) :
         rule.destination.zone == "gateway" && (
           try(rule.destination.ports == "53", false) ||
@@ -150,12 +166,12 @@ run "least_privilege_access_matrix" {
         )
       )
     ])
-    error_message = "Work, IoT and Guest may reach only public Internet and required gateway services."
+    error_message = "Work and IoT may reach only public Internet and required gateway services."
   }
   assert {
     condition = (
       alltrue([for rule in values(local.firewall_rules) :
-        rule.source.zone != "apollo" || !contains(["endeavour", "comet", "orbit", "stardust"], rule.destination.zone) ||
+        rule.source.zone != "apollo" || !contains(["endeavour", "orbit", "stardust"], rule.destination.zone) ||
         (rule.destination.zone == "stardust" && try(
           rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip] &&
           rule.protocol == "tcp" && rule.destination.ports == "80" && rule.ip_version == "IPV4", false
@@ -273,7 +289,7 @@ run "ha_lg_access_is_limited_to_the_reserved_webos_service" {
   }
 }
 
-run "ha_iot_access_is_limited_to_the_light_and_coordinator" {
+run "ha_iot_access_is_limited_to_the_coordinator" {
   command = plan
 
   assert {
@@ -285,19 +301,10 @@ run "ha_iot_access_is_limited_to_the_light_and_coordinator" {
       local.private_dns_records["tv-ambient"].address == local.dhcp_reservations["tv-ambient"].ip &&
       toset([for name, rule in local.firewall_rules : name
         if rule.source.zone == "launchpad" && rule.destination.zone == "stardust"
-      ]) == toset(["ha-tv-ambient", "ha-zigbee"]) &&
-      local.firewall_rules.ha-tv-ambient.source.ips == ["10.0.70.12"] &&
-      local.firewall_rules.ha-tv-ambient.destination.ips == ["10.0.50.124"] &&
-      local.firewall_rules.ha-tv-ambient.destination.ports == "6668" &&
-      local.firewall_rules.ha-tv-ambient.protocol == "tcp" &&
-      local.firewall_rules.ha-tv-ambient.ip_version == "IPV4" &&
-      try(local.firewall_rules.ha-tv-ambient.reply, true) &&
-      try(local.firewall_rules.ha-tv-ambient.track_state, true) &&
-      !try(local.firewall_rules.ha-tv-ambient.source.invert_ips, false) &&
-      !try(local.firewall_rules.ha-tv-ambient.destination.invert_ips, false) &&
+      ]) == toset(["ha-zigbee"]) &&
       alltrue([for rule in values(local.firewall_rules) : rule.source.zone != "stardust" || rule.destination.zone != "launchpad"])
     )
-    error_message = "HA may initiate only the declared light/coordinator services; Tuya TCP6668 must target the reserved light and IoT must not initiate connections to Servers."
+    error_message = "HA may reach only the Zigbee coordinator in IoT; cloud Tuya needs no direct allowance and IoT must not initiate connections to Servers."
   }
 }
 
@@ -414,7 +421,7 @@ run "management_paths_preserve_admin_servers_and_ap" {
       local.devices["voyager-01"].ports.ap.profile == "ap" &&
       local.devices["voyager-01"].ports.ap.poe_mode == "auto" &&
       local.port_profiles.ap.native_network == "mission-control" &&
-      toset(local.port_profiles.ap.tagged_networks) == toset(["endeavour", "orbit", "stardust", "comet", "apollo"])
+      toset(local.port_profiles.ap.tagged_networks) == toset(["endeavour", "orbit", "stardust", "apollo"])
     )
     error_message = "Switch management and the AP uplink must preserve Admin, server access, client tags and power."
   }

@@ -34,10 +34,10 @@ run "valid_lan_networks" {
   }
   assert {
     condition = (
-      unifi_network.this["orbit"].dhcp_server.dns_enabled &&
-      unifi_network.this["orbit"].dhcp_server.dns_servers == tolist(["10.0.40.1"]) &&
-      !unifi_network.this["orbit"].auto_scale &&
-      unifi_network.this["orbit"].setting_preference == "manual"
+      unifi_network.active["orbit"].dhcp_server.dns_enabled &&
+      unifi_network.active["orbit"].dhcp_server.dns_servers == tolist(["10.0.40.1"]) &&
+      !unifi_network.active["orbit"].auto_scale &&
+      unifi_network.active["orbit"].setting_preference == "manual"
     )
     error_message = "DHCP must advertise the LAN gateway as DNS and preserve explicit addressing."
   }

@@ -9,7 +9,7 @@ Terraform configures the UCG-Fiber LANs and adopted switches/AP. See the
 | [devices.tf](devices.tf) | Switch/AP ports |
 | [reservations.tf](reservations.tf) | Server, PC and IoT DHCP reservations |
 | [dns.tf](dns.tf) | Private A/SRV records |
-| [wifi.tf](wifi.tf) | SSIDs and per-key VLANs |
+| [wifi.tf](wifi.tf) | SSIDs, security and VLANs |
 | [firewall.tf](firewall.tf) | Trust zones and allowed traffic |
 | [vpn.tf](vpn.tf) | WireGuard server and peers |
 
@@ -69,15 +69,12 @@ enforce access. Public DNS and ACME challenge records are outside this root.
 Each LAN has a trust zone. Rules allow specific connections and stateful replies;
 other inter-zone IPv4/IPv6 traffic is denied. Same-VLAN traffic bypasses this
 firewall. Server rules follow reservation MACs/addresses; renew leases after
-changes. Cilium controls Kubernetes traffic. Guest has Internet and required
-gateway services only.
+changes. Cilium controls Kubernetes traffic.
 
-Home Assistant on the worker may reach the MiBoxer FUT037W+ in IoT at
-`tv-ambient.thecavespace.net` (`10.0.50.124`) on TCP `6668`, with stateful
-replies. Keep the controller on DHCP using Stardust Wi-Fi. Its reservation
-explicitly preserves an address inside the dynamic pool. Configure local
-control in HA with the device ID and current local key; re-pairing changes
-the key. Cross-VLAN discovery is not forwarded.
+The MiBoxer FUT037W+ uses Stardust Wi-Fi and DHCP reservation
+`tv-ambient.thecavespace.net` (`10.0.50.124`). Home Assistant controls it through
+Tuya's cloud; no direct HA-to-controller firewall allowance is configured.
+The reservation preserves an address inside the dynamic pool.
 
 SONOFF Dongle Max uses `zigbee.thecavespace.net` (`10.0.50.182`) in IoT on
 Flex 8 port 2. Its reservation preserves the current dynamic-pool address.

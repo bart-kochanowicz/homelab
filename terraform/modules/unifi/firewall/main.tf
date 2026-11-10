@@ -1,4 +1,4 @@
-resource "unifi_firewall_zone" "this" {
+resource "unifi_firewall_zone" "active" {
   for_each = var.zone_network_ids
 
   site        = var.site
@@ -11,7 +11,7 @@ resource "unifi_firewall_zone" "this" {
 }
 
 locals {
-  zone_ids  = merge(var.builtin_zone_ids, { for key, zone in unifi_firewall_zone.this : key => zone.id })
+  zone_ids  = merge(var.builtin_zone_ids, { for key, zone in unifi_firewall_zone.active : key => zone.id })
   zone_keys = concat(keys(var.builtin_zone_ids), keys(var.zone_network_ids))
 
   guarded_pairs = {
