@@ -36,8 +36,10 @@ tagged VLAN 90; AP management uses native VLAN 90 without a Network Override.
 Switch uplinks use `switch-trunk`; unused LAN ports use `access-parking`.
 Flex 8 port 2 is an untagged IoT access port for SONOFF Dongle Max.
 
-Three SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30), and
-`cavespace-orbit` (WPA2 PPSK: HOME → 40, IOT → 50, GUEST → 60).
+Four SSIDs: `cavespace-apollo` (80), `cavespace-endeavour` (30),
+`cavespace-orbit` (WPA2 PPSK: HOME → 40, IOT → 50, GUEST → 60), and
+`cavespace-stardust` (WPA2-AES, 2.4 GHz, VLAN 50). Stardust shares Orbit's
+IoT password.
 
 Inter-zone access is denied by default, with stateful replies and explicit service
 exceptions. Admin has access to Servers, Management and gateway administration;

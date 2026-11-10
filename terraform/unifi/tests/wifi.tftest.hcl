@@ -61,6 +61,53 @@ run "admin_wifi_boundaries" {
   }
 }
 
+run "iot_wifi_boundaries" {
+  command = plan
+  module {
+    source = "../modules/unifi/wifi"
+  }
+  variables {
+    network_ids = { stardust = "test-iot-network" }
+    wlans = {
+      stardust = { network = "stardust", bands = ["2g"], wpa_mode = "wpa2" }
+    }
+    passphrases = { stardust = "test-iot-passphrase" }
+  }
+
+  assert {
+    condition = (
+      unifi_wlan.this["stardust"].name == "cavespace-stardust" &&
+      unifi_wlan.this["stardust"].network_id == "test-iot-network" &&
+      unifi_wlan.this["stardust"].wlan_band == "2g" &&
+      unifi_wlan.this["stardust"].wlan_bands == toset(["2g"])
+    )
+    error_message = "IoT WiFi must use its managed network on 2.4 GHz only."
+  }
+
+  assert {
+    condition = (
+      unifi_wlan.this["stardust"].security == "wpapsk" &&
+      !unifi_wlan.this["stardust"].wpa3_support &&
+      !unifi_wlan.this["stardust"].wpa3_transition &&
+      unifi_wlan.this["stardust"].pmf_mode == "optional" &&
+      unifi_wlan.this["stardust"].wpa_enc == "ccmp" &&
+      unifi_wlan.this["stardust"].passphrase == null
+    )
+    error_message = "IoT WiFi must use WPA2-AES with optional PMF and a write-only passphrase."
+  }
+}
+
+run "reject_unknown_wpa_mode" {
+  command = plan
+  module {
+    source = "../modules/unifi/wifi"
+  }
+  variables {
+    wlans = { apollo = { network = "apollo", bands = ["5g"], wpa_mode = "wpa" } }
+  }
+  expect_failures = [var.wlans]
+}
+
 run "reject_unknown_network" {
   command = plan
   module {

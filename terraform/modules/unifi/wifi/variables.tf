@@ -40,10 +40,11 @@ variable "user_group_id" {
 }
 
 variable "wlans" {
-  description = "WPA3-only WLANs referencing managed logical network keys and 2.4/5 GHz bands."
+  description = "WPA2 or WPA3 WLANs referencing managed logical network keys and 2.4/5 GHz bands; WPA3 is the default."
   type = map(object({
-    network = string
-    bands   = set(string)
+    network  = string
+    bands    = set(string)
+    wpa_mode = optional(string, "wpa3")
   }))
   nullable = false
 
@@ -64,10 +65,15 @@ variable "wlans" {
     ])
     error_message = "Each WLAN must select at least one band from 2g and 5g."
   }
+
+  validation {
+    condition     = alltrue([for wlan in values(var.wlans) : contains(["wpa2", "wpa3"], wlan.wpa_mode)])
+    error_message = "Each WLAN must use wpa2 or wpa3."
+  }
 }
 
 variable "passphrases" {
-  description = "Write-only WPA3 passphrases keyed by WLAN logical identifier."
+  description = "Write-only WPA2/WPA3 passphrases keyed by WLAN logical identifier."
   type        = map(string)
   sensitive   = true
   ephemeral   = true

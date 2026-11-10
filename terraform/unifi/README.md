@@ -51,9 +51,12 @@ USB power from the worker retains a worker-power dependency.
 | `cavespace-apollo` | WPA3 | 5 GHz | Admin 80 |
 | `cavespace-endeavour` | WPA3 | 2.4/5 GHz | Work 30 |
 | `cavespace-orbit` | WPA2 PPSK | 2.4/5 GHz | HOME 40, IOT 50, GUEST 60 |
+| `cavespace-stardust` | WPA2-AES | 2.4 GHz | IoT 50 |
 
 Orbit keys select individual VLANs. Client isolation is disabled; Default is
-the WLAN's base metadata. WPA3 passphrases are write-only; PPSKs remain in
+the WLAN's base metadata. Stardust shares Orbit's IoT password and VLAN;
+WPA2-AES with optional PMF supports older IoT clients. Single-password WLAN
+passphrases are write-only; PPSKs remain in
 private plans, state and backups. Site mDNS proxy is disabled.
 
 HA resolves to the Home VIP; administrative panels resolve to the Admin VIP.
