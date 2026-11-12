@@ -80,6 +80,12 @@ The MiBoxer FUT037W+ uses Stardust Wi-Fi and DHCP reservation
 Tuya's cloud; no direct HA-to-controller firewall allowance is configured.
 The reservation preserves an address inside the dynamic pool.
 
+The office Yeelight ceiling light uses Stardust and DHCP reservation
+`office-light.thecavespace.net` (`10.0.50.167`). Enable LAN Control in the
+Yeelight app and add it manually in HA. Only the HA worker may initiate TCP
+`55443`, with stateful replies. Leave music mode disabled; cross-VLAN discovery
+and lamp-initiated connections are not forwarded.
+
 SONOFF Dongle Max uses `zigbee.thecavespace.net` (`10.0.50.182`) in IoT on
 Flex 8 port 2. Its reservation preserves the current dynamic-pool address.
 HA's worker may reach TCP `6638`; Admin may reach the web console on TCP `80`,
@@ -142,7 +148,7 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
 `infrastructure_macs` includes `windowspc-01` and the Wi-Fi MACs for
-`tv-ambient`, `front-door-camera` and the wired MAC for `sonoff-zigbee`. Keep
+`tv-ambient`, `front-door-camera`, `office-light` and the wired MAC for `sonoff-zigbee`. Keep
 local inputs and the private automation repository's `UNIFI_INFRASTRUCTURE_MACS`
 secret consistent before planning.
 

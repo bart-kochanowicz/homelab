@@ -36,6 +36,10 @@ locals {
       name    = "tv-ambient.thecavespace.net"
       address = local.dhcp_reservations["tv-ambient"].ip
     }
+    office-light = {
+      name    = "office-light.thecavespace.net"
+      address = local.dhcp_reservations["office-light"].ip
+    }
     lg-tv = {
       name    = "lg-tv.thecavespace.net"
       address = local.dhcp_reservations["lg-tv"].ip

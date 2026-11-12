@@ -69,6 +69,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["office-light"]
+  values = { id = "02:00:00:00:00:53", mac = "02:00:00:00:00:53" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = {
     id  = "02:00:00:00:00:05"
@@ -103,6 +108,7 @@ variables {
     worker-01         = "02:00:00:00:00:12"
     front-door-camera = "02:00:00:00:00:51"
     lg-tv             = "02:00:00:00:00:40"
+    office-light      = "02:00:00:00:00:53"
     sonoff-zigbee     = "02:00:00:00:00:52"
     tv-ambient        = "02:00:00:00:00:50"
     windowspc-01      = "02:00:00:00:00:80"
@@ -146,7 +152,9 @@ run "local_authentication" {
       issensitive(local.dhcp_reservations["sonoff-zigbee"].mac) &&
       local.dhcp_reservations["sonoff-zigbee"].mac == var.infrastructure_macs["sonoff-zigbee"] &&
       issensitive(local.dhcp_reservations["lg-tv"].mac) &&
-      local.dhcp_reservations["lg-tv"].mac == var.infrastructure_macs["lg-tv"]
+      local.dhcp_reservations["lg-tv"].mac == var.infrastructure_macs["lg-tv"] &&
+      issensitive(local.dhcp_reservations["office-light"].mac) &&
+      local.dhcp_reservations["office-light"].mac == var.infrastructure_macs["office-light"]
     )
     error_message = "Private MAC inputs must reach device/client selectors and keep MAC-derived device IDs sensitive."
   }
@@ -164,6 +172,7 @@ run "reject_duplicate_infrastructure_mac" {
       worker-01         = "02:00:00:00:00:11"
       front-door-camera = "02:00:00:00:00:51"
       lg-tv             = "02:00:00:00:00:40"
+      office-light      = "02:00:00:00:00:53"
       sonoff-zigbee     = "02:00:00:00:00:52"
       tv-ambient        = "02:00:00:00:00:50"
       windowspc-01      = "02:00:00:00:00:80"
@@ -184,6 +193,7 @@ run "reject_invalid_infrastructure_mac" {
       worker-01         = "not-a-mac"
       front-door-camera = "02:00:00:00:00:51"
       lg-tv             = "02:00:00:00:00:40"
+      office-light      = "02:00:00:00:00:53"
       sonoff-zigbee     = "02:00:00:00:00:52"
       tv-ambient        = "02:00:00:00:00:50"
       windowspc-01      = "02:00:00:00:00:80"

@@ -61,6 +61,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["office-light"]
+  values = { id = "02:00:00:00:00:53", mac = "02:00:00:00:00:53" }
+}
+
+override_resource {
   target = module.devices.unifi_device.this["flex-5"]
   values = { id = "02:00:00:00:00:05", mac = "02:00:00:00:00:05" }
 }
@@ -101,6 +106,7 @@ variables {
     worker-01         = "02:00:00:00:00:12"
     front-door-camera = "02:00:00:00:00:51"
     lg-tv             = "02:00:00:00:00:40"
+    office-light      = "02:00:00:00:00:53"
     sonoff-zigbee     = "02:00:00:00:00:52"
     tv-ambient        = "02:00:00:00:00:50"
     windowspc-01      = "02:00:00:00:00:80"
@@ -254,7 +260,7 @@ run "camera_address_is_stable_without_new_inter_zone_permissions" {
         !contains(try(rule.destination.ips, []), "10.0.50.190") &&
         (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
           try(contains(["icmp", "icmpv6"], rule.protocol) && rule.states == ["RELATED"], false) ||
-          try(rule.destination.ips == ["10.0.50.124"], false) ||
+          try(rule.destination.ips == [local.dhcp_reservations["office-light"].ip], false) ||
           try(rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip], false)
         )
       ])
@@ -289,7 +295,7 @@ run "ha_lg_access_is_limited_to_the_reserved_webos_service" {
   }
 }
 
-run "ha_iot_access_is_limited_to_the_coordinator" {
+run "ha_iot_access_is_limited_to_the_light_and_coordinator" {
   command = plan
 
   assert {
@@ -301,10 +307,38 @@ run "ha_iot_access_is_limited_to_the_coordinator" {
       local.private_dns_records["tv-ambient"].address == local.dhcp_reservations["tv-ambient"].ip &&
       toset([for name, rule in local.firewall_rules : name
         if rule.source.zone == "launchpad" && rule.destination.zone == "stardust"
-      ]) == toset(["ha-zigbee"]) &&
+      ]) == toset(["ha-zigbee", "ha-office-light"]) &&
       alltrue([for rule in values(local.firewall_rules) : rule.source.zone != "stardust" || rule.destination.zone != "launchpad"])
     )
-    error_message = "HA may reach only the Zigbee coordinator in IoT; cloud Tuya needs no direct allowance and IoT must not initiate connections to Servers."
+    error_message = "HA may reach only the Zigbee coordinator and declared Yeelight in IoT; cloud Tuya needs no direct allowance and IoT must not initiate connections to Servers."
+  }
+}
+
+run "office_light_access_is_limited_to_ha_tcp_control" {
+  command = plan
+
+  assert {
+    condition = (
+      local.dhcp_reservations["office-light"].network == "stardust" &&
+      local.dhcp_reservations["office-light"].ip == "10.0.50.167" &&
+      local.dhcp_reservations["office-light"].allow_dynamic_pool &&
+      local.private_dns_records["office-light"].address == local.dhcp_reservations["office-light"].ip &&
+      local.private_dns_records["office-light"].name == "office-light.thecavespace.net" &&
+      toset([for name, rule in local.firewall_rules : name
+        if try(rule.destination.ips == [local.dhcp_reservations["office-light"].ip], false)
+      ]) == toset(["ha-office-light"]) &&
+      local.firewall_rules.ha-office-light.source.zone == "launchpad" &&
+      local.firewall_rules.ha-office-light.source.ips == ["10.0.70.12"] &&
+      local.firewall_rules.ha-office-light.destination.zone == "stardust" &&
+      local.firewall_rules.ha-office-light.destination.ports == "55443" &&
+      local.firewall_rules.ha-office-light.protocol == "tcp" &&
+      local.firewall_rules.ha-office-light.ip_version == "IPV4" &&
+      try(local.firewall_rules.ha-office-light.reply, true) &&
+      try(local.firewall_rules.ha-office-light.track_state, true) &&
+      !try(local.firewall_rules.ha-office-light.source.invert_ips, false) &&
+      !try(local.firewall_rules.ha-office-light.destination.invert_ips, false)
+    )
+    error_message = "Only HA's worker may initiate Yeelight TCP55443 at the reserved office light address, with stateful replies and no reverse initiation."
   }
 }
 
@@ -362,6 +396,9 @@ run "home_https_uses_only_its_private_gateway" {
         }
         lg-tv = {
           name = "lg-tv.thecavespace.net", address = local.dhcp_reservations["lg-tv"].ip
+        }
+        office-light = {
+          name = "office-light.thecavespace.net", address = local.dhcp_reservations["office-light"].ip
         }
         front-door-camera = {
           name = "front-door-camera.thecavespace.net", address = local.dhcp_reservations["front-door-camera"].ip

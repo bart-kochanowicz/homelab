@@ -17,6 +17,7 @@ infrastructure_macs = {
   worker-01         = "02:00:00:00:00:12"
   front-door-camera = "02:00:00:00:00:51"
   lg-tv             = "02:00:00:00:00:40"
+  office-light      = "02:00:00:00:00:53"
   sonoff-zigbee     = "02:00:00:00:00:52"
   tv-ambient        = "02:00:00:00:00:50"
   windowspc-01      = "02:00:00:00:00:80"
