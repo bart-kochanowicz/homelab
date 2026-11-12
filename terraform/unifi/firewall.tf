@@ -109,6 +109,13 @@ locals {
         source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
         destination = { zone = local.dhcp_reservations["sonoff-zigbee"].network, ips = [local.dhcp_reservations["sonoff-zigbee"].ip], ports = "6638" }
       }
+      ha-office-light = {
+        description = "Home Assistant local control of the office Yeelight ceiling light."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
+        destination = { zone = local.dhcp_reservations["office-light"].network, ips = [local.dhcp_reservations["office-light"].ip], ports = "55443" }
+      }
       admin-zigbee = {
         description = "Admin access to the SONOFF coordinator web console."
         protocol    = "tcp"

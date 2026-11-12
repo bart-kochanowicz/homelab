@@ -24,6 +24,12 @@ locals {
       ip                 = "10.0.40.107"
       allow_dynamic_pool = true
     }
+    office-light = {
+      mac                = var.infrastructure_macs["office-light"]
+      network            = "stardust"
+      ip                 = "10.0.50.167"
+      allow_dynamic_pool = true
+    }
     front-door-camera = {
       mac                = var.infrastructure_macs["front-door-camera"]
       network            = "stardust"
