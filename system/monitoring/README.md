@@ -43,7 +43,9 @@ and does not enforce PVC capacity. See [Prometheus storage](https://prometheus.i
 ## Alerts
 
 Talos scheduler/controller-manager metrics listen on loopback. Their custom alerts
-check pod readiness on each control-plane node, not component internals. Node
+check pod readiness on each control-plane node, not component internals; their
+unreachable scrape targets are disabled. ArgoCD health alerts use the dedicated
+PodMonitor to avoid duplicate alerts from other scrapes. Node
 request alerts warn above 90% allocatable CPU or memory for 15 minutes; cluster-wide
 N+1 overcommit alerts are disabled because local-path workloads cannot fail over.
 Existing node pressure, filesystem, pod and Prometheus alerts remain enabled.

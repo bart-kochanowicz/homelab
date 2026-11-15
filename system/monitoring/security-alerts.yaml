@@ -156,7 +156,7 @@ spec:
             summary: ArgoCD application metrics are unavailable
             description: Check the application-controller PodMonitor and Prometheus targets; application health alerts depend on this scrape.
         - alert: ArgoCDApplicationOutOfSync
-          expr: argocd_app_info{sync_status!="Synced"} == 1
+          expr: argocd_app_info{job="argocd-application-controller",sync_status!="Synced"} == 1
           for: 15m
           labels:
             severity: warning
@@ -164,7 +164,7 @@ spec:
             summary: An ArgoCD application is out of sync
             description: '{{ $labels.name }} has been {{ $labels.sync_status }} for 15 minutes. Check its diff before syncing manually managed applications.'
         - alert: ArgoCDApplicationUnhealthy
-          expr: argocd_app_info{health_status=~"Degraded|Missing|Unknown"} == 1
+          expr: argocd_app_info{job="argocd-application-controller",health_status=~"Degraded|Missing|Unknown"} == 1
           for: 15m
           labels:
             severity: warning
