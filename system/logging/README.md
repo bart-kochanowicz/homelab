@@ -30,8 +30,11 @@ The datasource and alert rules are managed in Git.
 
 `MinecraftBackupUnhealthy` alerts after a failed copy without a later success, or
 after eight days without success. Event timestamps come from Crafty logs, not
-collector startup. The freshness matcher and game-log mount target the current
-ATM10 server; update both when replacing it. A completion log does not replace a ZIP restore test.
+collector startup. Crafty's completion log has a server name but no server ID;
+the freshness matcher must follow the Terraform-managed name. A test checks this
+match, and ArgoCD automatically syncs logging changes without pruning resources.
+The game-log mount targets the current server ID. A completion log does not
+replace a ZIP restore test.
 `CraftyBackupStartFailed` reports startup errors seen in the last 15 minutes.
 `TalosEtcdBackupUnhealthy` reports a Houston backup failure without a later
 verified success, or no success for eight days. The systemd unit emits completion

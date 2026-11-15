@@ -16,6 +16,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
+    automated:
+      selfHeal: true
     syncOptions:
       - CreateNamespace=false
       - FailOnSharedResource=true

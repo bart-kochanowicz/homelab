@@ -49,6 +49,12 @@ class BackupAlertTests(LoggingTestCase):
         self.push("stale-copy", [("success", timedelta(days=9))])
         self.assertTrue(self.unhealthy("stale-copy"))
 
+    def test_old_server_failure_does_not_alert_after_rename(self):
+        self.push("previous-name", [("failure", timedelta(minutes=2))])
+        self.push("current-name", [("success", timedelta(minutes=1))])
+        expression = self.expression.replace("ATM10 8.5", "current-name")
+        self.assertFalse(self.query(expression))
+
     def test_absent_history_stays_unhealthy_after_failure_retention_expires(self):
         server = "expired-failure-history"
         self.push(server, [("failure", timedelta(minutes=1))])
