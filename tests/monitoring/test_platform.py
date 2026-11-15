@@ -23,12 +23,21 @@ class MonitoringPlatformTests(MonitoringTestCase):
                 for name in (
                     "apiserver",
                     "coredns",
-                    "kube-controller-manager",
                     "kube-etcd",
-                    "kube-scheduler",
                     "kubelet",
                 )
             },
+        )
+        self.assertFalse(
+            any(
+                item["kind"] == "ServiceMonitor"
+                and item["metadata"]["name"]
+                in {
+                    "kube-prometheus-stack-kube-controller-manager",
+                    "kube-prometheus-stack-kube-scheduler",
+                }
+                for item in self.resources
+            )
         )
         for name, monitor in monitors.items():
             with self.subTest(monitor=name):

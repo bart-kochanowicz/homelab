@@ -410,7 +410,9 @@ tests:
   - name: ArgoCD and certificate alerts preserve the affected object
     interval: 1m
     input_series:
-      - series: 'argocd_app_info{name="example",health_status="Degraded",sync_status="OutOfSync"}'
+      - series: 'argocd_app_info{job="argocd-application-controller",name="example",health_status="Degraded",sync_status="OutOfSync"}'
+        values: '1+0x20'
+      - series: 'argocd_app_info{job="argocd-application-controller-metrics",name="example",health_status="Degraded",sync_status="OutOfSync"}'
         values: '1+0x20'
       - series: 'certmanager_certificate_ready_status{namespace="example",name="backend",condition="True"}'
         values: '0+0x20'
@@ -418,9 +420,9 @@ tests:
       - expr: ALERTS{alertname=~"ArgoCDApplicationOutOfSync|ArgoCDApplicationUnhealthy|CertificateNotReady",alertstate="firing"}
         eval_time: 16m
         exp_samples:
-          - labels: 'ALERTS{alertname="ArgoCDApplicationOutOfSync",alertstate="firing",name="example",health_status="Degraded",sync_status="OutOfSync",severity="warning"}'
+          - labels: 'ALERTS{alertname="ArgoCDApplicationOutOfSync",alertstate="firing",job="argocd-application-controller",name="example",health_status="Degraded",sync_status="OutOfSync",severity="warning"}'
             value: 1
-          - labels: 'ALERTS{alertname="ArgoCDApplicationUnhealthy",alertstate="firing",name="example",health_status="Degraded",sync_status="OutOfSync",severity="warning"}'
+          - labels: 'ALERTS{alertname="ArgoCDApplicationUnhealthy",alertstate="firing",job="argocd-application-controller",name="example",health_status="Degraded",sync_status="OutOfSync",severity="warning"}'
             value: 1
           - labels: 'ALERTS{alertname="CertificateNotReady",alertstate="firing",namespace="example",name="backend",condition="True",severity="warning"}'
             value: 1

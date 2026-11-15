@@ -166,6 +166,12 @@ kube-state-metrics:
 kubeProxy:
   enabled: false
 
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
 # Talos keeps these metrics on loopback; readiness is checked through kube-state-metrics.
 # This cluster uses node-local volumes and does not provide N+1 workload failover.
 defaultRules:
