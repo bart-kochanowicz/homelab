@@ -123,6 +123,13 @@ locals {
         source      = { zone = "apollo" }
         destination = { zone = local.dhcp_reservations["sonoff-zigbee"].network, ips = [local.dhcp_reservations["sonoff-zigbee"].ip], ports = "80" }
       }
+      admin-lg-devmode = {
+        description = "Admin access to LG Developer Mode SSH and Key Server."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "apollo" }
+        destination = { zone = local.dhcp_reservations["lg-tv-usb"].network, ips = [local.dhcp_reservations["lg-tv-usb"].ip], ports = "9922,9991" }
+      }
       home-sunshine-tcp = {
         description = "Home Moonlight pairing and session setup on the Admin PC."
         protocol    = "tcp"

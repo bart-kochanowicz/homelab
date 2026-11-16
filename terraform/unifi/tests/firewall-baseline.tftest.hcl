@@ -184,16 +184,21 @@ run "least_privilege_access_matrix" {
     condition = (
       alltrue([for rule in values(local.firewall_rules) :
         rule.source.zone != "apollo" || !contains(["endeavour", "orbit", "stardust"], rule.destination.zone) ||
-        (rule.destination.zone == "stardust" && try(
-          rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip] &&
-          rule.protocol == "tcp" && rule.destination.ports == "80" && rule.ip_version == "IPV4", false
+        (try(rule.protocol == "tcp" && rule.ip_version == "IPV4", false) && (
+          (rule.destination.zone == "stardust" && try(
+            rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip] &&
+            rule.destination.ports == "80", false
+            )) || (rule.destination.zone == "orbit" && try(
+            rule.destination.ips == [local.dhcp_reservations["lg-tv-usb"].ip] &&
+            rule.destination.ports == "9922,9991", false
+          ))
         ))
       ]) &&
       local.firewall_rules.admin-servers.destination.zone == "launchpad" &&
       local.firewall_rules.admin-management.destination.zone == "mission-control" &&
       local.firewall_rules.admin-gateway.destination.zone == "gateway"
     )
-    error_message = "Admin must reach Servers, Management, Gateway and only the exact SONOFF HTTP console without blanket client access."
+    error_message = "Admin may reach only the exact SONOFF console and LG Developer Mode ports in client networks."
   }
   assert {
     condition = alltrue([
@@ -220,6 +225,27 @@ run "least_privilege_access_matrix" {
       local.firewall_rules["houston-01-controller"].destination.ports == "443"
     )
     error_message = "Internet rules must exclude private/ONT destinations and controller access must identify Houston."
+  }
+}
+
+run "admin_lg_developer_mode_is_limited_to_usb_adapter" {
+  command = plan
+
+  assert {
+    condition = (
+      toset([for name, rule in local.firewall_rules : name
+        if rule.source.zone == "apollo" && rule.destination.zone == "orbit"
+      ]) == toset(["admin-lg-devmode"]) &&
+      local.firewall_rules.admin-lg-devmode.destination.ips == ["10.0.40.199"] &&
+      local.firewall_rules.admin-lg-devmode.destination.ports == "9922,9991" &&
+      local.firewall_rules.admin-lg-devmode.protocol == "tcp" &&
+      local.firewall_rules.admin-lg-devmode.ip_version == "IPV4" &&
+      try(local.firewall_rules.admin-lg-devmode.reply, true) &&
+      try(local.firewall_rules.admin-lg-devmode.track_state, true) &&
+      !try(local.firewall_rules.admin-lg-devmode.source.invert_ips, false) &&
+      !try(local.firewall_rules.admin-lg-devmode.destination.invert_ips, false)
+    )
+    error_message = "Admin may access only LG Developer Mode SSH and Key Server on the USB adapter, with stateful replies."
   }
 }
 

@@ -102,6 +102,9 @@ The LG C4 USB Ethernet adapter uses DHCP reservation `10.0.40.199` and private D
 `lg-tv.thecavespace.net` in Home. HA's worker may reach TCP `3000,3001` with
 stateful replies. Add LG webOS TV manually by hostname and approve pairing
 on the powered-on TV. Cross-VLAN discovery and Wake-on-LAN are not forwarded.
+Admin can reach TCP `9922` for Developer Mode SSH and `9991` for its Key Server;
+enable Key Server on the TV when fetching the SSH key. Key Server serves the key
+over HTTP, so use it only from trusted Admin devices.
 
 Moonlight clients in Home can reach Sunshine at `10.0.80.127` in Admin using
 TCP `47984,47989,48010` and UDP `47998-48000`, with stateful replies. Terraform
