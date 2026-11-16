@@ -1,0 +1,94 @@
+vault:
+  fullnameOverride: vault
+  global:
+    tlsDisable: false
+  injector:
+    enabled: false
+  csi:
+    enabled: false
+  server:
+    authDelegator:
+      enabled: false
+    image:
+      tag: 2.2.2@sha256:18c03dcc5589b1a67eb3c7bd74d6982747f0d835a285516b87e3992f085de5a4
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    nodeSelector:
+      kubernetes.io/hostname: talos-2jn-7he
+    affinity: ""
+    statefulSet:
+      annotations:
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
+      securityContext:
+        pod:
+          runAsNonRoot: true
+          runAsUser: 100
+          runAsGroup: 1000
+          fsGroup: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        container:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+    serviceAccount:
+      serviceDiscovery:
+        enabled: false
+    dataStorage:
+      enabled: true
+      size: 10Gi
+      storageClass: local-path-nvme
+      annotations:
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    auditStorage:
+      enabled: true
+      size: 5Gi
+      storageClass: local-path-nvme
+      annotations:
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+    volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: vault-tls
+        secret:
+          secretName: vault-tls
+    volumeMounts:
+      - name: tmp
+        mountPath: /tmp
+      - name: vault-tls
+        mountPath: /vault/userconfig/vault-tls
+        readOnly: true
+    standalone:
+      enabled: false
+    ha:
+      enabled: true
+      replicas: 1
+      apiAddr: https://vault.vault.svc:8200
+      disruptionBudget:
+        enabled: false
+      raft:
+        enabled: true
+        setNodeId: true
+        config: |
+          ui = true
+          disable_mlock = true
+          listener "tcp" {
+            address = "[::]:8200"
+            cluster_address = "[::]:8201"
+            tls_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+            tls_key_file = "/vault/userconfig/vault-tls/tls.key"
+            tls_reload_interval = "30s"
+          }
+          storage "raft" {
+            path = "/vault/data"
+          }

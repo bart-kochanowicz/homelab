@@ -13,3 +13,4 @@ resources:
   - home-assistant-reloader.yaml
   - n8n-reloader.yaml
   - sealed-secrets-web.yaml
+  - vault.yaml

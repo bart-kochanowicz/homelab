@@ -1,0 +1,7 @@
+apiVersion: v2
+name: homelab-vault
+version: 0.0.0
+dependencies:
+  - name: vault
+    version: 0.34.1
+    repository: https://helm.releases.hashicorp.com
