@@ -34,3 +34,4 @@ resources:
   - network-policies.yaml
   - home-assistant-reloader.yaml
   - n8n-reloader.yaml
+  - vault.yaml

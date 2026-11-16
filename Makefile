@@ -158,6 +158,7 @@ validate-helm: validate-kustomize
 	retry helm repo add --force-update sealed-secrets https://bitnami.github.io/sealed-secrets >/dev/null; \
 	retry helm repo add --force-update metallb https://metallb.github.io/metallb >/dev/null; \
 	retry helm repo add --force-update stakater https://stakater.github.io/stakater-charts >/dev/null; \
+	retry helm repo add --force-update hashicorp https://helm.releases.hashicorp.com >/dev/null; \
 	for spec in \
 		system/cert-manager:cert-manager \
 		system/cilium:kube-system \
@@ -166,11 +167,13 @@ validate-helm: validate-kustomize
 		system/metallb:metallb-system \
 		system/home-assistant-reloader:home-assistant \
 		system/n8n-reloader:n8n \
-		system/sealed-secrets:sealed-secrets; do \
+		system/sealed-secrets:sealed-secrets \
+		system/vault:vault; do \
 		dir="$${spec%%:*}"; namespace="$${spec##*:}"; \
 		retry helm dependency build "$$dir" >/dev/null; \
 		helm lint "$$dir"; \
-		helm template validation "$$dir" --namespace "$$namespace" \
+		helm_args=(); if [ "$$dir" = system/vault ]; then helm_args+=(--skip-tests); fi; \
+		helm template validation "$$dir" --namespace "$$namespace" "$${helm_args[@]}" \
 			> ".cache/rendered/helm-$$(basename "$$dir").yaml"; \
 	done
 

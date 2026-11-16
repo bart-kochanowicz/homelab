@@ -48,6 +48,9 @@ data:
     esac
     mkdir -m 0770 -p "$VOL_DIR"
     case "$VOL_DIR" in
+      */vault/data-vault-*/*|*/vault/audit-vault-*/*|*_vault_data-vault-*|*_vault_audit-vault-*)
+        chown 100:1000 "$VOL_DIR"
+        ;;
       */n8n/n8n-data/*|*_n8n_n8n-data|*/n8n/n8n-data-nvme/*|*_n8n_n8n-data-nvme)
         chown 1000:1000 "$VOL_DIR"
         ;;
