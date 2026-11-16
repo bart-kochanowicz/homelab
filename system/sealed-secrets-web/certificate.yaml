@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sealed-secrets-web-backend
+  namespace: sealed-secrets
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  secretName: sealed-secrets-web-backend-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - sealed-secrets.thecavespace.net
+  renewBeforePercentage: 33
+  revisionHistoryLimit: 2
+  usages:
+    - digital signature
+    - server auth

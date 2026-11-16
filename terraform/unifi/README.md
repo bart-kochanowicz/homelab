@@ -98,10 +98,13 @@ The RH-PD10 camera uses DHCP reservation `10.0.50.190` and private DNS name
 `front-door-camera.thecavespace.net` in IoT. The reservation preserves its
 current dynamic-pool address. No camera-specific inter-zone access is allowed.
 
-The LG C4 uses DHCP reservation `10.0.40.107` and private DNS name
+The LG C4 USB Ethernet adapter uses DHCP reservation `10.0.40.199` and private DNS name
 `lg-tv.thecavespace.net` in Home. HA's worker may reach TCP `3000,3001` with
 stateful replies. Add LG webOS TV manually by hostname and approve pairing
 on the powered-on TV. Cross-VLAN discovery and Wake-on-LAN are not forwarded.
+Admin can reach TCP `9922` for Developer Mode SSH and `9991` for its Key Server;
+enable Key Server on the TV when fetching the SSH key. Key Server serves the key
+over HTTP, so use it only from trusted Admin devices.
 
 Moonlight clients in Home can reach Sunshine at `10.0.80.127` in Admin using
 TCP `47984,47989,48010` and UDP `47998-48000`, with stateful replies. Terraform
@@ -147,7 +150,8 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | `vpn_public_ip` | `UNIFI_VPN_PUBLIC_IP` |
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
-`infrastructure_macs` includes `windowspc-01` and the Wi-Fi MACs for
+`infrastructure_macs` includes `windowspc-01`, both LG TV Ethernet MACs (`lg-tv`
+for the built-in adapter and `lg-tv-usb` for USB), and the Wi-Fi MACs for
 `tv-ambient`, `front-door-camera`, `office-light` and the wired MAC for `sonoff-zigbee`. Keep
 local inputs and the private automation repository's `UNIFI_INFRASTRUCTURE_MACS`
 secret consistent before planning.

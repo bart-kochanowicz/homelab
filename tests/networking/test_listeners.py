@@ -15,6 +15,7 @@ class GatewayListenerTests(GatewayTestCase):
             "n8n.thecavespace.net": ("private-admin", "n8n"),
             "n8n-webhook.thecavespace.net": ("private-admin", "n8n"),
             "grafana.thecavespace.net": ("private-admin", "monitoring"),
+            "sealed-secrets.thecavespace.net": ("private-admin", "sealed-secrets"),
         }
         observed = {}
         for gateway in self.resources_of_kind("Gateway"):

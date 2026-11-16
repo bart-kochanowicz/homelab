@@ -100,7 +100,7 @@ locals {
         protocol    = "tcp"
         ip_version  = "IPV4"
         source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
-        destination = { zone = local.dhcp_reservations["lg-tv"].network, ips = [local.dhcp_reservations["lg-tv"].ip], ports = "3000,3001" }
+        destination = { zone = local.dhcp_reservations["lg-tv-usb"].network, ips = [local.dhcp_reservations["lg-tv-usb"].ip], ports = "3000,3001" }
       }
       ha-zigbee = {
         description = "Home Assistant access to the SONOFF Zigbee coordinator."
@@ -122,6 +122,13 @@ locals {
         ip_version  = "IPV4"
         source      = { zone = "apollo" }
         destination = { zone = local.dhcp_reservations["sonoff-zigbee"].network, ips = [local.dhcp_reservations["sonoff-zigbee"].ip], ports = "80" }
+      }
+      admin-lg-devmode = {
+        description = "Admin access to LG Developer Mode SSH and Key Server."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "apollo" }
+        destination = { zone = local.dhcp_reservations["lg-tv-usb"].network, ips = [local.dhcp_reservations["lg-tv-usb"].ip], ports = "9922,9991" }
       }
       home-sunshine-tcp = {
         description = "Home Moonlight pairing and session setup on the Admin PC."

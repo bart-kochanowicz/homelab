@@ -40,6 +40,7 @@ Use `make validate` explicitly: bare `make` runs ArgoCD bootstrap.
 | Bootstrap or update the platform | [Talos patches, Cilium and ArgoCD](docs/security-runbook.md#bootstrap-and-platform-changes) |
 | Access services or manage TLS, SSO and storage | [Platform operations](docs/security-runbook.md) |
 | Use dashboards, alerts and logs | [Monitoring](system/monitoring/README.md) · [Logging](system/logging/README.md) |
+| Seal Kubernetes secrets | [Sealed Secrets Web](system/sealed-secrets-web/README.md) |
 | Back up or restore application data | [Application backups](docs/backups.md) |
 | Recover cluster state or sealing keys | [Talos/etcd](docs/talos-etcd-recovery.md) · [SealedSecrets](docs/sealed-secrets-recovery.md) |
 | Plan and apply Terraform changes | [Terraform and state recovery](terraform/README.md) |

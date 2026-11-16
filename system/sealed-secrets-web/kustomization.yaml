@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: sealed-secrets
+
+resources:
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+  - certificate.yaml
+  - backend-tls-policy.yaml
+  - httproute.yaml
+
+configMapGenerator:
+  - name: sealed-secrets-web-envoy
+    files:
+      - envoy.yaml
+      - sds.yaml

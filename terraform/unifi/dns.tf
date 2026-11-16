@@ -28,6 +28,10 @@ locals {
       name    = "grafana.thecavespace.net"
       address = "10.0.70.201"
     }
+    sealed-secrets = {
+      name    = "sealed-secrets.thecavespace.net"
+      address = "10.0.70.201"
+    }
     home-assistant-backend = {
       name    = "ha-backend.thecavespace.net"
       address = local.server_reservations["worker-01"].ip
@@ -42,7 +46,7 @@ locals {
     }
     lg-tv = {
       name    = "lg-tv.thecavespace.net"
-      address = local.dhcp_reservations["lg-tv"].ip
+      address = local.dhcp_reservations["lg-tv-usb"].ip
     }
     sonoff-zigbee = {
       name    = "zigbee.thecavespace.net"

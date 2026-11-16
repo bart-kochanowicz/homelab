@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sealed-secrets-web
+  namespace: sealed-secrets
+  labels:
+    app.kubernetes.io/name: sealed-secrets-web
+    app.kubernetes.io/part-of: homelab
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sealed-secrets-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sealed-secrets-web
+        app.kubernetes.io/part-of: homelab
+    spec:
+      serviceAccountName: sealed-secrets-web
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sealed-secrets-web
+          image: ghcr.io/bakito/sealed-secrets-web:v3.3.2@sha256:cb4d892c61c3765699ba7b657a4a84e6abc1b00611d74de6808011a5ca2c27f1
+          args:
+            - --disable-load-secrets
+            - --sealed-secrets-service-name=sealed-secrets-controller
+            - --sealed-secrets-service-namespace=sealed-secrets
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: kubernetes-api-access
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+        - name: tls-proxy
+          image: docker.io/envoyproxy/envoy:distroless-v1.39.6@sha256:1cac8b3a2f72d5a0918f54d7b49e68aae0b0ba325c2d50c8a9a3fff7a4d1f994
+          args: ["-c", "/etc/envoy/config/envoy.yaml", "--log-level", "warning"]
+          ports:
+            - name: https
+              containerPort: 8443
+          readinessProbe:
+            tcpSocket:
+              port: https
+          livenessProbe:
+            tcpSocket:
+              port: https
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy/config
+              readOnly: true
+            - name: backend-tls
+              mountPath: /etc/envoy/tls
+              readOnly: true
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: sealed-secrets-web-envoy
+        - name: backend-tls
+          secret:
+            secretName: sealed-secrets-web-backend-tls
+            defaultMode: 0440
+        - name: kubernetes-api-access
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3607
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        fieldPath: metadata.namespace

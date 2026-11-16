@@ -8,6 +8,7 @@ KUSTOMIZE_DIRS := \
 	apps/crafty-controller \
 	apps/home-assistant \
 	apps/n8n \
+	apps/webos-dev-mode \
 	system/app-namespaces \
 	system/argocd \
 	system/cert-manager-acme \
@@ -18,6 +19,8 @@ KUSTOMIZE_DIRS := \
 	system/metallb-crds \
 	system/metallb-config \
 	system/network-policies
+
+KUSTOMIZE_DIRS += system/sealed-secrets-web
 
 .PHONY: default system validate validate-tools validate-format validate-yaml \
 	validate-python format-python validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \

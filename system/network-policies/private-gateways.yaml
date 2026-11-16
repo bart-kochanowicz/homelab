@@ -112,6 +112,14 @@ spec:
               protocol: TCP
     - toEndpoints:
         - matchLabels:
+            k8s:io.kubernetes.pod.namespace: sealed-secrets
+            k8s:app.kubernetes.io/name: sealed-secrets-web
+      toPorts:
+        - ports:
+            - port: "8443"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
             k8s:io.kubernetes.pod.namespace: argocd
             k8s:app.kubernetes.io/instance: argocd
             k8s:app.kubernetes.io/name: argocd-server

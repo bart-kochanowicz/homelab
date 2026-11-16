@@ -14,6 +14,7 @@ resources:
   - applicationset.yaml
   - app-namespaces.yaml
   - sealed-secrets.yaml
+  - sealed-secrets-web.yaml
   - cert-manager.yaml
   - cert-manager-ca.yaml
   - cert-manager-acme.yaml
