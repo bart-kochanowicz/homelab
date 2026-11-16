@@ -61,6 +61,42 @@ class SealedSecretsWebTests(GatewayTestCase):
                 }
             ],
         )
+        admin = next(
+            item
+            for item in self.rendered("system-network-policies.yaml")
+            if item["kind"] == "CiliumNetworkPolicy"
+            and item["metadata"]["name"] == "private-proxy"
+            and item["metadata"]["namespace"] == "private-admin"
+        )
+        self.assertEqual(
+            admin["spec"]["endpointSelector"]["matchLabels"],
+            policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"],
+        )
+        backend_rules = [
+            rule
+            for rule in admin["spec"]["egress"]
+            if any(
+                endpoint.get("matchLabels", {}).get("k8s:io.kubernetes.pod.namespace")
+                == "sealed-secrets"
+                for endpoint in rule.get("toEndpoints", [])
+            )
+        ]
+        self.assertEqual(
+            backend_rules,
+            [
+                {
+                    "toEndpoints": [
+                        {
+                            "matchLabels": {
+                                "k8s:io.kubernetes.pod.namespace": "sealed-secrets",
+                                "k8s:app.kubernetes.io/name": "sealed-secrets-web",
+                            }
+                        }
+                    ],
+                    "toPorts": [{"ports": [{"port": "8443", "protocol": "TCP"}]}],
+                }
+            ],
+        )
         self.assertFalse(pod["automountServiceAccountToken"])
         containers = {container["name"]: container for container in pod["containers"]}
         self.assertNotIn(

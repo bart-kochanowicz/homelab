@@ -210,9 +210,9 @@ class CraftyGatewayTests(GatewayTestCase):
             rule
             for rule in admin["spec"]["egress"]
             if any(
-                port["port"] == "8443"
-                for block in rule["toPorts"]
-                for port in block["ports"]
+                endpoint.get("matchLabels", {}).get("k8s:io.kubernetes.pod.namespace")
+                == "crafty-controller"
+                for endpoint in rule.get("toEndpoints", [])
             )
         ]
         self.assertEqual(
