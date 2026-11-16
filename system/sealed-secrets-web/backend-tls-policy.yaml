@@ -3,8 +3,6 @@ kind: BackendTLSPolicy
 metadata:
   name: sealed-secrets-web
   namespace: sealed-secrets
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
 spec:
   targetRefs:
     - group: ""
