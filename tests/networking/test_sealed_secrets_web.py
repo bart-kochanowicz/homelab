@@ -107,6 +107,19 @@ class SealedSecretsWebTests(GatewayTestCase):
         backend_tls = next(
             item for item in resources if item["kind"] == "BackendTLSPolicy"
         )
+        service = next(item for item in resources if item["kind"] == "Service")
+        for dependency in (service, route):
+            wave = int(
+                dependency["metadata"]
+                .get("annotations", {})
+                .get("argocd.argoproj.io/sync-wave", "0")
+            )
+            policy_wave = int(
+                backend_tls["metadata"]
+                .get("annotations", {})
+                .get("argocd.argoproj.io/sync-wave", "0")
+            )
+            self.assertLessEqual(wave, policy_wave)
         self.assertEqual(
             route["spec"]["hostnames"], ["sealed-secrets.thecavespace.net"]
         )
