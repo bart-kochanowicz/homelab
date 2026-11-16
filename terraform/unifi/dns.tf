@@ -46,7 +46,7 @@ locals {
     }
     lg-tv = {
       name    = "lg-tv.thecavespace.net"
-      address = local.dhcp_reservations["lg-tv"].ip
+      address = local.dhcp_reservations["lg-tv-usb"].ip
     }
     sonoff-zigbee = {
       name    = "zigbee.thecavespace.net"

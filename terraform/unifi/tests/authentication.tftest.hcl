@@ -69,6 +69,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["lg-tv-usb"]
+  values = { id = "02:00:00:00:00:41", mac = "02:00:00:00:00:41" }
+}
+
+override_resource {
   target = module.reservations.unifi_client.this["office-light"]
   values = { id = "02:00:00:00:00:53", mac = "02:00:00:00:00:53" }
 }
@@ -108,6 +113,7 @@ variables {
     worker-01         = "02:00:00:00:00:12"
     front-door-camera = "02:00:00:00:00:51"
     lg-tv             = "02:00:00:00:00:40"
+    lg-tv-usb         = "02:00:00:00:00:41"
     office-light      = "02:00:00:00:00:53"
     sonoff-zigbee     = "02:00:00:00:00:52"
     tv-ambient        = "02:00:00:00:00:50"
@@ -153,6 +159,8 @@ run "local_authentication" {
       local.dhcp_reservations["sonoff-zigbee"].mac == var.infrastructure_macs["sonoff-zigbee"] &&
       issensitive(local.dhcp_reservations["lg-tv"].mac) &&
       local.dhcp_reservations["lg-tv"].mac == var.infrastructure_macs["lg-tv"] &&
+      issensitive(local.dhcp_reservations["lg-tv-usb"].mac) &&
+      local.dhcp_reservations["lg-tv-usb"].mac == var.infrastructure_macs["lg-tv-usb"] &&
       issensitive(local.dhcp_reservations["office-light"].mac) &&
       local.dhcp_reservations["office-light"].mac == var.infrastructure_macs["office-light"]
     )
@@ -172,6 +180,7 @@ run "reject_duplicate_infrastructure_mac" {
       worker-01         = "02:00:00:00:00:11"
       front-door-camera = "02:00:00:00:00:51"
       lg-tv             = "02:00:00:00:00:40"
+      lg-tv-usb         = "02:00:00:00:00:41"
       office-light      = "02:00:00:00:00:53"
       sonoff-zigbee     = "02:00:00:00:00:52"
       tv-ambient        = "02:00:00:00:00:50"
@@ -193,6 +202,7 @@ run "reject_invalid_infrastructure_mac" {
       worker-01         = "not-a-mac"
       front-door-camera = "02:00:00:00:00:51"
       lg-tv             = "02:00:00:00:00:40"
+      lg-tv-usb         = "02:00:00:00:00:41"
       office-light      = "02:00:00:00:00:53"
       sonoff-zigbee     = "02:00:00:00:00:52"
       tv-ambient        = "02:00:00:00:00:50"

@@ -61,6 +61,11 @@ override_resource {
 }
 
 override_resource {
+  target = module.reservations.unifi_client.this["lg-tv-usb"]
+  values = { id = "02:00:00:00:00:41", mac = "02:00:00:00:00:41" }
+}
+
+override_resource {
   target = module.reservations.unifi_client.this["office-light"]
   values = { id = "02:00:00:00:00:53", mac = "02:00:00:00:00:53" }
 }
@@ -106,6 +111,7 @@ variables {
     worker-01         = "02:00:00:00:00:12"
     front-door-camera = "02:00:00:00:00:51"
     lg-tv             = "02:00:00:00:00:40"
+    lg-tv-usb         = "02:00:00:00:00:41"
     office-light      = "02:00:00:00:00:53"
     sonoff-zigbee     = "02:00:00:00:00:52"
     tv-ambient        = "02:00:00:00:00:50"
@@ -274,16 +280,16 @@ run "ha_lg_access_is_limited_to_the_reserved_webos_service" {
 
   assert {
     condition = (
-      local.dhcp_reservations["lg-tv"].network == "orbit" &&
-      local.dhcp_reservations["lg-tv"].ip == "10.0.40.107" &&
-      local.dhcp_reservations["lg-tv"].allow_dynamic_pool &&
+      local.dhcp_reservations["lg-tv-usb"].network == "orbit" &&
+      local.dhcp_reservations["lg-tv-usb"].ip == "10.0.40.199" &&
+      local.dhcp_reservations["lg-tv-usb"].allow_dynamic_pool &&
       local.private_dns_records["lg-tv"].name == "lg-tv.thecavespace.net" &&
-      local.private_dns_records["lg-tv"].address == local.dhcp_reservations["lg-tv"].ip &&
+      local.private_dns_records["lg-tv"].address == local.dhcp_reservations["lg-tv-usb"].ip &&
       toset([for name, rule in local.firewall_rules : name
         if rule.source.zone == "launchpad" && rule.destination.zone == "orbit" && try(rule.protocol == "tcp", false)
       ]) == toset(["ha-lg-tv"]) &&
       local.firewall_rules.ha-lg-tv.source.ips == ["10.0.70.12"] &&
-      local.firewall_rules.ha-lg-tv.destination.ips == ["10.0.40.107"] &&
+      local.firewall_rules.ha-lg-tv.destination.ips == ["10.0.40.199"] &&
       local.firewall_rules.ha-lg-tv.destination.ports == "3000,3001" &&
       local.firewall_rules.ha-lg-tv.ip_version == "IPV4" &&
       try(local.firewall_rules.ha-lg-tv.reply, true) &&
@@ -396,7 +402,7 @@ run "home_https_uses_only_its_private_gateway" {
           name = "tv-ambient.thecavespace.net", address = local.dhcp_reservations["tv-ambient"].ip
         }
         lg-tv = {
-          name = "lg-tv.thecavespace.net", address = local.dhcp_reservations["lg-tv"].ip
+          name = "lg-tv.thecavespace.net", address = local.dhcp_reservations["lg-tv-usb"].ip
         }
         office-light = {
           name = "office-light.thecavespace.net", address = local.dhcp_reservations["office-light"].ip
