@@ -3,6 +3,50 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
+  - name: webOS alerts on failed Jobs and a stale renewal
+    interval: 1m
+    input_series:
+      - series: 'kube_job_failed{namespace="webos-dev-mode",job_name="webos-dev-mode-123",condition="true"}'
+        values: '1+0x20'
+      - series: 'kube_job_failed{namespace="webos-dev-mode",job_name="webos-dev-mode-check",condition="true"}'
+        values: '1+0x20'
+      - series: 'kube_cronjob_created{namespace="webos-dev-mode",cronjob="webos-dev-mode"}'
+        values: '-200000+0x20'
+      - series: 'kube_cronjob_status_last_successful_time{namespace="webos-dev-mode",cronjob="webos-dev-mode"}'
+        values: '-172500+0x20'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: WebosDevModeRenewalFailed
+        exp_alerts:
+          - exp_labels: {namespace: webos-dev-mode, job_name: webos-dev-mode-123, condition: "true", severity: warning}
+            exp_annotations:
+              summary: webOS Developer Mode renewal failed
+              description: Inspect the failed Job and its pods in the webos-dev-mode namespace.
+      - eval_time: 4m
+        alertname: WebosDevModeRenewalStale
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: WebosDevModeRenewalStale
+        exp_alerts:
+          - exp_labels: {namespace: webos-dev-mode, cronjob: webos-dev-mode, severity: warning}
+            exp_annotations:
+              summary: webOS Developer Mode has not been renewed for 48 hours
+              description: Check the CronJob, Secret, scheduler, and LG API availability.
+
+  - name: webOS alerts when the first renewal never succeeds
+    interval: 1m
+    input_series:
+      - series: 'kube_cronjob_created{namespace="webos-dev-mode",cronjob="webos-dev-mode"}'
+        values: '-172801+0x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: WebosDevModeRenewalStale
+        exp_alerts:
+          - exp_labels: {namespace: webos-dev-mode, cronjob: webos-dev-mode, severity: warning}
+            exp_annotations:
+              summary: webOS Developer Mode has not been renewed for 48 hours
+              description: Check the CronJob, Secret, scheduler, and LG API availability.
+
   - name: Node aliases deduplicate scrapes and fall back for unlabelled nodes
     interval: 1m
     input_series:

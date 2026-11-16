@@ -1,0 +1,10 @@
+resources:
+  - "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.Secret
+    name: backend-certificate
+    tls_certificate:
+      certificate_chain:
+        filename: /etc/envoy/tls/tls.crt
+      private_key:
+        filename: /etc/envoy/tls/tls.key
+      watched_directory:
+        path: /etc/envoy/tls

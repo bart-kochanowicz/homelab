@@ -31,6 +31,27 @@ spec:
             )
     - name: homelab.platform
       rules:
+        - alert: WebosDevModeRenewalFailed
+          expr: kube_job_failed{namespace="webos-dev-mode",job_name=~"webos-dev-mode-[0-9]+",condition="true"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: webOS Developer Mode renewal failed
+            description: Inspect the failed Job and its pods in the webos-dev-mode namespace.
+        - alert: WebosDevModeRenewalStale
+          expr: |
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="webos-dev-mode",cronjob="webos-dev-mode"}
+              or on (namespace, cronjob)
+              kube_cronjob_created{namespace="webos-dev-mode",cronjob="webos-dev-mode"}
+            ) > 48 * 3600
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: webOS Developer Mode has not been renewed for 48 hours
+            description: Check the CronJob, Secret, scheduler, and LG API availability.
         - alert: CiliumAgentUnavailable
           expr: kube_daemonset_status_number_unavailable{namespace="kube-system",daemonset="cilium"} > 0
           for: 5m

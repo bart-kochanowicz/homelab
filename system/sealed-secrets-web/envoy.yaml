@@ -1,0 +1,53 @@
+node:
+  id: sealed-secrets-web
+  cluster: sealed-secrets-web
+static_resources:
+  listeners:
+    - name: https
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8443
+      filter_chains:
+        - transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_certificate_sds_secret_configs:
+                  - name: backend-certificate
+                    sds_config:
+                      path_config_source:
+                        path: /etc/envoy/config/sds.yaml
+          filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: sealed_secrets_web
+                route_config:
+                  name: local
+                  virtual_hosts:
+                    - name: sealed_secrets_web
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: /
+                          route:
+                            cluster: sealed_secrets_web
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+    - name: sealed_secrets_web
+      connect_timeout: 5s
+      type: STATIC
+      load_assignment:
+        cluster_name: sealed_secrets_web
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8080

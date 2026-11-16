@@ -85,19 +85,13 @@ Operational alerts include recovery notifications. Watchdog sends a separate
 delivery check every seven days; ten-day notification retention preserves that interval.
 Email links open Grafana alert groups using the provisioned `Alertmanager` data source.
 
-Edit the ignored `.secrets/alertmanager-email.yaml`, validate it with the matching
-Alertmanager version's `amtool check-config`, then regenerate from the repository root:
-
-```bash
-kubectl create secret generic alertmanager-email -n monitoring --dry-run=client \
-  --from-file=alertmanager.yaml=.secrets/alertmanager-email.yaml \
-  --from-file=email.tmpl=system/monitoring/alertmanager-email.tmpl -o json |
-  kubeseal --controller-name=sealed-secrets-controller \
-    --controller-namespace=sealed-secrets --format=yaml |
-  yq 'del(.metadata.creationTimestamp, .spec.template.metadata.creationTimestamp) |
-    .metadata.annotations."argocd.argoproj.io/sync-wave" = "-1"' \
-    > system/monitoring/alertmanager-email-sealed-secret.yaml
-```
+Edit the ignored `.secrets/alertmanager-email.yaml` and validate it with the
+matching Alertmanager version's `amtool check-config`. Use
+[Sealed Secrets Web](../sealed-secrets-web/README.md) to seal Secret
+`alertmanager-email` in `monitoring` with the `alertmanager.yaml` and
+`email.tmpl` keys. The latter contains `system/monitoring/alertmanager-email.tmpl`.
+Replace `system/monitoring/alertmanager-email-sealed-secret.yaml` and preserve
+its `argocd.argoproj.io/sync-wave: "-1"` annotation.
 
 Keep the local file mode `600`. Brevo deactivates SMTP keys after 90 days without
 a successful send, even when no expiration date is set.

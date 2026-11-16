@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: webos-dev-mode
+  namespace: webos-dev-mode
+  labels:
+    app.kubernetes.io/name: webos-dev-mode
+    app.kubernetes.io/part-of: homelab
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: webos-dev-mode
+            app.kubernetes.io/part-of: homelab
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: webos-dev-mode
+              image: ghcr.io/gabe565/webos-dev-mode:0.0.1@sha256:67761dd343e6fafa7742afe4f04272768b69702f59b98e00d5964dde313639c6
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  if [ "$1" = check ]; then
+                    if result=$(webos-dev-mode check 2>/dev/null); then
+                      printf '%s\n' "$result"
+                    else
+                      echo 'Session check failed; inspect network access, LG API availability and token validity.' >&2
+                      exit 1
+                    fi
+                  elif webos-dev-mode extend >/dev/null 2>&1; then
+                    echo 'Developer Mode session extended and verified.'
+                  else
+                    echo 'Session renewal failed; inspect network access, LG API availability and token validity.' >&2
+                    exit 1
+                  fi
+                - webos-dev-mode
+                - extend
+              env:
+                - name: WEBOS_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: webos-dev-mode-token
+                      key: WEBOS_TOKEN
+                - name: WEBOS_REQUEST_TIMEOUT
+                  value: 1m
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]

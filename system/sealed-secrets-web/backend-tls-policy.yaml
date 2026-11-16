@@ -1,0 +1,16 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: sealed-secrets-web
+  namespace: sealed-secrets
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: sealed-secrets-web
+      sectionName: https
+  validation:
+    hostname: sealed-secrets.thecavespace.net
+    wellKnownCACertificates: System

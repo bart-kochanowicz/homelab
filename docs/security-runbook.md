@@ -172,6 +172,7 @@ Envoy verifies backend hostnames against system CAs:
 | ArgoCD | `8080` | `argocd-server-tls` | `argocd.thecavespace.net` | Native reload |
 | n8n | `5678` | `n8n-backend-tls` | `n8n.thecavespace.net` | Reloader restarts n8n |
 | Grafana | `3000` | `grafana-backend-tls` | `grafana-backend.thecavespace.net` | Native reload every 30 seconds |
+| Sealed Secrets Web | `8443` | `sealed-secrets-web-backend-tls` | `sealed-secrets.thecavespace.net` | Envoy watches the Secret volume |
 
 Home Assistant imports `http:` YAML once into `/config/.storage/http`. On a fresh
 configuration, verify HTTPS access and confirm the imported settings in
@@ -204,16 +205,10 @@ cmctl status certificate grafana-backend -n monitoring
 
 The `cert-manager/cloudflare-dns01-token` Secret needs DNS Edit and Zone Read for
 `thecavespace.net`. The token is shared with Terraform/R2; rotate all consumers
-together. Save its replacement without a trailing newline in the ignored file,
-with mode `600`:
-
-```bash
-kubectl create secret generic cloudflare-dns01-token -n cert-manager \
-  --from-file=api-token=.secrets/cloudflare-dns01-token --dry-run=client -o json |
-  kubeseal --controller-name=sealed-secrets-controller \
-    --controller-namespace=sealed-secrets --scope strict --format yaml \
-    > system/cert-manager-acme/sealed-cloudflare-token.yaml
-```
+together. Use [Sealed Secrets Web](../system/sealed-secrets-web/README.md) to
+seal the `api-token` key for Secret `cloudflare-dns01-token` in `cert-manager`,
+without a trailing newline, and save it to
+`system/cert-manager-acme/sealed-cloudflare-token.yaml`.
 
 Commit the SealedSecret and sync `cert-manager-acme`. Cert-manager owns temporary
 challenge records. An internal CA issuer also exists in `system/cert-manager-ca/`;
@@ -227,14 +222,12 @@ OAuth uses `https://argocd.thecavespace.net` with callback
 `https://argocd.thecavespace.net/api/dex/callback`. ArgoCD server pods must resolve
 and reach that address for Dex discovery and signing keys.
 
-```bash
-export GITHUB_OAUTH_CLIENT_ID=...
-export GITHUB_OAUTH_CLIENT_SECRET=...
-./scripts/generate-argocd-sso-secret.sh
-```
-
-The resulting SealedSecret patches OAuth keys into `argocd-secret`, preserving
-its other credentials. Commit it and sync ArgoCD. For SSO recovery, cluster-admin
+Use [Sealed Secrets Web](../system/sealed-secrets-web/README.md) to seal the
+`dex.github.clientID` and `dex.github.clientSecret` keys for `argocd-secret` in
+`argocd`. Preserve `sealedsecrets.bitnami.com/patch: "true"` on both the
+SealedSecret and its Secret template in `system/argocd/argocd-sso-sealed-secret.yaml`.
+This patches the OAuth keys without replacing other credentials. Commit it and
+sync ArgoCD. For SSO recovery, cluster-admin
 access can temporarily enable `admin.enabled` in `argocd-cm` and restart the
 server. Disable local admin again after recovery.
 
