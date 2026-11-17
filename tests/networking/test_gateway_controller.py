@@ -90,6 +90,12 @@ class GatewayControllerTests(GatewayTestCase):
         self.assertIn(
             sealed_secrets_route["metadata"]["namespace"], watch["namespaces"]
         )
+        vault_route = next(
+            item
+            for item in self.rendered("helm-vault.yaml")
+            if item["kind"] == "HTTPRoute"
+        )
+        self.assertIn(vault_route["metadata"]["namespace"], watch["namespaces"])
         account = {
             "kind": "ServiceAccount",
             "name": "envoy-gateway",

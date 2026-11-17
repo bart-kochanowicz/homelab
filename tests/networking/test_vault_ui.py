@@ -11,6 +11,17 @@ class VaultUITests(GatewayTestCase):
             route["spec"]["rules"][0]["backendRefs"], [{"name": "vault", "port": 8200}]
         )
         policy = next(item for item in resources if item["kind"] == "BackendTLSPolicy")
+        route_wave = int(
+            route["metadata"]
+            .get("annotations", {})
+            .get("argocd.argoproj.io/sync-wave", "0")
+        )
+        policy_wave = int(
+            policy["metadata"]
+            .get("annotations", {})
+            .get("argocd.argoproj.io/sync-wave", "0")
+        )
+        self.assertLessEqual(route_wave, policy_wave)
         self.assertEqual(
             policy["spec"]["targetRefs"],
             [{"group": "", "kind": "Service", "name": "vault", "sectionName": "https"}],
