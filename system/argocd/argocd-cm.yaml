@@ -8,6 +8,13 @@ metadata:
 data:
   url: https://argocd.thecavespace.net
   dex.config: |
+    staticClients:
+      - id: vault
+        name: Vault
+        secret: $vault-dex-client:client-secret
+        redirectURIs:
+          - https://vault.thecavespace.net/ui/vault/auth/oidc/oidc/callback
+          - http://localhost:8250/oidc/callback
     connectors:
       - type: github
         id: github

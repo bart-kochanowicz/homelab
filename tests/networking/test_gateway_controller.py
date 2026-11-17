@@ -145,19 +145,56 @@ class GatewayControllerTests(GatewayTestCase):
             {"private-home", "private-admin"},
         )
         for policy in proxies:
-            self.assertEqual(
-                policy["spec"]["ingressDeny"][0]["fromEndpoints"],
-                [
+            denied = policy["spec"]["ingressDeny"][0]["fromEndpoints"]
+            if policy["metadata"]["namespace"] == "private-home":
+                self.assertEqual(denied[0]["matchExpressions"][0]["operator"], "Exists")
+            else:
+                self.assertEqual(
+                    denied,
+                    [
+                        {
+                            "matchExpressions": [
+                                {
+                                    "key": "k8s:io.kubernetes.pod.namespace",
+                                    "operator": "NotIn",
+                                    "values": ["vault"],
+                                },
+                                {
+                                    "key": "k8s:io.kubernetes.pod.namespace",
+                                    "operator": "Exists",
+                                },
+                            ]
+                        },
+                        {
+                            "matchLabels": {"k8s:io.kubernetes.pod.namespace": "vault"},
+                            "matchExpressions": [
+                                {
+                                    "key": "k8s:app.kubernetes.io/name",
+                                    "operator": "NotIn",
+                                    "values": ["vault"],
+                                }
+                            ],
+                        },
+                        {
+                            "matchLabels": {"k8s:io.kubernetes.pod.namespace": "vault"},
+                            "matchExpressions": [
+                                {
+                                    "key": "k8s:component",
+                                    "operator": "NotIn",
+                                    "values": ["server"],
+                                }
+                            ],
+                        },
+                    ],
+                )
+                self.assertEqual(
+                    policy["spec"]["ingress"][0]["fromEndpoints"][0]["matchLabels"],
                     {
-                        "matchExpressions": [
-                            {
-                                "key": "k8s:io.kubernetes.pod.namespace",
-                                "operator": "Exists",
-                            }
-                        ]
+                        "k8s:io.kubernetes.pod.namespace": "vault",
+                        "k8s:app.kubernetes.io/name": "vault",
+                        "k8s:component": "server",
                     },
-                ],
-            )
+                )
             ports = {
                 port["port"]
                 for rule in policy["spec"]["egress"]
@@ -170,5 +207,8 @@ class GatewayControllerTests(GatewayTestCase):
             else:
                 expected_ports.update({"8443", "8080", "5678", "3000", "8200"})
             self.assertEqual(ports, expected_ports)
-            self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
-            self.assertEqual(len(policy["spec"]["ingress"]), 1)
+            cidr_rules = [
+                rule for rule in policy["spec"]["ingress"] if "fromCIDR" in rule
+            ]
+            self.assertEqual(len(cidr_rules), 1)
+            self.assertEqual(set(cidr_rules[0]), {"fromCIDR", "toPorts"})

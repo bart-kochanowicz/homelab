@@ -1,7 +1,64 @@
+import re
+
 from .support import GatewayTestCase
 
 
 class VaultUITests(GatewayTestCase):
+    def test_gateway_authorizes_only_dex_endpoints_for_pod_network(self):
+        policy = next(
+            item
+            for item in self.resources_of_kind("SecurityPolicy")
+            if item["metadata"]["name"] == "private-admin-access"
+        )
+        self.assertEqual(policy["spec"]["authorization"]["defaultAction"], "Deny")
+        rule = next(
+            item
+            for item in policy["spec"]["authorization"]["rules"]
+            if item["name"] == "vault-dex-oidc"
+        )
+        self.assertEqual(rule["principal"]["clientCIDRs"], ["10.244.0.0/16"])
+        self.assertEqual(
+            rule["principal"]["headers"][0]["values"],
+            ["argocd.thecavespace.net", "argocd.thecavespace.net:443"],
+        )
+        self.assertEqual(rule["operation"]["path"]["type"], "RegularExpression")
+        allowed = rule["operation"]["path"]["value"]
+        for endpoint in (
+            ".well-known/openid-configuration",
+            "keys",
+            "token",
+            "userinfo",
+        ):
+            self.assertIsNotNone(re.fullmatch(allowed, "/api/dex/" + endpoint))
+        for endpoint in ("auth", "callback", "token/introspect"):
+            self.assertIsNone(re.fullmatch(allowed, "/api/dex/" + endpoint))
+
+    def test_vault_oidc_egress_is_limited_to_dns_and_private_proxy(self):
+        policies = self.rendered("system-network-policies.yaml")
+        policy = next(
+            item
+            for item in policies
+            if item["kind"] == "NetworkPolicy"
+            and item["metadata"].get("namespace") == "vault"
+            and item["metadata"]["name"] == "allow-oidc"
+        )
+        self.assertEqual(policy["spec"]["policyTypes"], ["Egress"])
+        rules = policy["spec"]["egress"]
+        self.assertEqual(len(rules), 2)
+        self.assertEqual(
+            {(p["protocol"], p["port"]) for rule in rules for p in rule["ports"]},
+            {("UDP", 53), ("TCP", 53), ("TCP", 10443)},
+        )
+        self.assertEqual(
+            {
+                rule["to"][0]["namespaceSelector"]["matchLabels"][
+                    "kubernetes.io/metadata.name"
+                ]
+                for rule in rules
+            },
+            {"kube-system", "private-admin"},
+        )
+
     def test_private_route_validates_backend_tls(self):
         resources = self.rendered("helm-vault.yaml")
         route = next(item for item in resources if item["kind"] == "HTTPRoute")

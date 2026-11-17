@@ -34,3 +34,17 @@ spec:
           path:
             type: RegularExpression
             value: "^/api/v2/servers(/[^?]*)?([?].*)?$"
+      - name: vault-dex-oidc
+        action: Allow
+        principal:
+          clientCIDRs:
+            - 10.244.0.0/16
+          headers:
+            - name: ":authority"
+              values:
+                - argocd.thecavespace.net
+                - argocd.thecavespace.net:443
+        operation:
+          path:
+            type: RegularExpression
+            value: '^/api/dex/(\.well-known/openid-configuration|keys|token|userinfo)([?].*)?$'

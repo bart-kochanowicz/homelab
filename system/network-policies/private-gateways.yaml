@@ -87,12 +87,36 @@ spec:
     - fromEndpoints:
         - matchExpressions:
             - key: k8s:io.kubernetes.pod.namespace
+              operator: NotIn
+              values: [vault]
+            - key: k8s:io.kubernetes.pod.namespace
               operator: Exists
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vault
+          matchExpressions:
+            - key: k8s:app.kubernetes.io/name
+              operator: NotIn
+              values: [vault]
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vault
+          matchExpressions:
+            - key: k8s:component
+              operator: NotIn
+              values: [server]
       toPorts:
         - ports:
             - port: "10443"
               protocol: TCP
   ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vault
+            k8s:app.kubernetes.io/name: vault
+            k8s:component: server
+      toPorts:
+        - ports:
+            - port: "10443"
+              protocol: TCP
     - fromCIDR:
         - 10.0.80.0/24
         - 10.0.100.0/24

@@ -31,3 +31,40 @@ spec:
       ports:
         - protocol: TCP
           port: 8200
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-oidc
+  namespace: vault
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+      component: server
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: private-admin
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: envoy-gateway
+              app.kubernetes.io/component: proxy
+              gateway.envoyproxy.io/owning-gateway-name: private-admin
+      ports:
+        - protocol: TCP
+          port: 10443

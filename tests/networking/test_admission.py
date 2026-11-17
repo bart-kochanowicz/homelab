@@ -45,14 +45,14 @@ class GatewayAdmissionTests(GatewayTestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("Invalid: 1", result.stdout)
 
-    def test_client_admission_excludes_other_lans_nodes_and_pods(self):
+    def test_client_admission_excludes_other_lans_and_nodes(self):
         classes = {
             item["metadata"]["name"]: item
             for item in self.resources_of_kind("GatewayClass")
         }
         allowed = {
             "private-home": {"10.0.40.42", "10.0.80.42", "10.0.100.42"},
-            "private-admin": {"10.0.70.10", "10.0.80.42", "10.0.100.42"},
+            "private-admin": {"10.0.70.10", "10.0.80.42", "10.0.100.42", "10.244.1.42"},
         }
         clients = {
             "10.0.30.42",

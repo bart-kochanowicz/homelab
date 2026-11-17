@@ -10,6 +10,7 @@ resources:
   - httproute.yaml
   - argocd-rbac-cm.yaml
   - argocd-sso-sealed-secret.yaml
+  - vault-dex-sealed-secret.yaml
   - argocd-bootstrap.yaml
   - applicationset.yaml
   - app-namespaces.yaml
