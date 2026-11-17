@@ -3,6 +3,8 @@ kind: BackendTLSPolicy
 metadata:
   name: vault
   namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   targetRefs:
     - group: ""
@@ -10,8 +12,5 @@ spec:
       name: vault
       sectionName: https
   validation:
-    hostname: vault.vault.svc
-    caCertificateRefs:
-      - group: ""
-        kind: ConfigMap
-        name: vault-backend-ca
+    hostname: vault.thecavespace.net
+    wellKnownCACertificates: System

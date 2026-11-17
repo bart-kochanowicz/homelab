@@ -3,14 +3,22 @@ kind: Certificate
 metadata:
   name: vault-tls
   namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   secretName: vault-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
   issuerRef:
+    name: letsencrypt-production
     kind: ClusterIssuer
-    name: homelab-internal-ca
+    group: cert-manager.io
   dnsNames:
-    - vault.vault.svc
-    - vault.vault.svc.cluster.local
-    - vault-0.vault-internal
-    - vault-0.vault-internal.vault.svc
-    - vault-0.vault-internal.vault.svc.cluster.local
+    - vault.thecavespace.net
+  renewBeforePercentage: 33
+  revisionHistoryLimit: 2
+  usages:
+    - digital signature
+    - server auth

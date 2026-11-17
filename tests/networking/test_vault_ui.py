@@ -18,20 +18,15 @@ class VaultUITests(GatewayTestCase):
         self.assertEqual(
             policy["spec"]["validation"],
             {
-                "hostname": "vault.vault.svc",
-                "caCertificateRefs": [
-                    {"group": "", "kind": "ConfigMap", "name": "vault-backend-ca"}
-                ],
+                "hostname": "vault.thecavespace.net",
+                "wellKnownCACertificates": "System",
             },
         )
-        self.assertTrue(
-            any(
-                item["kind"] == "ConfigMap"
-                and item["metadata"]["name"] == "vault-backend-ca"
-                and "BEGIN CERTIFICATE" in item["data"]["ca.crt"]
-                for item in resources
-            )
+        certificate = next(item for item in resources if item["kind"] == "Certificate")
+        self.assertEqual(
+            certificate["spec"]["issuerRef"]["name"], "letsencrypt-production"
         )
+        self.assertEqual(certificate["spec"]["dnsNames"], ["vault.thecavespace.net"])
 
     def test_only_private_admin_proxy_can_reach_vault(self):
         policies = self.rendered("system-network-policies.yaml")
