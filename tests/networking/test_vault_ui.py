@@ -1,3 +1,5 @@
+import re
+
 from .support import GatewayTestCase
 
 
@@ -20,6 +22,16 @@ class VaultUITests(GatewayTestCase):
             ["argocd.thecavespace.net", "argocd.thecavespace.net:443"],
         )
         self.assertEqual(rule["operation"]["path"]["type"], "RegularExpression")
+        allowed = rule["operation"]["path"]["value"]
+        for endpoint in (
+            ".well-known/openid-configuration",
+            "keys",
+            "token",
+            "userinfo",
+        ):
+            self.assertIsNotNone(re.fullmatch(allowed, "/api/dex/" + endpoint))
+        for endpoint in ("auth", "callback", "token/introspect"):
+            self.assertIsNone(re.fullmatch(allowed, "/api/dex/" + endpoint))
 
     def test_vault_oidc_egress_is_limited_to_dns_and_private_proxy(self):
         policies = self.rendered("system-network-policies.yaml")
