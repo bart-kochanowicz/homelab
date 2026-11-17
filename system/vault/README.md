@@ -8,8 +8,6 @@ sync; create the protected namespace and policies before syncing Vault.
 The UI is at `https://vault.thecavespace.net` from Admin and WireGuard. The
 gateway and Vault listener use cert-manager's Let's Encrypt certificates. Private
 DNS is managed by Terraform and requires a reviewed plan before apply.
-After merging changes, sync `network-policies`, `vault`, then `gateways`. Verify
-the renewed listener certificate and accepted route before applying the DNS plan.
 
 Check the active context and the pod without exposing a network endpoint:
 
