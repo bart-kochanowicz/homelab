@@ -79,10 +79,9 @@ run "home_wifi_boundaries" {
       !unifi_wlan.this["orbit"].wpa3_transition &&
       unifi_wlan.this["orbit"].pmf_mode == "required" &&
       !unifi_wlan.this["orbit"].private_preshared_keys_enabled &&
-      unifi_wlan.this["orbit"].wlan_bands == toset(["2g", "5g"]) &&
-      length(unifi_wlan.ppsk) == 0
+      unifi_wlan.this["orbit"].wlan_bands == toset(["2g", "5g"])
     )
-    error_message = "Home must use WPA3-only on both bands with required PMF, its own VLAN and no PPSK WLAN."
+    error_message = "Home must use WPA3-only on both bands with required PMF, its own VLAN and PPSK disabled."
   }
 }
 

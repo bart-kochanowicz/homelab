@@ -123,12 +123,13 @@ variables {
     iphone-01    = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA="
     windowspc-01 = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA="
   }
-  controller       = { url = "https://unifi.example.internal" }
-  unifi_auth       = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
-  wifi_passphrases = { apollo = "test-only-passphrase", endeavour = "test-work-passphrase" }
-  wifi_ppsks = {
-    "orbit/home" = "test-home-passphrase"
-    "orbit/iot"  = "test-iot-passphrase"
+  controller = { url = "https://unifi.example.internal" }
+  unifi_auth = { username = "test-only", password = "test-only" } # gitleaks:allow -- mock provider input
+  wifi_passphrases = {
+    apollo    = "test-only-passphrase"
+    endeavour = "test-work-passphrase"
+    orbit     = "test-home-passphrase"
+    stardust  = "test-iot-passphrase"
   }
 }
 

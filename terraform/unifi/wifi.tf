@@ -21,10 +21,7 @@ module "wifi" {
   network_ids   = module.networks.network_ids
   ap_group_id   = data.unifi_ap_group.all.id
   user_group_id = data.unifi_client_qos_rate.default.id
-  passphrases = merge(var.wifi_passphrases, {
-    orbit    = var.wifi_ppsks["orbit/home"]
-    stardust = var.wifi_ppsks["orbit/iot"]
-  })
+  passphrases   = var.wifi_passphrases
   wlans = {
     apollo = {
       network = "apollo"
