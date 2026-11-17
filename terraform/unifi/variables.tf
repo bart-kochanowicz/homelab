@@ -69,13 +69,6 @@ variable "wifi_passphrases" {
   nullable    = false
 }
 
-variable "wifi_ppsks" {
-  description = "Home and IoT role passwords keyed as orbit/home and orbit/iot."
-  type        = map(string)
-  sensitive   = true
-  nullable    = false
-}
-
 variable "vpn_public_ip" {
   description = "Private input for the fixed WAN IPv4 address used by WireGuard."
   type        = string

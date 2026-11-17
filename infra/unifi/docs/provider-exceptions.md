@@ -9,9 +9,7 @@ network overrides, write-only credentials and administrator-managed settings.
 | Built-in `Default` LAN | Read-only `data.unifi_network.default`; provider `enabled=false` does not describe LAN availability. | Administrator |
 | Port profile tags | The provider omits `tagged_networkconf_ids`. Custom trunks use `excluded_networkconf_ids` for every LAN outside the native/tagged set. | Terraform |
 | Unrouted VLAN DHCP | Omit `dhcp_server`. Provider defaults otherwise differ from the controller response and cause an inconsistent apply result. | Terraform |
-| WPA3 passphrases | `passphrase_wo` has no rotation-version field. A password-only edit produces no diff; rotate it together with a reviewed WLAN change. | Terraform |
-| PPSK base network | UCG-Fiber stores the built-in Default LAN as `network_id`. Each key explicitly selects its managed VLAN; there is no base passphrase. | Terraform |
-| PPSK passwords | No write-only API field; passwords remain in private plans, state and backups. | Terraform |
+| Wi-Fi passphrases | `passphrase_wo` has no rotation-version field. A password-only edit produces no diff; rotate it together with a reviewed WLAN change. | Terraform |
 | Disabled PPSK keys | The provider omits disabled keys from state. Check the controller for retained keys and clear them when revoking PPSK access. | Administrator |
 | Device ports | Declared overrides replace each port entry. Undeclared ports are preserved, but the provider sends the complete override array. | Terraform |
 | Firewall order | Policy indices are read-only. Allow/reply rules must sit above their zone-pair denies; new rules may need manual reordering. | Administrator |

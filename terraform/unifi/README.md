@@ -53,10 +53,9 @@ USB power from the worker retains a worker-power dependency.
 | `cavespace-orbit` | WPA3 | 2.4/5 GHz | Home 40 |
 | `cavespace-stardust` | WPA2-AES | 2.4 GHz | IoT 50 |
 
-Orbit uses the Home role password and requires WPA3 with PMF. Stardust uses
-the IoT role password and WPA2-AES with optional PMF for older IoT clients.
-WLAN passphrases are write-only. Role passwords remain private Terraform
-inputs under `wifi_ppsks` (`orbit/home`, `orbit/iot`); no WLAN enables PPSK.
+Orbit requires WPA3 with PMF. Stardust uses WPA2-AES with optional PMF for
+older IoT clients. Use at most 32 bytes for the Stardust passphrase for
+compatibility with IoT devices. All WLAN passphrases are write-only.
 Site mDNS proxy is disabled.
 
 UniFi resolves directly to `10.0.80.1` at `unifi.thecavespace.net`, independently
@@ -145,8 +144,7 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | Input | Actions secret |
 | --- | --- |
 | `infrastructure_macs` | `UNIFI_INFRASTRUCTURE_MACS` |
-| `wifi_passphrases` | `UNIFI_WIFI_PASSPHRASES` |
-| `wifi_ppsks` | `UNIFI_WIFI_PPSKS` |
+| `wifi_passphrases` (`apollo`, `endeavour`, `orbit`, `stardust`) | `UNIFI_WIFI_PASSPHRASES` |
 | `vpn_public_ip` | `UNIFI_VPN_PUBLIC_IP` |
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
