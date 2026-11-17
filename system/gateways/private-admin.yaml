@@ -122,3 +122,22 @@ spec:
           selector:
             matchLabels:
               kubernetes.io/metadata.name: sealed-secrets
+    - name: vault
+      hostname: vault.thecavespace.net
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: private-admin-tls
+      allowedRoutes:
+        kinds:
+          - group: gateway.networking.k8s.io
+            kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault

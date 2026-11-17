@@ -1,0 +1,16 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: vault
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: vault
+      sectionName: https
+  validation:
+    hostname: vault.thecavespace.net
+    wellKnownCACertificates: System

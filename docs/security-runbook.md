@@ -46,6 +46,7 @@ instead of replacing the list.
 | n8n editor | `https://n8n.thecavespace.net` |
 | n8n webhooks | `https://n8n-webhook.thecavespace.net/` |
 | Grafana | `https://grafana.thecavespace.net` |
+| Vault | `https://vault.thecavespace.net` |
 | Minecraft Java | `atm.mc.thecavespace.net` |
 
 Minecraft uses private A/SRV records pointing to the worker on TCP `30000`.
