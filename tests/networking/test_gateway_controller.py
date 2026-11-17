@@ -82,6 +82,14 @@ class GatewayControllerTests(GatewayTestCase):
         watch = json.loads(result.stdout)
         self.assertEqual(watch["type"], "Namespaces")
         self.assertIn("envoy-gateway-system", watch["namespaces"])
+        sealed_secrets_route = next(
+            item
+            for item in self.rendered("system-sealed-secrets-web.yaml")
+            if item["kind"] == "HTTPRoute"
+        )
+        self.assertIn(
+            sealed_secrets_route["metadata"]["namespace"], watch["namespaces"]
+        )
         account = {
             "kind": "ServiceAccount",
             "name": "envoy-gateway",
