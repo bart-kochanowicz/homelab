@@ -2,6 +2,32 @@ from .support import GatewayTestCase
 
 
 class VaultUITests(GatewayTestCase):
+    def test_vault_oidc_egress_is_limited_to_dns_and_private_proxy(self):
+        policies = self.rendered("system-network-policies.yaml")
+        policy = next(
+            item
+            for item in policies
+            if item["kind"] == "NetworkPolicy"
+            and item["metadata"].get("namespace") == "vault"
+            and item["metadata"]["name"] == "allow-oidc"
+        )
+        self.assertEqual(policy["spec"]["policyTypes"], ["Egress"])
+        rules = policy["spec"]["egress"]
+        self.assertEqual(len(rules), 2)
+        self.assertEqual(
+            {(p["protocol"], p["port"]) for rule in rules for p in rule["ports"]},
+            {("UDP", 53), ("TCP", 53), ("TCP", 10443)},
+        )
+        self.assertEqual(
+            {
+                rule["to"][0]["namespaceSelector"]["matchLabels"][
+                    "kubernetes.io/metadata.name"
+                ]
+                for rule in rules
+            },
+            {"kube-system", "private-admin"},
+        )
+
     def test_private_route_validates_backend_tls(self):
         resources = self.rendered("helm-vault.yaml")
         route = next(item for item in resources if item["kind"] == "HTTPRoute")
