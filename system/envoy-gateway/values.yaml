@@ -29,6 +29,7 @@ gateway-helm:
               - argocd
               - n8n
               - monitoring
+              - sealed-secrets
       runtimeFlags:
         disabled:
           - EnvoyProxyPatch
