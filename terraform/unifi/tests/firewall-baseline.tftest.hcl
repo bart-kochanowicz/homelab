@@ -418,6 +418,7 @@ run "home_https_uses_only_its_private_gateway" {
         n8n-webhook       = { name = "n8n-webhook.thecavespace.net", address = "10.0.70.201" }
         grafana           = { name = "grafana.thecavespace.net", address = "10.0.70.201" }
         sealed-secrets    = { name = "sealed-secrets.thecavespace.net", address = "10.0.70.201" }
+        vault             = { name = "vault.thecavespace.net", address = "10.0.70.201" }
         home-assistant-backend = {
           name = "ha-backend.thecavespace.net", address = local.server_reservations["worker-01"].ip
         }

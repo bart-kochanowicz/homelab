@@ -104,6 +104,15 @@ spec:
   egress:
     - toEndpoints:
         - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vault
+            k8s:app.kubernetes.io/name: vault
+            k8s:component: server
+      toPorts:
+        - ports:
+            - port: "8200"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
             k8s:io.kubernetes.pod.namespace: crafty-controller
             k8s:app.kubernetes.io/name: crafty-controller
       toPorts:

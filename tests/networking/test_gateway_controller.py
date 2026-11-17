@@ -162,7 +162,7 @@ class GatewayControllerTests(GatewayTestCase):
             if policy["metadata"]["namespace"] == "private-home":
                 expected_ports.add("8123")
             else:
-                expected_ports.update({"8443", "8080", "5678", "3000"})
+                expected_ports.update({"8443", "8080", "5678", "3000", "8200"})
             self.assertEqual(ports, expected_ports)
             self.assertEqual(set(policy["spec"]["ingress"][0]), {"fromCIDR", "toPorts"})
             self.assertEqual(len(policy["spec"]["ingress"]), 1)

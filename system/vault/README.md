@@ -5,6 +5,13 @@ It has no failover. Do not initialize it until independent recovery and backup
 procedures are ready. The Vault Application and network policies require manual
 sync; create the protected namespace and policies before syncing Vault.
 
+The UI is at `https://vault.thecavespace.net` from Admin and WireGuard. The
+private gateway validates Vault's listener using `vault-backend-ca`; update that
+public CA bundle when rotating the internal issuer, before changing the issuer.
+Private DNS is managed by Terraform and requires a reviewed plan before apply.
+After merging changes, sync `network-policies`, `vault`, then `gateways`; verify
+the BackendTLSPolicy and route are accepted before applying the DNS plan.
+
 Check the active context and the pod without exposing a network endpoint:
 
 ```bash
