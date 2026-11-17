@@ -2,6 +2,25 @@ from .support import GatewayTestCase
 
 
 class VaultUITests(GatewayTestCase):
+    def test_gateway_authorizes_only_dex_endpoints_for_pod_network(self):
+        policy = next(
+            item
+            for item in self.resources_of_kind("SecurityPolicy")
+            if item["metadata"]["name"] == "private-admin-access"
+        )
+        self.assertEqual(policy["spec"]["authorization"]["defaultAction"], "Deny")
+        rule = next(
+            item
+            for item in policy["spec"]["authorization"]["rules"]
+            if item["name"] == "vault-dex-oidc"
+        )
+        self.assertEqual(rule["principal"]["clientCIDRs"], ["10.244.0.0/16"])
+        self.assertEqual(
+            rule["principal"]["headers"][0]["values"],
+            ["argocd.thecavespace.net", "argocd.thecavespace.net:443"],
+        )
+        self.assertEqual(rule["operation"]["path"]["type"], "RegularExpression")
+
     def test_vault_oidc_egress_is_limited_to_dns_and_private_proxy(self):
         policies = self.rendered("system-network-policies.yaml")
         policy = next(
