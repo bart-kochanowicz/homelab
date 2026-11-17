@@ -30,6 +30,7 @@ gateway-helm:
               - n8n
               - monitoring
               - sealed-secrets
+              - vault
       runtimeFlags:
         disabled:
           - EnvoyProxyPatch
