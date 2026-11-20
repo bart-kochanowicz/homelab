@@ -221,6 +221,16 @@ class MosquittoTests(GatewayTestCase):
             {"namespace": "mosquitto", "server": "https://kubernetes.default.svc"},
             project["spec"]["destinations"],
         )
+        platform = next(
+            item
+            for item in self.rendered("system-argocd.yaml")
+            if item["kind"] == "AppProject" and item["metadata"]["name"] == "platform"
+        )
+        # The network-policies application belongs to the platform project.
+        self.assertIn(
+            {"namespace": "mosquitto", "server": "https://kubernetes.default.svc"},
+            platform["spec"]["destinations"],
+        )
         allowed = {
             (item["group"], item["kind"])
             for item in project["spec"]["namespaceResourceWhitelist"]
