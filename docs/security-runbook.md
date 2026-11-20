@@ -114,7 +114,9 @@ kubectl -n mosquitto get pods,service
 kubectl -n mosquitto logs deployment/mosquitto
 ```
 
-Rotate a password by regenerating the file, resealing it, committing the result and running
+An init container copies the password file and ACL into memory-backed storage owned by
+the broker, because Mosquitto refuses the symlinks that Secret and ConfigMap volumes
+use. Rotate a password by regenerating the file, resealing it, committing the result and running
 `kubectl -n mosquitto rollout restart deployment/mosquitto`; then update the
 camera's configuration. The broker keeps no persistence, so a restart drops
 retained messages. The camera republishes its discovery and state when it

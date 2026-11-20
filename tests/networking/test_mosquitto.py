@@ -70,8 +70,9 @@ class MosquittoTests(GatewayTestCase):
         self.assertIn("allow_anonymous false", settings)
         self.assertIn("persistence false", settings)
         self.assertNotIn("allow_anonymous true", settings)
-        self.assertIn("acl_file /mosquitto/config/acl", settings)
-        self.assertIn("password_file /mosquitto/secret/passwd", settings)
+        # Mosquitto refuses symlinked files, so both come from the init-container copy.
+        self.assertIn("acl_file /mosquitto/runtime/acl", settings)
+        self.assertIn("password_file /mosquitto/runtime/passwd", settings)
 
         acl = [
             line.strip() for line in config["data"]["acl"].splitlines() if line.strip()
@@ -98,8 +99,27 @@ class MosquittoTests(GatewayTestCase):
             },
             {
                 "config": ("/mosquitto/config", True),
-                "secret": ("/mosquitto/secret", True),
+                "runtime": ("/mosquitto/runtime", True),
             },
+        )
+        init = pod["initContainers"][0]
+        self.assertEqual(init["image"], container["image"])
+        self.assertEqual(init["securityContext"], container["securityContext"])
+        self.assertEqual(
+            {
+                item["name"]: (item["mountPath"], item.get("readOnly", False))
+                for item in init["volumeMounts"]
+            },
+            {
+                "config": ("/mosquitto/config", True),
+                "secret": ("/mosquitto/secret", True),
+                "runtime": ("/mosquitto/runtime", False),
+            },
+        )
+        self.assertIn("requests", init["resources"])
+        self.assertIn("limits", init["resources"])
+        self.assertEqual(
+            volumes["runtime"]["emptyDir"], {"medium": "Memory", "sizeLimit": "1Mi"}
         )
         self.assertEqual(
             volumes["config"]["configMap"],

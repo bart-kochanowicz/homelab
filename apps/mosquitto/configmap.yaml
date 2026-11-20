@@ -10,8 +10,8 @@ data:
   mosquitto.conf: |
     listener 1883
     allow_anonymous false
-    password_file /mosquitto/secret/passwd
-    acl_file /mosquitto/config/acl
+    password_file /mosquitto/runtime/passwd
+    acl_file /mosquitto/runtime/acl
     persistence false
     max_connections 20
     max_packet_size 65536
