@@ -81,8 +81,8 @@ when the Cilium agent restarts. Finish the policy review before restarting agent
 
 ### MQTT broker
 
-Mosquitto ([apps/mosquitto](../apps/mosquitto/)) receives battery, power, button
-and uptime messages from the RH-PD10 front-door camera and serves Home
+Mosquitto ([apps/mosquitto](../apps/mosquitto/)) receives battery, power, button,
+uptime and snapshot messages from the RH-PD10 front-door camera and serves Home
 Assistant's MQTT integration. It is the only service in Servers that an IoT
 device may reach.
 
@@ -101,6 +101,34 @@ the file locally with `mosquitto_passwd` (`-c` for the first user; avoid `-b` ou
 a throwaway shell) and seal a Secret with `stringData.passwd` through
 [Sealed Secrets Web](../system/sealed-secrets-web/README.md). Keep the camera
 password for the camera's own configuration; never commit it.
+
+#### Motion snapshots
+
+After motion the camera publishes a JPEG (about 12 KB) to
+`doorview/front-door-camera/snapshot`, which its ACL already allows. Home Assistant
+declares a `mqtt` `image` entity for that topic in `apps/home-assistant/configmap.yaml`
+and does not call the camera: Home Assistant opens no connection to IoT for this, so
+the router needs no rule and the camera's web interface, which grants root to any
+login, stays unreachable. The entity is declared by hand because the ACL permits no
+`homeassistant/image/...` discovery topic; leave the ACL as it is.
+
+The broker's `max_packet_size` is 65536 bytes. Raise it, with the ACL and memory limit
+reviewed, before the camera sends larger images; the broker rejects larger packets and disconnects the camera.
+
+The automation `front_door_motion_notification` reacts to `Motion` turning on. If the
+image entity has not updated within 5 seconds before the motion, it waits up to 20
+seconds for it, then sends a phone notification through the mobile app with the image
+(or a text-only message when none arrives). It then holds a one-minute cooldown; motion
+during the wait or cooldown starts no second run. The phone downloads the image from
+Home Assistant through `/api/image_proxy/`, which requires its login.
+
+The automation notifies the `iphone_bart` mobile app (`notify.mobile_app_iphone_bart`);
+a different or additional phone needs its own service name (Developer tools > Actions,
+filter `mobile_app`). The entity ids are `binary_sensor.front_door_camera_motion` and
+`image.front_door_camera_snapshot`; the image id follows from the entity name, so
+confirm it in Developer tools > States after the first sync. `configuration.yaml` is
+mounted with `subPath`, so after syncing run
+`kubectl -n home-assistant rollout restart deployment/home-assistant`.
 
 Roll out in this order, reviewing each step: apply the UniFi Terraform plan (DNS
 record and `camera-mqtt`), then sync `app-namespaces`, the `applications` project
