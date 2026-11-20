@@ -7,6 +7,7 @@ spec:
   ipAddressPools:
     - private-home
     - private-admin
+    - mosquitto
   nodeSelectors:
     - matchLabels:
         kubernetes.io/hostname: talos-2jn-7he

@@ -36,6 +36,10 @@ locals {
       name    = "vault.thecavespace.net"
       address = "10.0.70.201"
     }
+    mosquitto = {
+      name    = "mqtt.thecavespace.net"
+      address = "10.0.70.202"
+    }
     home-assistant-backend = {
       name    = "ha-backend.thecavespace.net"
       address = local.server_reservations["worker-01"].ip

@@ -1,7 +1,8 @@
 # Homelab
 
-Home Assistant, n8n and Minecraft through Crafty Controller, running on a two-node
-Talos Kubernetes cluster. All application endpoints are private.
+Home Assistant, n8n, Minecraft through Crafty Controller and an MQTT broker for the
+front-door camera, running on a two-node Talos Kubernetes cluster. All application
+endpoints are private.
 
 ArgoCD deploys Kubernetes applications and platform services. Cilium handles
 networking and firewall policies; Envoy Gateway and MetalLB provide private HTTPS
@@ -52,7 +53,7 @@ Use `make validate` explicitly: bare `make` runs ArgoCD bootstrap.
 
 | Path | Contents |
 | --- | --- |
-| [`apps/`](apps/) | Home Assistant, Crafty Controller and n8n |
+| [`apps/`](apps/) | Home Assistant, Crafty Controller, n8n and Mosquitto |
 | [`system/`](system/) | Kubernetes platform manifests, Helm charts and bootstrap |
 | [`talos/patches/`](talos/patches/) | Machine configuration patches |
 | [`terraform/`](terraform/) | Cloudflare, UniFi and Crafty roots; reusable modules |
