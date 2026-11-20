@@ -7,6 +7,7 @@ PYTHON_TEST_TARGETS := $(addprefix test-python-,$(PYTHON_TEST_MODULES))
 KUSTOMIZE_DIRS := \
 	apps/crafty-controller \
 	apps/home-assistant \
+	apps/mosquitto \
 	apps/n8n \
 	apps/webos-dev-mode \
 	system/app-namespaces \

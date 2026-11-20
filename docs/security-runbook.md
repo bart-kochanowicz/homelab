@@ -79,6 +79,53 @@ and Cilium verdicts, in that order. Use fresh connections when checking policy
 changes. Host `PolicyAuditMode` logs verdicts without enforcing drops and resets
 when the Cilium agent restarts. Finish the policy review before restarting agents.
 
+### MQTT broker
+
+Mosquitto ([apps/mosquitto](../apps/mosquitto/)) receives battery, power, button
+and uptime messages from the RH-PD10 front-door camera and serves Home
+Assistant's MQTT integration. It is the only service in Servers that an IoT
+device may reach.
+
+| Item | Value |
+| --- | --- |
+| Address | `mqtt.thecavespace.net`, `10.0.70.202`, TCP `1883`; plain MQTT without TLS |
+| Allocation | MetalLB pool `mosquitto`, bound to the `mosquitto` Service in its namespace |
+| Allowed sources | Camera `10.0.50.190` and the Home Assistant worker `10.0.70.12`, in the Service source ranges, the Cilium pod policy and the router |
+| Router | Terraform rule `camera-mqtt`: only `10.0.50.190` to the VIP on TCP `1883`, with stateful replies |
+| Users | `home-assistant` reads and writes every topic; `front-door-camera` writes `doorview/front-door-camera/#` and its own `sensor`, `binary_sensor` and `event` discovery topics only |
+
+Anonymous access is disabled. The password file is the SealedSecret
+`mosquitto-secret` (key `passwd`) in `apps/mosquitto/sealed-secret.yaml`; the pod
+stays in `CreateContainerConfigError` without it. To create or rotate it, generate
+the file locally with `mosquitto_passwd` (`-c` for the first user; avoid `-b` outside
+a throwaway shell) and seal a Secret with `stringData.passwd` through
+[Sealed Secrets Web](../system/sealed-secrets-web/README.md). Keep the camera
+password for the camera's own configuration; never commit it.
+
+Roll out in this order, reviewing each step: apply the UniFi Terraform plan (DNS
+record and `camera-mqtt`), then sync `app-namespaces`, the `applications` project
+(`system/argocd`), `metallb-config` and the network policies, which are all manual.
+The ApplicationSet then creates the `mosquitto` application. Add the Home Assistant
+MQTT integration in the UI: broker `mqtt.thecavespace.net`, port `1883`, user
+`home-assistant`.
+
+```bash
+kubectl -n mosquitto get pods,service
+kubectl -n mosquitto logs deployment/mosquitto
+```
+
+Rotate a password by regenerating the file, resealing it, committing the result and running
+`kubectl -n mosquitto rollout restart deployment/mosquitto`; then update the
+camera's configuration. The broker keeps no persistence, so a restart drops
+retained messages. The camera republishes its discovery and state when it
+reconnects.
+
+The password crosses the IoT VLAN unencrypted, so treat it as low-value and unique
+to this broker. Verify two assumptions on first use, because they depend on the
+live cluster: that Home Assistant, which uses host networking, can reach the VIP
+from its worker, and that the camera's address survives to the pod under
+`externalTrafficPolicy: Local` so that the pod policy matches it.
+
 ## Bootstrap and platform changes
 
 Install the tools in [`aqua.yaml`](../aqua.yaml), plus Talos and Ansible with

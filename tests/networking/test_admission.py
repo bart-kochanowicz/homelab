@@ -105,7 +105,12 @@ class GatewayAdmissionTests(GatewayTestCase):
             item["metadata"]["name"]: item
             for item in self.resources_of_kind("EnvoyProxy")
         }
-        self.assertEqual(len(pools), 2)
+        # The broker pool is bound to an ordinary Service and is verified in test_mosquitto.
+        self.assertEqual(
+            {item["metadata"]["name"] for item in pools},
+            {"private-home", "private-admin", "mosquitto"},
+        )
+        pools = [item for item in pools if item["metadata"]["name"] != "mosquitto"]
         addresses: set[str] = set()
         for pool in pools:
             name = pool["metadata"]["name"]
@@ -145,7 +150,7 @@ class GatewayAdmissionTests(GatewayTestCase):
         self.assertEqual(
             advertisements[0]["spec"],
             {
-                "ipAddressPools": ["private-home", "private-admin"],
+                "ipAddressPools": ["private-home", "private-admin", "mosquitto"],
                 "nodeSelectors": [
                     {"matchLabels": {"kubernetes.io/hostname": "talos-2jn-7he"}},
                     {"matchLabels": {"kubernetes.io/hostname": "talos-p5e-e9e"}},

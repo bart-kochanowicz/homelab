@@ -169,17 +169,27 @@ run "least_privilege_access_matrix" {
 
   assert {
     condition = alltrue([
-      for rule in values(local.firewall_rules) :
+      for name, rule in local.firewall_rules :
       !contains(["endeavour", "stardust"], rule.source.zone) ? true : (
-        rule.destination.zone == "external" ? try(rule.destination.invert_ips, false) :
-        rule.destination.zone == "gateway" && (
-          try(rule.destination.ports == "53", false) ||
-          (try(rule.protocol == "udp", false) && try(contains(["67", "123"], rule.destination.ports), false)) ||
-          try(rule.protocol == "icmpv6", false)
+        name == "camera-mqtt" ? (
+          rule.source.zone == "stardust" &&
+          rule.source.ips == ["10.0.50.190"] &&
+          rule.protocol == "tcp" &&
+          rule.ip_version == "IPV4" &&
+          rule.destination.zone == "launchpad" &&
+          rule.destination.ips == ["10.0.70.202"] &&
+          rule.destination.ports == "1883"
+          ) : (
+          rule.destination.zone == "external" ? try(rule.destination.invert_ips, false) :
+          rule.destination.zone == "gateway" && (
+            try(rule.destination.ports == "53", false) ||
+            (try(rule.protocol == "udp", false) && try(contains(["67", "123"], rule.destination.ports), false)) ||
+            try(rule.protocol == "icmpv6", false)
+          )
         )
       )
     ])
-    error_message = "Work and IoT may reach only public Internet and required gateway services."
+    error_message = "Work and IoT may reach only public Internet and required gateway services; the one exception is the camera publishing MQTT to its broker VIP."
   }
   assert {
     condition = (
@@ -278,7 +288,7 @@ run "home_moonlight_is_limited_to_sunshine_on_one_admin_pc" {
   }
 }
 
-run "camera_address_is_stable_without_new_inter_zone_permissions" {
+run "camera_address_is_stable_with_only_the_mqtt_allowance" {
   command = plan
 
   assert {
@@ -288,17 +298,32 @@ run "camera_address_is_stable_without_new_inter_zone_permissions" {
       local.dhcp_reservations["front-door-camera"].allow_dynamic_pool &&
       local.private_dns_records["front-door-camera"].name == "front-door-camera.thecavespace.net" &&
       local.private_dns_records["front-door-camera"].address == local.dhcp_reservations["front-door-camera"].ip &&
-      alltrue([for rule in values(local.firewall_rules) :
-        !contains(try(rule.source.ips, []), "10.0.50.190") &&
-        !contains(try(rule.destination.ips, []), "10.0.50.190") &&
-        (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
-          try(contains(["icmp", "icmpv6"], rule.protocol) && rule.states == ["RELATED"], false) ||
-          try(rule.destination.ips == [local.dhcp_reservations["office-light"].ip], false) ||
-          try(rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip], false)
+      toset([for name, rule in local.firewall_rules : name
+        if contains(try(rule.source.ips, []), "10.0.50.190") || contains(try(rule.destination.ips, []), "10.0.50.190")
+      ]) == toset(["camera-mqtt"]) &&
+      alltrue([for name, rule in local.firewall_rules :
+        name == "camera-mqtt" || (
+          !contains(try(rule.source.ips, []), "10.0.50.190") &&
+          !contains(try(rule.destination.ips, []), "10.0.50.190") &&
+          (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
+            try(contains(["icmp", "icmpv6"], rule.protocol) && rule.states == ["RELATED"], false) ||
+            try(rule.destination.ips == [local.dhcp_reservations["office-light"].ip], false) ||
+            try(rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip], false)
+          )
         )
       ])
     )
-    error_message = "The camera must retain its reserved IoT address and private DNS without new access; only gateway services, related ICMP errors and exact LED/coordinator allowances may enter IoT."
+    error_message = "The camera must retain its reserved IoT address and private DNS; the only rule that names it is the MQTT allowance, and only gateway services, related ICMP errors and exact LED/coordinator allowances may enter IoT."
+  }
+  assert {
+    condition = (
+      local.firewall_rules.camera-mqtt.protocol == "tcp" &&
+      local.firewall_rules.camera-mqtt.ip_version == "IPV4" &&
+      local.firewall_rules.camera-mqtt.source == { zone = "stardust", ips = ["10.0.50.190"] } &&
+      local.firewall_rules.camera-mqtt.destination == { zone = "launchpad", ips = ["10.0.70.202"], ports = "1883" } &&
+      local.private_dns_records.mosquitto.address == "10.0.70.202"
+    )
+    error_message = "The camera may publish MQTT only from its reserved address to TCP 1883 on the Mosquitto VIP in Servers."
   }
 }
 
@@ -341,9 +366,11 @@ run "ha_iot_access_is_limited_to_the_light_and_coordinator" {
       toset([for name, rule in local.firewall_rules : name
         if rule.source.zone == "launchpad" && rule.destination.zone == "stardust"
       ]) == toset(["ha-zigbee", "ha-office-light"]) &&
-      alltrue([for rule in values(local.firewall_rules) : rule.source.zone != "stardust" || rule.destination.zone != "launchpad"])
+      toset([for name, rule in local.firewall_rules : name
+        if rule.source.zone == "stardust" && rule.destination.zone == "launchpad"
+      ]) == toset(["camera-mqtt"])
     )
-    error_message = "HA may reach only the Zigbee coordinator and declared Yeelight in IoT; cloud Tuya needs no direct allowance and IoT must not initiate connections to Servers."
+    error_message = "HA may reach only the Zigbee coordinator and declared Yeelight in IoT; cloud Tuya needs no direct allowance and IoT may initiate a connection to Servers only for the camera's MQTT publishing."
   }
 }
 
@@ -441,6 +468,7 @@ run "home_https_uses_only_its_private_gateway" {
         sonoff-zigbee = {
           name = "zigbee.thecavespace.net", address = local.dhcp_reservations["sonoff-zigbee"].ip
         }
+        mosquitto = { name = "mqtt.thecavespace.net", address = "10.0.70.202" }
       } &&
       local.firewall_rules.home-ha-https.source.zone == "orbit" &&
       local.firewall_rules.home-ha-https.destination.ips == [local.private_dns_records["home-assistant"].address] &&

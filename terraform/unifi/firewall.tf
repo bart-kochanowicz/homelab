@@ -109,6 +109,13 @@ locals {
         source      = { zone = local.server_reservations["worker-01"].network, ips = [local.server_reservations["worker-01"].ip] }
         destination = { zone = local.dhcp_reservations["sonoff-zigbee"].network, ips = [local.dhcp_reservations["sonoff-zigbee"].ip], ports = "6638" }
       }
+      camera-mqtt = {
+        description = "Front-door camera MQTT publishing to the Mosquitto broker VIP."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = local.dhcp_reservations["front-door-camera"].network, ips = [local.dhcp_reservations["front-door-camera"].ip] }
+        destination = { zone = "launchpad", ips = [local.private_dns_records["mosquitto"].address], ports = "1883" }
+      }
       ha-office-light = {
         description = "Home Assistant local control of the office Yeelight ceiling light."
         protocol    = "tcp"

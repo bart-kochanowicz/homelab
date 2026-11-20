@@ -35,3 +35,20 @@ spec:
           app.kubernetes.io/component: proxy
           gateway.envoyproxy.io/owning-gateway-name: private-admin
           gateway.envoyproxy.io/owning-gateway-namespace: private-admin
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: mosquitto
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.0.70.202/32
+  autoAssign: false
+  serviceAllocation:
+    namespaces:
+      - mosquitto
+    serviceSelectors:
+      - matchLabels:
+          app.kubernetes.io/name: mosquitto
+          app.kubernetes.io/part-of: homelab

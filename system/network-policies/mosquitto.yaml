@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: mosquitto
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-mosquitto
+  namespace: mosquitto
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: mosquitto
+  # The broker initiates no connections, so there are no egress rules.
+  ingress:
+    # The front-door camera, preserved by externalTrafficPolicy: Local.
+    - fromCIDR:
+        - 10.0.50.190/32
+      toPorts:
+        - ports:
+            - port: "1883"
+              protocol: TCP
+    # Home Assistant runs on a node's host network.
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "1883"
+              protocol: TCP
