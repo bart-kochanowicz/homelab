@@ -24,7 +24,64 @@ data:
         - 127.0.0.1
         - ::1
 
-    automation: !include automations.yaml
+    # The camera publishes a JPEG after motion. The broker connection itself is
+    # added in the UI; entities declared here attach to it.
+    mqtt:
+      image:
+        - name: Front door camera snapshot
+          unique_id: front_door_camera_snapshot
+          image_topic: doorview/front-door-camera/snapshot
+          content_type: image/jpeg
+          encoding: ""
+
+    automation ui: !include automations.yaml
+    automation front_door:
+      - id: front_door_motion_notification
+        alias: Front door motion notification
+        description: Sends a phone notification with the camera snapshot when it reports motion.
+        # Further motion is dropped while a run waits for the image or the cooldown.
+        mode: single
+        max_exceeded: silent
+        triggers:
+          - trigger: state
+            entity_id: binary_sensor.front_door_camera_motion
+            from: "off"
+            to: "on"
+        variables:
+          motion_at: "{{ as_timestamp(trigger.to_state.last_changed) }}"
+          snapshot_is_new: >-
+            {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
+               and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+        actions:
+          # The image may arrive before or after the motion state; wait only if it has not.
+          - if: "{{ not snapshot_is_new }}"
+            then:
+              - wait_for_trigger:
+                  - trigger: state
+                    entity_id: image.front_door_camera_snapshot
+                timeout: "00:00:20"
+                continue_on_timeout: true
+          - variables:
+              snapshot_is_new: >-
+                {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
+                   and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+          - choose:
+              - conditions: "{{ snapshot_is_new }}"
+                sequence:
+                  - action: notify.mobile_app_iphone_bart
+                    data:
+                      title: Front door
+                      message: Motion detected at the front door.
+                      data:
+                        image: /api/image_proxy/image.front_door_camera_snapshot
+                        attachment:
+                          url: /api/image_proxy/image.front_door_camera_snapshot
+            default:
+              - action: notify.mobile_app_iphone_bart
+                data:
+                  title: Front door
+                  message: Motion detected, but no snapshot arrived.
+          - delay: "00:01:00"
     script: !include scripts.yaml
     scene: !include scenes.yaml
   automations.yaml: '[]'
