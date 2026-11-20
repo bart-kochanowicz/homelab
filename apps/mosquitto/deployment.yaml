@@ -31,6 +31,40 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      # Mosquitto refuses symlinked files, which Secret and ConfigMap volumes always
+      # contain, so the credentials are copied to memory-backed storage it owns.
+      initContainers:
+      - name: prepare-credentials
+        image: docker.io/library/eclipse-mosquitto:2.1.4-alpine@sha256:fa12172a051310efe5bcb7a6a11b77bd5faacb82cbacd7742aa758bf024fd8e4
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -ec
+          - |
+            cp /mosquitto/secret/passwd /mosquitto/config/acl /mosquitto/runtime/
+            chmod 0400 /mosquitto/runtime/passwd /mosquitto/runtime/acl
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        volumeMounts:
+        - name: config
+          mountPath: /mosquitto/config
+          readOnly: true
+        - name: secret
+          mountPath: /mosquitto/secret
+          readOnly: true
+        - name: runtime
+          mountPath: /mosquitto/runtime
+        resources:
+          requests:
+            cpu: 10m
+            memory: 8Mi
+          limits:
+            cpu: 100m
+            memory: 16Mi
       containers:
       - name: mosquitto
         image: docker.io/library/eclipse-mosquitto:2.1.4-alpine@sha256:fa12172a051310efe5bcb7a6a11b77bd5faacb82cbacd7742aa758bf024fd8e4
@@ -49,8 +83,8 @@ spec:
         - name: config
           mountPath: /mosquitto/config
           readOnly: true
-        - name: secret
-          mountPath: /mosquitto/secret
+        - name: runtime
+          mountPath: /mosquitto/runtime
           readOnly: true
         startupProbe:
           tcpSocket:
@@ -85,3 +119,7 @@ spec:
         secret:
           secretName: mosquitto-secret
           defaultMode: 0440
+      - name: runtime
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
