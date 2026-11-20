@@ -33,12 +33,10 @@ spec:
       - name: initialize-config
         image: busybox:1.37.0@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028
         command:
-        - cp
-        - -n
-        - /defaults/automations.yaml
-        - /defaults/scripts.yaml
-        - /defaults/scenes.yaml
-        - /config/
+        - sh
+        - -c
+        # The snapshot archive directory must exist before Home Assistant validates media_dirs.
+        - mkdir -p /config/media/front-door && cp -n /defaults/automations.yaml /defaults/scripts.yaml /defaults/scenes.yaml /config/
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

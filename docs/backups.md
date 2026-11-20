@@ -26,6 +26,10 @@ normal operation and do not form an atomic application-wide snapshot. Preparatio
 has a 4 GiB staging limit for both intermediate and final archives and does not
 change PVC ownership.
 
+Home Assistant's `media/front-door` directory, the seven-day archive of door camera
+snapshots, is excluded: backups would retain deleted photos for months. Restored
+instances start with an empty archive.
+
 Home Assistant also backs up ZHA's `zigbee.db` through SQLite's backup API.
 Every database listed in `additionalDatabases` is required. Missing databases and
 SQLite backup errors fail preparation. Restore both HA databases alongside `files.tar`.

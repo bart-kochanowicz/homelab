@@ -42,6 +42,9 @@ class PvcPreparationTests(PvcBackupTestCase):
             self.open_wal(name, source)
         (source / "home-assistant.log").write_text("excluded log fixture\n")
         (source / "home-assistant.log.1").write_text("excluded rotated log fixture\n")
+        (source / "media/front-door").mkdir(parents=True)
+        (source / "media/front-door/2026-11-20_18-24-14.jpg").write_bytes(b"jpeg")
+        (source / "media/other.txt").write_text("kept media fixture\n")
         result = self.prepare("home-assistant", source, staging)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         with tarfile.open(self.archive_path("home-assistant", staging)) as bundle:
@@ -59,6 +62,8 @@ class PvcPreparationTests(PvcBackupTestCase):
             & names
         )
         self.assertFalse({"home-assistant.log", "home-assistant.log.1"} & names)
+        self.assertIn("media/other.txt", names)
+        self.assertFalse(any(name.startswith("media/front-door") for name in names))
 
     def test_crafty_copy_excludes_disposable_stats_and_the_runtime_lock(self):
         source, staging = self.source("crafty-controller")

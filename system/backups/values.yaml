@@ -10,6 +10,7 @@ applications:
   uid: 0
   gid: 0
   excludeLog: home-assistant.log*
+  excludePaths: [media/front-door]
 - namespace: n8n
   pvc: n8n-data-nvme
   database: database.sqlite
