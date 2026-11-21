@@ -383,7 +383,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         command = self.front_door_configuration()["shell_command"][
             "front_door_snapshot_cleanup"
         ]
-        self.assertIn("retention_days=7;", command)
+        self.assertIn("retention_days=90;", command)
         self.assertEqual(command.count("/config/media/front-door"), 1)
         return subprocess.run(
             ["sh", "-c", command.replace("/config/media/front-door", str(archive))],
@@ -397,45 +397,47 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         modified = time.time() - seconds
         os.utime(path, (modified, modified))
 
-    def test_retention_deletes_only_archive_snapshots_older_than_seven_days(self):
+    def test_retention_deletes_only_archive_snapshots_older_than_ninety_days(self):
         with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
             root = Path(directory)
             archive = root / "front-door"
             archive.mkdir()
             outside = root / "outside.jpg"
             files = {
-                "2026-11-01_10-00-00.jpg": 8 * 86400,
-                "2026-11-12_10-00-00.jpg": 6 * 86400,
+                "2026-08-01_10-00-00.jpg": 91 * 86400,
+                "2026-08-23_10-00-00.jpg": 89 * 86400,
+                "2026-11-12_10-00-00.jpg": 8 * 86400,
                 "2026-11-20_10-00-00.jpg": 0,
-                "notes.jpg": 30 * 86400,
-                "2026-11-01_10-00-00.txt": 30 * 86400,
+                "notes.jpg": 120 * 86400,
+                "2026-08-01_10-00-00.txt": 120 * 86400,
             }
             for name, age in files.items():
                 path = archive / name
                 path.write_bytes(b"jpeg")
                 self.age(path, age)
             outside.write_bytes(b"jpeg")
-            self.age(outside, 30 * 86400)
-            (archive / "2026-10-01_10-00-00.jpg").symlink_to(outside)
+            self.age(outside, 120 * 86400)
+            (archive / "2026-07-01_10-00-00.jpg").symlink_to(outside)
             nested = archive / "nested"
             nested.mkdir()
-            (nested / "2026-10-01_10-00-00.jpg").write_bytes(b"jpeg")
-            self.age(nested / "2026-10-01_10-00-00.jpg", 30 * 86400)
+            (nested / "2026-07-01_10-00-00.jpg").write_bytes(b"jpeg")
+            self.age(nested / "2026-07-01_10-00-00.jpg", 120 * 86400)
             result = self.run_cleanup(archive)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 {path.name for path in archive.iterdir()},
                 {
+                    "2026-08-23_10-00-00.jpg",
                     "2026-11-12_10-00-00.jpg",
                     "2026-11-20_10-00-00.jpg",
                     "notes.jpg",
-                    "2026-11-01_10-00-00.txt",
-                    "2026-10-01_10-00-00.jpg",
+                    "2026-08-01_10-00-00.txt",
+                    "2026-07-01_10-00-00.jpg",
                     "nested",
                 },
             )
             self.assertTrue(outside.exists())
-            self.assertTrue((nested / "2026-10-01_10-00-00.jpg").exists())
+            self.assertTrue((nested / "2026-07-01_10-00-00.jpg").exists())
 
     def test_retention_succeeds_when_the_archive_is_empty_or_missing(self):
         with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:

@@ -160,19 +160,23 @@ folder, which this deployment does not mount. The directory must exist when Home
 Assistant starts, otherwise the core configuration is invalid and Home Assistant starts
 in recovery mode, so the deployment's init container creates it.
 
-Snapshots older than 7 days are deleted by `front_door_snapshot_retention` at 04:15
+Snapshots older than 90 days are deleted by `front_door_snapshot_retention` at 04:15
 and when Home Assistant starts, through the `front_door_snapshot_cleanup` shell
 command; change `retention_days` there to change the retention. It runs `find` only in
 `/config/media/front-door`, at depth one, on regular files named like the snapshots
 (never symlinks or other names), so an empty or missing directory is not an error and
 nothing outside the archive is touched. Files can live up to a day longer than the
-retention. The archive adds about the size of each picture (120-250 KB) per motion.
+retention. The archive adds about the size of each picture (150 KB at 1920 by 1080, up
+to 250 KB) per motion, so it holds roughly 150 KB times motions per day times 90: 50
+motions a day come to about 700 MB, far below the 32Gi volume. The age is the file's
+modification time, which is when the picture was saved and matches the time in its name.
 
 The archive is excluded from the K8up backup of `home-assistant-data-nvme`
 (`excludePaths` in `system/backups/values.yaml`): backing it up would keep deleted
 photos of the door in the restic repository for up to three months, the longest
-monthly retention, which contradicts the 7-day retention. Consequently a restored
-Home Assistant starts with an empty archive. To clear it early, delete the files in
+monthly retention, so a photo could outlive the 90-day retention by that long. The
+90 days therefore apply only to the live volume. Consequently a restored Home
+Assistant starts with an empty archive. To clear it early, delete the files in
 **Media** (the delete action) or run
 `kubectl -n home-assistant exec deployment/home-assistant -- sh -c 'rm -f /config/media/front-door/*.jpg'`.
 Deleting the directory itself needs a pod restart.

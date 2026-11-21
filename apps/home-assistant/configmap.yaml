@@ -46,7 +46,7 @@ data:
     # symlinks) and a missing directory is not an error.
     shell_command:
       front_door_snapshot_cleanup: >-
-        retention_days=7;
+        retention_days=90;
         archive=/config/media/front-door;
         [ ! -d "$archive" ] ||
         find "$archive" -maxdepth 1 -type f -name '????-??-??_??-??-??.jpg'
