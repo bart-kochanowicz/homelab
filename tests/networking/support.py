@@ -83,3 +83,41 @@ class GatewayTestCase(unittest.TestCase):
             timeout=15,
         )
         return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+
+
+def acl_rules(acl: str) -> dict[str, list[tuple[str, str]]]:
+    """Parse a Mosquitto ACL file into (access, topic filter) rules per user."""
+    rules: dict[str, list[tuple[str, str]]] = {}
+    user = None
+    for line in acl.splitlines():
+        words = line.split()
+        if not words or words[0].startswith("#"):
+            continue
+        if words[0] == "user":
+            user = words[1]
+            rules[user] = []
+        elif words[0] == "topic" and user is not None:
+            # Without an access word, Mosquitto grants readwrite.
+            access, topic = words[1:] if len(words) == 3 else ("readwrite", words[1])
+            rules[user].append((access, topic))
+    return rules
+
+
+def topic_matches(pattern: str, topic: str) -> bool:
+    """MQTT topic filter matching of an ACL pattern against a concrete topic."""
+    wanted = topic.split("/")
+    for index, level in enumerate(pattern.split("/")):
+        if level == "#":
+            return True
+        if index >= len(wanted) or level not in ("+", wanted[index]):
+            return False
+    return len(pattern.split("/")) == len(wanted)
+
+
+def acl_allows(
+    rules: dict[str, list[tuple[str, str]]], user: str, access: str, topic: str
+) -> bool:
+    return any(
+        topic_matches(pattern, topic) and granted in (access, "readwrite")
+        for granted, pattern in rules[user]
+    )

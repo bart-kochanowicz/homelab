@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .support import ROOT, GatewayTestCase
+from .support import ROOT, GatewayTestCase, acl_allows, acl_rules
 
 CARD = "front-door-events-card.js"
 
@@ -229,16 +229,14 @@ class HomeAssistantGatewayTests(GatewayTestCase):
     ):
         configuration = self.front_door_configuration()
         self.assertEqual(
-            configuration["mqtt"]["image"],
-            [
-                {
-                    "name": "Front door camera snapshot",
-                    "unique_id": "front_door_camera_snapshot",
-                    "image_topic": "doorview/front-door-camera/snapshot",
-                    "content_type": "image/jpeg",
-                    "encoding": "",
-                }
-            ],
+            configuration["mqtt"]["image"][0],
+            {
+                "name": "Front door camera snapshot",
+                "unique_id": "front_door_camera_snapshot",
+                "image_topic": "doorview/front-door-camera/snapshot",
+                "content_type": "image/jpeg",
+                "encoding": "",
+            },
         )
         broker = next(
             item
@@ -535,7 +533,9 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The URL path of a dashboard needs a hyphen.
         self.assertRegex(next(iter(lovelace["dashboards"])), r"^[a-z]+-[a-z-]+$")
         dashboard = self.front_door_dashboard()
-        self.assertEqual([view["path"] for view in dashboard["views"]], ["events"])
+        self.assertEqual(
+            [view["path"] for view in dashboard["views"]], ["events", "live"]
+        )
         view = dashboard["views"][0]
         # A panel view holds exactly one card, which then spans the phone.
         self.assertTrue(view["panel"])
@@ -668,6 +668,245 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         ]
         self.assertIn("'????-??-??_??-??-??.jpg'", cleanup)
 
+    LIVE = "doorview/front-door-camera/live"
+
+    def live_view_entities(self) -> dict[str, dict[str, Any]]:
+        mqtt = self.front_door_configuration()["mqtt"]
+        return {
+            "image": next(
+                item for item in mqtt["image"] if item["unique_id"] == "front_door_live"
+            ),
+            "switch": mqtt["switch"][0],
+            "binary_sensor": mqtt["binary_sensor"][0],
+        }
+
+    @staticmethod
+    def entity_id(domain: str, entity: dict[str, Any]) -> str:
+        return f"{domain}." + re.sub(r"[^a-z0-9]+", "_", entity["name"].lower())
+
+    def test_live_frames_are_a_separate_raw_jpeg_image_entity(self):
+        configuration = self.front_door_configuration()
+        entities = self.live_view_entities()
+        self.assertEqual(len(configuration["mqtt"]["image"]), 2)
+        self.assertEqual(
+            entities["image"],
+            {
+                "name": "Front door live",
+                "unique_id": "front_door_live",
+                "image_topic": self.LIVE,
+                "content_type": "image/jpeg",
+                "encoding": "",
+            },
+        )
+        # Not the entity that the notification and the archive follow.
+        snapshot = configuration["mqtt"]["image"][0]
+        self.assertNotEqual(entities["image"]["image_topic"], snapshot["image_topic"])
+        self.assertNotEqual(entities["image"]["unique_id"], snapshot["unique_id"])
+        self.assertEqual(
+            self.entity_id("image", entities["image"]), "image.front_door_live"
+        )
+
+    def test_live_view_switch_commands_the_camera_and_shows_what_it_reports(self):
+        entities = self.live_view_entities()
+        self.assertEqual(
+            entities["switch"],
+            {
+                "name": "Front door live view",
+                "unique_id": "front_door_live_view",
+                "command_topic": f"{self.LIVE}/set",
+                "state_topic": f"{self.LIVE}/state",
+                "payload_on": "ON",
+                "payload_off": "OFF",
+                "state_on": "ON",
+                "state_off": "OFF",
+                # Not optimistic: it stays off when the camera does not answer.
+                "optimistic": False,
+                # A retained ON would start a view for whoever connects later.
+                "retain": False,
+                "qos": 0,
+            },
+        )
+        self.assertEqual(
+            self.entity_id("switch", entities["switch"]), "switch.front_door_live_view"
+        )
+        self.assertEqual(
+            entities["binary_sensor"],
+            {
+                "name": "Front door camera online",
+                "unique_id": "front_door_camera_online",
+                "state_topic": "doorview/front-door-camera/availability",
+                "payload_on": "online",
+                "payload_off": "offline",
+                "device_class": "connectivity",
+            },
+        )
+        self.assertEqual(
+            self.entity_id("binary_sensor", entities["binary_sensor"]),
+            "binary_sensor.front_door_camera_online",
+        )
+        # Home Assistant 2026.10 left YAML entities with an `availability` unavailable
+        # after a restart, so the camera's state is read as a state topic instead.
+        for entity in entities.values():
+            self.assertNotIn("availability", entity)
+            self.assertNotIn("availability_topic", entity)
+
+    def test_live_view_topics_match_what_the_broker_lets_the_camera_do(self):
+        entities = self.live_view_entities()
+        broker = next(
+            item
+            for item in self.rendered("apps-mosquitto.yaml")
+            if item["kind"] == "ConfigMap"
+        )
+        rules = acl_rules(broker["data"]["acl"])
+        camera, home_assistant = "front-door-camera", "home-assistant"
+        command = entities["switch"]["command_topic"]
+        # The camera reads the command and nothing else; Home Assistant sends it.
+        self.assertTrue(acl_allows(rules, camera, "read", command))
+        self.assertTrue(acl_allows(rules, home_assistant, "write", command))
+        for topic in (
+            entities["image"]["image_topic"],
+            entities["switch"]["state_topic"],
+            entities["binary_sensor"]["state_topic"],
+        ):
+            # The camera publishes these and Home Assistant reads them.
+            self.assertTrue(acl_allows(rules, camera, "write", topic), topic)
+            self.assertFalse(acl_allows(rules, camera, "read", topic), topic)
+            self.assertTrue(acl_allows(rules, home_assistant, "read", topic), topic)
+        # Frames are 640 by 360 and about 25 KB, far below the packet limit.
+        self.assertIn("max_packet_size 524288", broker["data"]["mosquitto.conf"])
+
+    def test_live_frames_are_not_recorded(self):
+        configuration = self.front_door_configuration()
+        # The state of an image entity is the time of its last update, so a frame
+        # twice a second would be a database row each; the picture itself is never
+        # stored. Only the live image is excluded.
+        self.assertEqual(
+            configuration["recorder"],
+            {"exclude": {"entities": ["image.front_door_live"]}},
+        )
+
+    def test_live_frames_never_reach_the_archive_or_the_notification(self):
+        configuration = self.front_door_configuration()
+        live = ("front_door_live", "front-door-camera/live", "camera_online")
+        for automation in configuration["automation front_door"]:
+            text = json.dumps(automation)
+            for name in live:
+                self.assertNotIn(name, text)
+        # The archive and the notification react to Motion alone and wait for the
+        # snapshot entity, so a frame changes neither their trigger nor their picture.
+        for automation_id in (
+            "front_door_motion_notification",
+            "front_door_snapshot_archive",
+        ):
+            self.assertEqual(
+                [
+                    item["entity_id"]
+                    for item in self.front_door_automation(automation_id)["triggers"]
+                ],
+                ["binary_sensor.front_door_camera_motion"],
+            )
+        # Nothing else saves a picture: the live image is not in a service call, and
+        # the only file writer is the archive's image.snapshot of the snapshot image.
+        text = json.dumps(configuration["automation front_door"])
+        self.assertEqual(text.count("image.snapshot"), 1)
+        self.assertEqual(
+            self.front_door_automation("front_door_snapshot_archive")["actions"][2][
+                "then"
+            ][0]["target"],
+            {"entity_id": "image.front_door_camera_snapshot"},
+        )
+        self.assertEqual(
+            set(configuration["shell_command"]), {"front_door_snapshot_cleanup"}
+        )
+
+    def live_view(self) -> dict[str, Any]:
+        return next(
+            view
+            for view in self.front_door_dashboard()["views"]
+            if view["path"] == "live"
+        )
+
+    @staticmethod
+    def states_shown(card: dict[str, Any]) -> dict[str, list[str]]:
+        """The entity states under which a conditional card is visible."""
+        shown: dict[str, list[str]] = {}
+        for condition in card["conditions"]:
+            assert condition["condition"] == "state", condition
+            shown[condition["entity"]] = [condition["state"]]
+        return shown
+
+    def test_live_view_dashboard_controls_and_shows_the_live_image(self):
+        view = self.live_view()
+        configuration = self.front_door_configuration()
+        entities = self.live_view_entities()
+        image = self.entity_id("image", entities["image"])
+        switch = self.entity_id("switch", entities["switch"])
+        online = self.entity_id("binary_sensor", entities["binary_sensor"])
+        self.assertEqual(view["path"], "live")
+        # The events view is the one a notification opens and stays first.
+        self.assertEqual(self.front_door_dashboard()["views"][0]["path"], "events")
+        self.assertNotIn("panel", view)
+        cards = view["cards"]
+        for card in cards:
+            self.assertIn(card["type"], {"conditional", "markdown"})
+        conditional = [card for card in cards if card["type"] == "conditional"]
+        # Start and stop come first, so they do not move when the picture appears.
+        buttons = conditional[0]["card"]
+        self.assertEqual(self.states_shown(conditional[0]), {online: ["on"]})
+        self.assertEqual(buttons["type"], "horizontal-stack")
+        self.assertEqual(
+            [
+                (
+                    item["name"],
+                    item["tap_action"]["perform_action"],
+                    item["tap_action"]["target"],
+                )
+                for item in buttons["cards"]
+            ],
+            [
+                ("Start", "switch.turn_on", {"entity_id": switch}),
+                ("Stop", "switch.turn_off", {"entity_id": switch}),
+            ],
+        )
+        for item in buttons["cards"]:
+            self.assertEqual(item["tap_action"]["action"], "perform-action")
+        # Offline, live and off are three mutually exclusive states of one slot.
+        offline, live, idle = (item for item in conditional[1:])
+        self.assertEqual(self.states_shown(offline), {online: ["off"]})
+        self.assertIn("offline", offline["card"]["content"])
+        self.assertEqual(self.states_shown(live), {online: ["on"], switch: ["on"]})
+        self.assertEqual(
+            live["card"],
+            {
+                "type": "picture-entity",
+                "entity": image,
+                "show_name": False,
+                "show_state": False,
+            },
+        )
+        self.assertEqual(self.states_shown(idle), {online: ["on"], switch: ["off"]})
+        # It says that the view ends by itself.
+        self.assertIn("30 seconds", cards[-1]["content"])
+        # Every entity on the view is one that the package declares.
+        self.assertEqual(
+            {state for item in conditional for state in self.states_shown(item)},
+            {online, switch},
+        )
+        declared = {
+            item["unique_id"]
+            for domain in configuration["mqtt"].values()
+            for item in domain
+        }
+        self.assertLessEqual(
+            {item["unique_id"] for item in entities.values()}, declared
+        )
+        # No picture of the snapshot entity and no other address on this view.
+        text = json.dumps(view)
+        self.assertNotIn("image.front_door_camera_snapshot", text)
+        self.assertNotIn("/local", text)
+        self.assertNotIn("/media", text)
+        self.assertNotIn("/api/", text)
+
     def test_platform_configuration_only_loads_the_content_directory(self):
         main = self.main_configuration()
         # The platform owns plumbing: the URLs, the media folder, the HTTP server and
@@ -692,6 +931,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
                 "frontend",
                 "lovelace",
                 "mqtt",
+                "recorder",
                 "shell_command",
                 "automation front_door",
             },

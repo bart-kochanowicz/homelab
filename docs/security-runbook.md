@@ -82,7 +82,7 @@ when the Cilium agent restarts. Finish the policy review before restarting agent
 ### MQTT broker
 
 Mosquitto ([apps/mosquitto](../apps/mosquitto/)) receives battery, power, button,
-uptime and snapshot messages from the RH-PD10 front-door camera and serves Home
+uptime, snapshot and live-view messages from the RH-PD10 front-door camera and serves Home
 Assistant's MQTT integration. It is the only service in Servers that an IoT
 device may reach.
 
@@ -92,7 +92,7 @@ device may reach.
 | Allocation | MetalLB pool `mosquitto`, bound to the `mosquitto` Service in its namespace |
 | Allowed sources | Camera `10.0.50.190` and the Home Assistant worker `10.0.70.12`, in the Service source ranges, the Cilium pod policy and the router |
 | Router | Terraform rule `camera-mqtt`: only `10.0.50.190` to the VIP on TCP `1883`, with stateful replies |
-| Users | `home-assistant` reads and writes every topic; `front-door-camera` writes `doorview/front-door-camera/#` and its own `sensor`, `binary_sensor` and `event` discovery topics only |
+| Users | `home-assistant` reads and writes every topic; `front-door-camera` writes `doorview/front-door-camera/#` and its own `sensor`, `binary_sensor` and `event` discovery topics, and reads only `doorview/front-door-camera/live/set` |
 
 Anonymous access is disabled. The password file is the SealedSecret
 `mosquitto-secret` (key `passwd`) in `apps/mosquitto/sealed-secret.yaml`; the pod
@@ -111,7 +111,7 @@ declares a `mqtt` `image` entity for that topic in `apps/home-assistant/config/p
 and does not call the camera: Home Assistant opens no connection to IoT for this, so
 the router needs no rule and the camera's web interface, which grants root to any
 login, stays unreachable. The entity is declared by hand because the ACL permits no
-`homeassistant/image/...` discovery topic; leave the ACL as it is.
+`homeassistant/image/...` discovery topic; leave the camera's write rules as they are.
 
 The broker's `max_packet_size` is 524288 bytes (512 KiB), about twice the largest
 expected picture. It is the only size limit set: `message_size_limit`,
@@ -335,6 +335,105 @@ names, and have an init container clone it at a pinned commit into `/config` (or
 per ConfigMap. Home Assistant reads packages and dashboards at start, so a new commit
 needs a pod restart, as it does today. Secrets stay in SealedSecrets in this repository
 either way.
+
+#### Live view
+
+The **Live** view of the **Front door** dashboard (`/front-door/live`) shows the door on
+demand: **Start** makes the camera send a 640 by 360 JPEG up to twice a second for about
+30 seconds, then it stops by itself. These are frames, not video, and they travel over
+MQTT like the snapshots, so Home Assistant never connects to the camera and its web
+interface, which grants root to any login, stays unreachable.
+
+| Topic | Direction | Payload |
+| --- | --- | --- |
+| `doorview/front-door-camera/live/set` | Home Assistant to camera, QoS 0, **not retained** | `ON` starts or renews the 30 seconds, `OFF` stops; the camera ignores retained messages |
+| `doorview/front-door-camera/live` | camera to Home Assistant, QoS 0, not retained | raw `image/jpeg`, about 10 to 25 KB, at most twice a second and only while the view is on |
+| `doorview/front-door-camera/live/state` | camera to Home Assistant, **retained** | `ON` or `OFF`, what the camera is doing |
+| `doorview/front-door-camera/availability` | camera to Home Assistant, retained | `online`, or `offline` from its last will |
+
+The camera's ACL gained exactly one read rule, `topic read doorview/front-door-camera/live/set`,
+so that it can receive the command; it still reads nothing else, and a wildcard
+subscription gets nothing more because the broker checks the filter against the rule. Its
+write rules are unchanged. The broker reads the ACL at start, so after syncing run
+`kubectl -n mosquitto rollout restart deployment/mosquitto`; until then the camera is not
+granted the command and **Start** does nothing. The camera
+reconnects by itself. Then check Home Assistant: a change to the package or dashboard
+rolls its pod on sync, otherwise run
+`kubectl -n home-assistant rollout restart deployment/home-assistant`. Roll out in this
+order: sync, restart the broker, let Home Assistant restart.
+
+What `apps/home-assistant/config/packages/front_door.yaml` declares, all by hand for the
+same reason as the snapshot (the ACL allows no discovery topic for them):
+
+- `image.front_door_live`, an MQTT `image` of the frames. It is **not**
+  `image.front_door_camera_snapshot`: the notification and the archive follow that one, so
+  a frame can never be sent to the phone or saved.
+- `switch.front_door_live_view`: command topic `.../live/set` with `ON`/`OFF`, no retain,
+  QoS 0, state from `.../live/state`, `optimistic: false`. A switch rather than a button
+  because it shows what the camera reports: if the camera does not answer, or has not yet
+  got the new ACL, it stays off instead of pretending. The iOS app shows it like any
+  other switch. The dashboard does not use its toggle but two explicit buttons, **Start**
+  (`switch.turn_on`, which sends `ON` again while the view runs, so it renews the 30
+  seconds) and **Stop** (`switch.turn_off`); a toggle could not renew.
+- `binary_sensor.front_door_camera_online`, the availability topic read as a state, which
+  is what the card uses to say that the camera is offline and to hide the buttons. The
+  live entities deliberately have no `availability` of their own: in Home Assistant
+  2026.10.4 a YAML entity with one stayed `unavailable` after every restart, because the
+  retained `online` was not applied to it, while a state topic is read correctly at
+  start and after the camera's last will.
+- The dashboard view is built from built-in cards only (no script, nothing under
+  `/local`). One of three conditional cards shows at a time: the offline message,
+  the `picture-entity` of `image.front_door_live` while the switch is on, or "Live view is
+  off". The picture exists only while the view is on, so it never shows an old frame as
+  if it were live and nothing is fetched while it is off. The buttons come first so
+  that they do not move when the picture appears.
+- `recorder` excludes `image.front_door_live`. The state of an image entity is the time of
+  its last update, so up to two database rows a second while the view runs (the picture
+  bytes are never stored); excluded, a 30 second view leaves none. The access token that
+  the entity rotates every five minutes is an attribute of the live entity and is not recorded either.
+
+Why the card follows the frames: the `picture-entity` card appends the entity's state to
+the picture's URL (`/api/image_proxy/image.front_door_live?token=...&state=<time>`), so
+each frame is a new URL and the browser loads it. Measured in Chromium emulating a phone
+against the pinned Home Assistant image and a simulated camera sending generated frames
+every 500 ms, the browser loaded every frame (about 1.8 a second, never a gap over
+0.6 s), with no long task and no dropped animation frame even with the CPU throttled four
+times, about 3 % of the main thread and no growth in memory or DOM nodes; a view ended 30
+seconds after the last `ON`, and `OFF` ended it at once. The first frame after a Home
+Assistant restart can show a broken picture for under a second (the image has no data
+yet, the proxy answers 500) and logs one error. This was not tried in the iOS Companion
+app, so confirm there that the picture updates, and that the frames stay smooth on mobile
+data (about 40 KB a second).
+
+Frames are private: they exist only in Home Assistant's memory and are served from
+`/api/image_proxy/`, which needs the login or the entity's token (`403` without one);
+nothing goes in `/config/www` or `/local`, which holds only the events card. They are not
+archived: `front_door_snapshot_archive` saves the snapshot entity on a Motion change and
+never looks at the live entity, which a test checks. The risks are on the broker side:
+anyone who may write to `.../live/set` can start a view, which is why only Home
+Assistant and the camera have broker credentials and the router lets only them reach it;
+the camera may also write that topic (its `doorview/front-door-camera/#` rule), which is
+harmless because it only commands itself. A view costs the camera power and the camera's
+Wi-Fi link, and ends by itself, so a forgotten tab cannot keep it running.
+
+The camera's daemon must publish `OFF` on `.../live/state` when it starts and when it
+exits cleanly: a retained `ON` left by a crash would make the card show a live view that is
+not running (with the last frame) until the next start. A view that the camera cannot
+start leaves the switch off and the card on "Live view is off".
+
+This needs a daemon on the camera that implements the table; nothing here starts one.
+After rollout, open `/front-door/live` on the phone, tap **Start**, watch the picture
+update, wait for it to end, and stop the camera's connection to see the offline message.
+Check the frames are private with
+`curl -sk -o /dev/null -w '%{http_code}' https://ha.thecavespace.net/api/image_proxy/image.front_door_live`,
+which must print `403`.
+
+An action in the motion notification that starts the view and opens it was left out.
+On iOS a notification action either opens a URL (`URI`) and sends Home Assistant no
+event, or sends the `mobile_app_notification_action` event and does not open the app, so
+doing both takes a workaround, and there are reports that `URI` actions open the default
+dashboard instead of the given path on current iOS. The notification still opens
+`/front-door/events`; open **Live** from the sidebar tab and tap **Start**.
 
 ## Bootstrap and platform changes
 

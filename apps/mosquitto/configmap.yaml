@@ -29,3 +29,4 @@ data:
     topic write homeassistant/sensor/front-door-camera/+/config
     topic write homeassistant/binary_sensor/front-door-camera/+/config
     topic write homeassistant/event/front-door-camera/+/config
+    topic read doorview/front-door-camera/live/set
