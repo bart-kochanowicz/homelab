@@ -122,13 +122,64 @@ seconds for it, then sends a phone notification through the mobile app with the 
 during the wait or cooldown starts no second run. The phone downloads the image from
 Home Assistant through `/api/image_proxy/`, which requires its login.
 
+A second automation, `front_door_snapshot_archive`, saves the picture that follows each
+motion to `/config/media/front-door/YYYY-MM-DD_HH-MM-SS.jpg` on the Home Assistant PVC,
+named by the time the image arrived in Home Assistant's configured time zone, using the
+`image.snapshot` action; it needs no token or secret. It is independent of the
+notification, so a failed write (full disk, permissions) is only logged under
+**Settings > System > Logs** and never delays or suppresses the notification.
+
+The camera publishes snapshots with the MQTT retain flag, so Home Assistant receives
+the last picture again after every restart or broker reconnect, and the image entity
+cannot tell it from a new one (Home Assistant exposes no retain flag to automations). The
+archive therefore saves a picture only when `Motion` turned from `off` to `on` and the
+image was updated within 5 seconds before or 20 seconds after it, the rule the
+notification uses. A replay is preceded by `unavailable`/`unknown` and does not start
+the automation, and the broker keeps no retained messages across its own restart.
+Failure modes: a picture that arrives more than 20 seconds after motion, or without a
+motion event, is not archived; a replay within that window after a real motion would
+be saved again under its own, equally recent, name; two motions sharing one picture
+rewrite one file.
+
+The directory is a Home Assistant media folder (`media_dirs: front_door`), so the
+pictures are in **Media > My media > front_door** and under `/media/front_door/` only
+for a logged-in user. Never store them in `/config/www`: its `/local/` URL is served
+without authentication. Every Home Assistant user, not only administrators, can open
+the archive, and it is a record of who came to the door; keep access to Home Assistant
+and its PVC limited accordingly. Defining `media_dirs` replaces the default `local`
+folder, which this deployment does not mount. The directory must exist when Home
+Assistant starts, otherwise the core configuration is invalid and Home Assistant starts
+in recovery mode, so the deployment's init container creates it.
+
+Snapshots older than 7 days are deleted by `front_door_snapshot_retention` at 04:15
+and when Home Assistant starts, through the `front_door_snapshot_cleanup` shell
+command; change `retention_days` there to change the retention. It runs `find` only in
+`/config/media/front-door`, at depth one, on regular files named like the snapshots
+(never symlinks or other names), so an empty or missing directory is not an error and
+nothing outside the archive is touched. Files can live up to a day longer than the
+retention. The archive adds about the size of each picture (12-24 KB) per motion.
+
+The archive is excluded from the K8up backup of `home-assistant-data-nvme`
+(`excludePaths` in `system/backups/values.yaml`): backing it up would keep deleted
+photos of the door in the restic repository for up to three months, the longest
+monthly retention, which contradicts the 7-day retention. Consequently a restored
+Home Assistant starts with an empty archive. To clear it early, delete the files in
+**Media** (the delete action) or run
+`kubectl -n home-assistant exec deployment/home-assistant -- sh -c 'rm -f /config/media/front-door/*.jpg'`.
+Deleting the directory itself needs a pod restart.
+
 The automation notifies the `iphone_bart` mobile app (`notify.mobile_app_iphone_bart`);
 a different or additional phone needs its own service name (Developer tools > Actions,
 filter `mobile_app`). The entity ids are `binary_sensor.front_door_camera_motion` and
 `image.front_door_camera_snapshot`; the image id follows from the entity name, so
 confirm it in Developer tools > States after the first sync. `configuration.yaml` is
 mounted with `subPath`, so after syncing run
-`kubectl -n home-assistant rollout restart deployment/home-assistant`.
+`kubectl -n home-assistant rollout restart deployment/home-assistant`; the sync of a
+change to the init container restarts the pod itself. Then check that Home Assistant
+did not start in recovery mode and that **Developer tools > Actions** lists
+`image.snapshot`, trigger a motion, and confirm a JPEG in **Media > front_door**
+whose name matches your local time (the time zone is set in **Settings > System >
+General**).
 
 Roll out in this order, reviewing each step: apply the UniFi Terraform plan (DNS
 record and `camera-mqtt`), then sync `app-namespaces`, the `applications` project

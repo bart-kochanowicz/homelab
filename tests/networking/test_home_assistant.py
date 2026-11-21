@@ -1,6 +1,8 @@
 import json
+import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -241,12 +243,20 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The snapshot needs no credentials, router rule or Secret of its own.
         text = json.dumps(configuration)
         self.assertNotIn("10.0.50.190", text)
-        self.assertNotIn("shell_command", configuration)
+        # The only shell command prunes the archive; nothing reaches the camera.
+        self.assertEqual(
+            set(configuration["shell_command"]), {"front_door_snapshot_cleanup"}
+        )
+
+    def front_door_automation(self, automation_id: str) -> dict[str, Any]:
+        return next(
+            item
+            for item in self.front_door_configuration()["automation front_door"]
+            if item["id"] == automation_id
+        )
 
     def test_motion_automation_waits_for_a_fresh_snapshot_and_is_rate_limited(self):
-        automations = self.front_door_configuration()["automation front_door"]
-        self.assertEqual(len(automations), 1)
-        automation = automations[0]
+        automation = self.front_door_automation("front_door_motion_notification")
         self.assertEqual(automation["mode"], "single")
         self.assertEqual(automation["max_exceeded"], "silent")
         self.assertEqual(
@@ -277,3 +287,191 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertNotIn("data", actions[2]["default"][0]["data"])
         # The run holds the single slot for the cooldown, so repeated motion is dropped.
         self.assertEqual(actions[-1], {"delay": "00:01:00"})
+
+    def test_notification_automation_does_not_depend_on_the_archive(self):
+        automations = self.front_door_configuration()["automation front_door"]
+        self.assertEqual(
+            [item["id"] for item in automations],
+            [
+                "front_door_motion_notification",
+                "front_door_snapshot_archive",
+                "front_door_snapshot_retention",
+            ],
+        )
+        notification = json.dumps(automations[0])
+        self.assertNotIn("image.snapshot", notification)
+        self.assertNotIn("shell_command", notification)
+
+    def test_snapshots_are_archived_in_an_authenticated_media_directory(self):
+        configuration = self.front_door_configuration()
+        archive = "/config/media/front-door"
+        self.assertEqual(
+            configuration["homeassistant"]["media_dirs"], {"front_door": archive}
+        )
+        automation = self.front_door_automation("front_door_snapshot_archive")
+        # The camera publishes snapshots retained, so Home Assistant sees the last
+        # picture again after every restart or reconnect. Only a picture that follows
+        # Motion turning on is saved: a replay is preceded by unavailable -> state.
+        self.assertEqual(
+            automation["triggers"],
+            [
+                {
+                    "trigger": "state",
+                    "entity_id": "binary_sensor.front_door_camera_motion",
+                    "from": "off",
+                    "to": "on",
+                }
+            ],
+        )
+        self.assertEqual(automation["mode"], "queued")
+        image = "image.front_door_camera_snapshot"
+        notification = self.front_door_automation("front_door_motion_notification")
+        # Same freshness rule as the notification, so both act on the same picture.
+        self.assertEqual(
+            automation["variables"]["snapshot_is_new"],
+            notification["variables"]["snapshot_is_new"],
+        )
+        wait = automation["actions"][0]["then"][0]
+        self.assertEqual(
+            wait["wait_for_trigger"],
+            # null ignores attribute changes such as the rotating access token.
+            [{"trigger": "state", "entity_id": image, "to": None}],
+        )
+        self.assertEqual(wait["timeout"], "00:00:20")
+        self.assertTrue(wait["continue_on_timeout"])
+        self.assertEqual(
+            automation["actions"][1]["variables"]["snapshot_is_new"],
+            automation["variables"]["snapshot_is_new"],
+        )
+        save = automation["actions"][2]
+        self.assertEqual(save["if"], "{{ snapshot_is_new }}")
+        self.assertEqual(len(save["then"]), 1)
+        action = save["then"][0]
+        self.assertEqual(action["action"], "image.snapshot")
+        self.assertEqual(action["target"], {"entity_id": image})
+        filename = action["data"]["filename"]
+        self.assertTrue(filename.startswith(archive + "/"))
+        # Named by the picture's own arrival time, not by the motion or the run.
+        self.assertIn(f"states('{image}')", filename)
+        self.assertIn("'%Y-%m-%d_%H-%M-%S'", filename)
+        self.assertTrue(filename.endswith(".jpg"))
+        # /local serves /config/www without authentication.
+        text = json.dumps(configuration)
+        self.assertNotIn("/www", text)
+        self.assertNotIn("/local", text)
+        self.assertNotIn("allowlist_external_dirs", text)
+
+    def test_archive_directory_exists_before_home_assistant_validates_media_dirs(self):
+        deployment = next(
+            item
+            for item in self.rendered("apps-home-assistant.yaml")
+            if item["kind"] == "Deployment"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        init = pod["initContainers"][0]
+        self.assertEqual(init["command"][:2], ["sh", "-c"])
+        self.assertTrue(
+            init["command"][2].startswith("mkdir -p /config/media/front-door && ")
+        )
+        self.assertIn("cp -n ", init["command"][2])
+        self.assertIn({"name": "config", "mountPath": "/config"}, init["volumeMounts"])
+        self.assertFalse(init["securityContext"]["allowPrivilegeEscalation"])
+        self.assertTrue(init["securityContext"]["readOnlyRootFilesystem"])
+
+    def run_cleanup(self, archive: Path) -> subprocess.CompletedProcess[str]:
+        command = self.front_door_configuration()["shell_command"][
+            "front_door_snapshot_cleanup"
+        ]
+        self.assertIn("retention_days=7;", command)
+        self.assertEqual(command.count("/config/media/front-door"), 1)
+        return subprocess.run(
+            ["sh", "-c", command.replace("/config/media/front-door", str(archive))],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
+    @staticmethod
+    def age(path: Path, seconds: float) -> None:
+        modified = time.time() - seconds
+        os.utime(path, (modified, modified))
+
+    def test_retention_deletes_only_archive_snapshots_older_than_seven_days(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
+            root = Path(directory)
+            archive = root / "front-door"
+            archive.mkdir()
+            outside = root / "outside.jpg"
+            files = {
+                "2026-11-01_10-00-00.jpg": 8 * 86400,
+                "2026-11-12_10-00-00.jpg": 6 * 86400,
+                "2026-11-20_10-00-00.jpg": 0,
+                "notes.jpg": 30 * 86400,
+                "2026-11-01_10-00-00.txt": 30 * 86400,
+            }
+            for name, age in files.items():
+                path = archive / name
+                path.write_bytes(b"jpeg")
+                self.age(path, age)
+            outside.write_bytes(b"jpeg")
+            self.age(outside, 30 * 86400)
+            (archive / "2026-10-01_10-00-00.jpg").symlink_to(outside)
+            nested = archive / "nested"
+            nested.mkdir()
+            (nested / "2026-10-01_10-00-00.jpg").write_bytes(b"jpeg")
+            self.age(nested / "2026-10-01_10-00-00.jpg", 30 * 86400)
+            result = self.run_cleanup(archive)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                {path.name for path in archive.iterdir()},
+                {
+                    "2026-11-12_10-00-00.jpg",
+                    "2026-11-20_10-00-00.jpg",
+                    "notes.jpg",
+                    "2026-11-01_10-00-00.txt",
+                    "2026-10-01_10-00-00.jpg",
+                    "nested",
+                },
+            )
+            self.assertTrue(outside.exists())
+            self.assertTrue((nested / "2026-10-01_10-00-00.jpg").exists())
+
+    def test_retention_succeeds_when_the_archive_is_empty_or_missing(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
+            archive = Path(directory) / "front-door"
+            self.assertEqual(self.run_cleanup(archive).returncode, 0)
+            archive.mkdir()
+            result = self.run_cleanup(archive)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(list(archive.iterdir()), [])
+
+    def test_retention_runs_daily_and_at_startup_in_its_own_automation(self):
+        automation = self.front_door_automation("front_door_snapshot_retention")
+        self.assertEqual(
+            automation["triggers"],
+            [
+                {"trigger": "time", "at": "04:15:00"},
+                {"trigger": "homeassistant", "event": "start"},
+            ],
+        )
+        self.assertEqual(
+            automation["actions"],
+            [{"action": "shell_command.front_door_snapshot_cleanup"}],
+        )
+
+    def test_archive_is_excluded_from_the_home_assistant_backup(self):
+        values = json.loads(
+            subprocess.run(
+                ["yq", "-o=json", ".", str(ROOT / "system/backups/values.yaml")],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            ).stdout
+        )
+        application = next(
+            item
+            for item in values["applications"]
+            if item["pvc"] == "home-assistant-data-nvme"
+        )
+        self.assertEqual(application["excludePaths"], ["media/front-door"])

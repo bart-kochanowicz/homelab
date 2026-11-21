@@ -13,6 +13,13 @@ data:
     homeassistant:
       internal_url: https://ha.thecavespace.net
       external_url: https://ha.thecavespace.net
+      # Motion snapshots are browsed under Media, which requires a login; never place
+      # them in /config/www, whose /local URL is served without authentication. The
+      # directory must exist at startup (the init container creates it); setting
+      # media_dirs also drops the default `local` entry, and each directory is added
+      # to allowlist_external_dirs automatically.
+      media_dirs:
+        front_door: /config/media/front-door
 
     # Imported once: confirm HTTP server settings in HA on first startup.
     http:
@@ -33,6 +40,17 @@ data:
           image_topic: doorview/front-door-camera/snapshot
           content_type: image/jpeg
           encoding: ""
+
+    # Deletes archived snapshots older than the retention in days; see front_door_snapshot_retention.
+    # The directory is fixed, find stays inside it (-maxdepth 1, regular files only, no
+    # symlinks) and a missing directory is not an error.
+    shell_command:
+      front_door_snapshot_cleanup: >-
+        retention_days=7;
+        archive=/config/media/front-door;
+        [ ! -d "$archive" ] ||
+        find "$archive" -maxdepth 1 -type f -name '????-??-??_??-??-??.jpg'
+        -mmin +$((retention_days * 1440)) -delete
 
     automation ui: !include automations.yaml
     automation front_door:
@@ -82,6 +100,66 @@ data:
                   title: Front door
                   message: Motion detected, but no snapshot arrived.
           - delay: "00:01:00"
+      - id: front_door_snapshot_archive
+        alias: Front door snapshot archive
+        description: Saves the snapshot that follows each motion as a timestamped JPEG in the Media browser.
+        # The camera publishes its snapshots with the MQTT retain flag, so Home Assistant
+        # receives the last picture again after every restart or broker reconnect, which
+        # looks like a new image. A replay is not preceded by Motion turning on (a start
+        # or reconnect goes unavailable -> state, never off -> on), so only a picture
+        # that follows a real motion is saved, with the same freshness rule as the
+        # notification. This is a separate automation, so a failed write is only logged
+        # and never delays or suppresses the notification; motion during a wait queues.
+        mode: queued
+        max: 5
+        max_exceeded: silent
+        triggers:
+          - trigger: state
+            entity_id: binary_sensor.front_door_camera_motion
+            from: "off"
+            to: "on"
+        variables:
+          motion_at: "{{ as_timestamp(trigger.to_state.last_changed) }}"
+          snapshot_is_new: >-
+            {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
+               and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+        actions:
+          - if: "{{ not snapshot_is_new }}"
+            then:
+              - wait_for_trigger:
+                  # `to: null` ignores attribute changes, such as the access token that
+                  # the image entity rotates every five minutes.
+                  - trigger: state
+                    entity_id: image.front_door_camera_snapshot
+                    to: null
+                timeout: "00:00:20"
+                continue_on_timeout: true
+          - variables:
+              snapshot_is_new: >-
+                {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
+                   and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+          - if: "{{ snapshot_is_new }}"
+            then:
+              # The state is the time the image arrived, so the name identifies the
+              # picture: saving the same one twice rewrites one file.
+              - action: image.snapshot
+                target:
+                  entity_id: image.front_door_camera_snapshot
+                data:
+                  filename: >-
+                    /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
+                    | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
+      - id: front_door_snapshot_retention
+        alias: Front door snapshot retention
+        description: Deletes archived snapshots older than the retention.
+        mode: single
+        triggers:
+          - trigger: time
+            at: "04:15:00"
+          - trigger: homeassistant
+            event: start
+        actions:
+          - action: shell_command.front_door_snapshot_cleanup
     script: !include scripts.yaml
     scene: !include scenes.yaml
   automations.yaml: '[]'
