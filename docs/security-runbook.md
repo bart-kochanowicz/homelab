@@ -104,7 +104,8 @@ password for the camera's own configuration; never commit it.
 
 #### Motion snapshots
 
-After motion the camera publishes a JPEG (about 12 KB) to
+After motion the camera publishes a 1920 by 1080 JPEG (about 120 to 170 KB, up to about
+250 KB at higher quality) to
 `doorview/front-door-camera/snapshot`, which its ACL already allows. Home Assistant
 declares a `mqtt` `image` entity for that topic in `apps/home-assistant/configmap.yaml`
 and does not call the camera: Home Assistant opens no connection to IoT for this, so
@@ -112,8 +113,16 @@ the router needs no rule and the camera's web interface, which grants root to an
 login, stays unreachable. The entity is declared by hand because the ACL permits no
 `homeassistant/image/...` discovery topic; leave the ACL as it is.
 
-The broker's `max_packet_size` is 65536 bytes. Raise it, with the ACL and memory limit
-reviewed, before the camera sends larger images; the broker rejects larger packets and disconnects the camera.
+The broker's `max_packet_size` is 524288 bytes (512 KiB), about twice the largest
+expected picture. It is the only size limit set: `message_size_limit`,
+`max_inflight_bytes` and `max_queued_bytes` default to unlimited, and the broker holds one
+retained message per topic with persistence off, so the 64Mi pod limit is ample. A
+larger packet is rejected and disconnects the camera, so raise the limit before the
+camera sends bigger pictures. Home Assistant's MQTT client and `image` entity set no
+size limit that matters at this size, and the phone's attachment limit for images is
+far above it (about 10 MB, from third-party sources; Apple's table was not checked).
+The broker reads its configuration at start: after syncing a change run
+`kubectl -n mosquitto rollout restart deployment/mosquitto`; the camera reconnects and republishes.
 
 The automation `front_door_motion_notification` reacts to `Motion` turning on. If the
 image entity has not updated within 5 seconds before the motion, it waits up to 20
@@ -157,7 +166,7 @@ command; change `retention_days` there to change the retention. It runs `find` o
 `/config/media/front-door`, at depth one, on regular files named like the snapshots
 (never symlinks or other names), so an empty or missing directory is not an error and
 nothing outside the archive is touched. Files can live up to a day longer than the
-retention. The archive adds about the size of each picture (12-24 KB) per motion.
+retention. The archive adds about the size of each picture (120-250 KB) per motion.
 
 The archive is excluded from the K8up backup of `home-assistant-data-nvme`
 (`excludePaths` in `system/backups/values.yaml`): backing it up would keep deleted
