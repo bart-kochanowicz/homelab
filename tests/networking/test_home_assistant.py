@@ -275,7 +275,8 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         wait = actions[0]["then"][0]
         self.assertEqual(
             wait["wait_for_trigger"],
-            [{"trigger": "state", "entity_id": image}],
+            # null ignores attribute changes such as the rotating access token.
+            [{"trigger": "state", "entity_id": image, "to": None}],
         )
         self.assertEqual(wait["timeout"], "00:00:20")
         self.assertTrue(wait["continue_on_timeout"])

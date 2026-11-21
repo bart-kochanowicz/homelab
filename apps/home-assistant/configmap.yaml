@@ -75,8 +75,11 @@ data:
           - if: "{{ not snapshot_is_new }}"
             then:
               - wait_for_trigger:
+                  # `to: null` ignores attribute changes, such as the access token that
+                  # the image entity rotates every five minutes.
                   - trigger: state
                     entity_id: image.front_door_camera_snapshot
+                    to: null
                 timeout: "00:00:20"
                 continue_on_timeout: true
           - variables:
