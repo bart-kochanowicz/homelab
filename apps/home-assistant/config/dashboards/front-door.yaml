@@ -14,3 +14,77 @@ views:
           - label: Motion
             icon: mdi:motion-sensor
             media_content_id: media-source://media_source/front_door
+  - title: Live
+    path: live
+    icon: mdi:cctv
+    cards:
+      # The buttons come first so that they stay where they are when the picture
+      # appears and a second tap on Start lands on the same spot.
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.front_door_camera_online
+            state: "on"
+        card:
+          type: horizontal-stack
+          cards:
+            # Start sends ON again while the view runs, which renews its 30 seconds.
+            - type: button
+              name: Start
+              icon: mdi:play
+              show_state: false
+              tap_action:
+                action: perform-action
+                perform_action: switch.turn_on
+                target:
+                  entity_id: switch.front_door_live_view
+            - type: button
+              name: Stop
+              icon: mdi:stop
+              show_state: false
+              tap_action:
+                action: perform-action
+                perform_action: switch.turn_off
+                target:
+                  entity_id: switch.front_door_live_view
+      # One of the next three cards shows at a time. The picture exists only while
+      # the camera reports the view as on, so the card never shows a frame from an
+      # earlier view as if it were live, and nothing is fetched while it is off.
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.front_door_camera_online
+            state: "off"
+        card:
+          type: markdown
+          content: >-
+            **The camera is offline.** Live view returns by itself when the camera
+            reconnects to the broker.
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.front_door_camera_online
+            state: "on"
+          - condition: state
+            entity: switch.front_door_live_view
+            state: "on"
+        card:
+          type: picture-entity
+          entity: image.front_door_live
+          show_name: false
+          show_state: false
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.front_door_camera_online
+            state: "on"
+          - condition: state
+            entity: switch.front_door_live_view
+            state: "off"
+        card:
+          type: markdown
+          content: Live view is off. Tap **Start** to watch the door.
+      - type: markdown
+        content: >-
+          The view stops by itself after about 30 seconds; tap **Start** again to
+          keep watching.

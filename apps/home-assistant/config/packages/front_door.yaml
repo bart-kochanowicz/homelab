@@ -23,8 +23,10 @@ lovelace:
       require_admin: false
       filename: dashboards/front-door.yaml
 
-# The camera publishes a JPEG after motion. The broker connection itself is
-# added in the UI; entities declared here attach to it.
+# The camera publishes a JPEG after motion, and, while the live view is on, a frame
+# up to twice a second. The broker connection itself is added in the UI; entities
+# declared here attach to it. Nothing here reaches the camera: Home Assistant only
+# talks to the broker.
 mqtt:
   image:
     - name: Front door camera snapshot
@@ -32,6 +34,48 @@ mqtt:
       image_topic: doorview/front-door-camera/snapshot
       content_type: image/jpeg
       encoding: ""
+    # The live frames. Not the snapshot entity, which the notification and the
+    # archive follow, so a frame never counts as a motion picture.
+    - name: Front door live
+      unique_id: front_door_live
+      image_topic: doorview/front-door-camera/live
+      content_type: image/jpeg
+      encoding: ""
+  binary_sensor:
+    # Whether the camera is connected to the broker, from the availability topic that
+    # its last will sets to offline. The live entities carry no `availability` of their
+    # own: Home Assistant 2026.10 left YAML entities that had one unavailable after a
+    # restart until the camera published again (the message is retained, so it never
+    # does), whereas a state topic is read correctly at start.
+    - name: Front door camera online
+      unique_id: front_door_camera_online
+      state_topic: doorview/front-door-camera/availability
+      payload_on: online
+      payload_off: offline
+      device_class: connectivity
+  switch:
+    # ON asks the camera for about 30 seconds of frames and ON again renews them; the
+    # camera ends the view by itself and reports it on the state topic (retained).
+    # The command is neither retained nor optimistic: the switch shows what the
+    # camera reports, so it stays off when the camera does not answer.
+    - name: Front door live view
+      unique_id: front_door_live_view
+      command_topic: doorview/front-door-camera/live/set
+      state_topic: doorview/front-door-camera/live/state
+      payload_on: "ON"
+      payload_off: "OFF"
+      state_on: "ON"
+      state_off: "OFF"
+      optimistic: false
+      retain: false
+      qos: 0
+
+# The live frames would write a state row up to twice a second (the state of an image
+# entity is the time it was updated); the bytes are never stored, only this.
+recorder:
+  exclude:
+    entities:
+      - image.front_door_live
 
 # Deletes archived snapshots older than the retention in days; see front_door_snapshot_retention.
 # The directory is fixed, find stays inside it (-maxdepth 1, regular files only, no

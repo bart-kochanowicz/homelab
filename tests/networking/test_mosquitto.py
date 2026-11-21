@@ -1,6 +1,6 @@
 import re
 
-from .support import GatewayTestCase
+from .support import GatewayTestCase, acl_allows, acl_rules
 
 CAMERA = "10.0.50.190"
 HOME_ASSISTANT_WORKER = "10.0.70.12"
@@ -87,6 +87,7 @@ class MosquittoTests(GatewayTestCase):
                 "topic write homeassistant/sensor/front-door-camera/+/config",
                 "topic write homeassistant/binary_sensor/front-door-camera/+/config",
                 "topic write homeassistant/event/front-door-camera/+/config",
+                "topic read doorview/front-door-camera/live/set",
             ],
         )
 
@@ -138,6 +139,62 @@ class MosquittoTests(GatewayTestCase):
         self.assertEqual(list(sealed[0]["spec"]["encryptedData"]), ["passwd"])
         self.assertNotIn("stringData", sealed[0]["spec"]["template"])
         self.assertNotIn("data", sealed[0]["spec"]["template"])
+
+    def test_camera_reads_only_the_live_view_command_and_writes_only_its_own_topics(
+        self,
+    ):
+        config = next(
+            item for item in self.broker_resources() if item["kind"] == "ConfigMap"
+        )
+        rules = acl_rules(config["data"]["acl"])
+        self.assertEqual(set(rules), {"home-assistant", "front-door-camera"})
+        camera = "front-door-camera"
+        prefix = "doorview/front-door-camera"
+        # The only read grant: the live view command, one topic and no wildcard.
+        self.assertEqual(
+            [rule for rule in rules[camera] if rule[0] != "write"],
+            [("read", f"{prefix}/live/set")],
+        )
+        self.assertTrue(acl_allows(rules, camera, "read", f"{prefix}/live/set"))
+        for topic in (
+            f"{prefix}/live",
+            f"{prefix}/live/state",
+            f"{prefix}/live/set/extra",
+            f"{prefix}/snapshot",
+            f"{prefix}/availability",
+            "doorview/front-door-camera-2/live/set",
+            "doorview/other/live/set",
+            "homeassistant/switch/front-door-camera/live/config",
+        ):
+            self.assertFalse(acl_allows(rules, camera, "read", topic), topic)
+        # A wildcard subscription does not get around it: the broker matches the
+        # filter itself against the ACL, and no read rule is a wildcard.
+        for pattern in (f"{prefix}/#", f"{prefix}/live/+", "#", "doorview/#"):
+            self.assertFalse(acl_allows(rules, camera, "read", pattern), pattern)
+        # Writing is what it was: its own prefix and its own discovery topics.
+        for topic in (
+            f"{prefix}/snapshot",
+            f"{prefix}/live",
+            f"{prefix}/live/state",
+            f"{prefix}/availability",
+            "homeassistant/sensor/front-door-camera/battery/config",
+            "homeassistant/binary_sensor/front-door-camera/motion/config",
+            "homeassistant/event/front-door-camera/button/config",
+        ):
+            self.assertTrue(acl_allows(rules, camera, "write", topic), topic)
+        for topic in (
+            "doorview/other/state",
+            "homeassistant/switch/front-door-camera/live/config",
+            "homeassistant/image/front-door-camera/live/config",
+            "homeassistant/sensor/other/battery/config",
+            "$SYS/broker/uptime",
+        ):
+            self.assertFalse(acl_allows(rules, camera, "write", topic), topic)
+        # Home Assistant keeps its access, which includes sending the command.
+        for access in ("read", "write"):
+            self.assertTrue(
+                acl_allows(rules, "home-assistant", access, f"{prefix}/live/set")
+            )
 
     def test_broker_vip_is_allocated_only_to_the_broker_service(self):
         service = next(
