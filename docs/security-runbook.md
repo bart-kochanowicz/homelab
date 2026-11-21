@@ -107,7 +107,7 @@ password for the camera's own configuration; never commit it.
 After motion the camera publishes a 1920 by 1080 JPEG (about 120 to 170 KB, up to about
 250 KB at higher quality) to
 `doorview/front-door-camera/snapshot`, which its ACL already allows. Home Assistant
-declares a `mqtt` `image` entity for that topic in `apps/home-assistant/configmap.yaml`
+declares a `mqtt` `image` entity for that topic in `apps/home-assistant/config/packages/front_door.yaml`
 and does not call the camera: Home Assistant opens no connection to IoT for this, so
 the router needs no rule and the camera's web interface, which grants root to any
 login, stays unreachable. The entity is declared by hand because the ACL permits no
@@ -187,7 +187,7 @@ a different or additional phone needs its own service name (Developer tools > Ac
 filter `mobile_app`). The entity ids are `binary_sensor.front_door_camera_motion` and
 `image.front_door_camera_snapshot`; the image id follows from the entity name, so
 confirm it in Developer tools > States after the first sync. `configuration.yaml` is
-mounted with `subPath`, so after syncing run
+mounted with `subPath` and the packages are read at start, so after syncing run
 `kubectl -n home-assistant rollout restart deployment/home-assistant`; the sync of a
 change to the init container restarts the pod itself. Then check that Home Assistant
 did not start in recovery mode and that **Developer tools > Actions** lists
@@ -231,11 +231,12 @@ first page holds the 30 newest events and **Show older events** adds 30 more; th
 drop-down lists every day in the archive with its event count and shows that day only.
 The default dashboard stays in the UI; this one is declared in the repository.
 
-- `apps/home-assistant/front-door/front-door.yaml` is the dashboard, registered under
-  `lovelace.dashboards` in `configmap.yaml` (YAML mode, in the sidebar for every user,
-  not only administrators) and mounted read-only at `/config/dashboards`. The dashboard
-  URL needs a hyphen, so changing the `front-door` key changes the notification URL.
-- `apps/home-assistant/front-door/front-door-events-card.js` is the card, about 360
+- `apps/home-assistant/config/dashboards/front-door.yaml` is the dashboard, registered
+  under `lovelace.dashboards` in the `front_door` package (YAML mode, in the sidebar for
+  every user, not only administrators) and mounted read-only at `/config/dashboards`.
+  The dashboard URL needs a hyphen, so changing the `front-door` key changes the
+  notification URL.
+- `apps/home-assistant/config/www/front-door/front-door-events-card.js` is the card, about 360
   lines (a third of them CSS) written for this repository. It lists `media-source://media_source/front_door`
   through the `media_source/browse_media` WebSocket command. The time of an event is
   the time in the file name, which is Home Assistant's time zone, shown as written
@@ -248,17 +249,17 @@ The default dashboard stays in the UI; this one is declared in the repository.
   (100 to 250 KB). The first screen loads about a dozen of them and the rest load as
   you scroll, so a page costs a few megabytes on mobile data, not the whole archive.
 
-The card is delivered through two ConfigMaps that Kustomize generates from those files.
-Their names carry a content hash, so a change to the card or the dashboard rolls the pod
-on sync. `/local` serves `/config/www` without authentication, so the card's directory
+The card is delivered through ConfigMaps that Kustomize generates from those files (see
+[Home Assistant content](#home-assistant-content)). Their names carry a content hash, so a
+change to the card or the dashboard rolls the pod on sync. `/local` serves `/config/www` without authentication, so the card's directory
 (`/config/www/front-door`, a read-only mount of a ConfigMap, not the PVC) holds only that
 script, which contains no data and loads nothing from the internet; pictures never go
 there and the dashboard file is not under it. `frontend.extra_module_url` loads the
 script on every page. Home Assistant caches `/local` for 31 days, so the URL ends in
 `?v=` plus the first 16 hex digits of the script's SHA-256, which a test checks:
 after editing the card run
-`sha256sum apps/home-assistant/front-door/front-door-events-card.js | cut -c1-16`
-and put the result in `configuration.yaml`.
+`sha256sum apps/home-assistant/config/www/front-door/front-door-events-card.js | cut -c1-16`
+and put the result in `config/packages/front_door.yaml`.
 
 Why a card of our own: built-in cards cannot do this. `picture` and `picture-entity`
 do not resolve `media-source://`, markdown templates cannot list files or sign URLs
@@ -302,6 +303,38 @@ warrant subfolders per month. The event list is not live: it updates on open, on
 sees every picture, as in the Media browser. The card was exercised in Chromium
 (Brave) emulating a phone, not in the iOS Companion app, so confirm that on the phone
 after the first rollout.
+
+##### Home Assistant content
+
+What Home Assistant does is kept apart from how it runs, so that it can move to a
+repository of its own when it grows.
+
+- **Platform, owned here:** `configmap.yaml` (`configuration.yaml` with the URLs, the
+  media folder `media_dirs`, the HTTP server and the UI-managed automation, script and
+  scene files), `deployment.yaml`, TLS, routes, network policies and backups. The init
+  container that creates the media folder stays with it.
+- **Content, in `apps/home-assistant/config/`:** the layout of Home Assistant's `/config`.
+  `packages/` holds one file per feature (`front_door.yaml`: camera image, automations,
+  retention, dashboard registration), `dashboards/` the YAML dashboards and
+  `www/<name>/` the scripts of custom cards. `configuration.yaml` loads the packages with
+  `homeassistant.packages: !include_dir_named packages`; Home Assistant merges each
+  package's keys into the configuration, so a new feature is a new file and no edit to the
+  platform. A package cannot hold the `homeassistant` key, which is why `media_dirs`
+  stays in `configuration.yaml`.
+- **Delivery:** each folder of `config/` becomes one ConfigMap through a `configMapGenerator`
+  in `kustomization.yaml` and is mounted read-only at the same path under `/config`
+  (`/config/packages`, `/config/dashboards`, `/config/www/front-door`). A test fails
+  if a file in `config/` is not listed in a generator or its folder is not mounted at the
+  matching path. Names carry a content hash, so a change rolls the pod. Only
+  `config/www/` is served without authentication (`/local`), so put nothing there but
+  scripts.
+
+To move the content to its own repository: copy `config/` as its root, keep the folder
+names, and have an init container clone it at a pinned commit into `/config` (or a
+`git-sync` sidecar at that commit) instead of the generators, which are limited to 1 MiB
+per ConfigMap. Home Assistant reads packages and dashboards at start, so a new commit
+needs a pod restart, as it does today. Secrets stay in SealedSecrets in this repository
+either way.
 
 ## Bootstrap and platform changes
 
@@ -489,7 +522,8 @@ Home Assistant uses `home-assistant-data-nvme` (32Gi); n8n uses `n8n-data-nvme`
 (20Gi); Grafana uses `grafana-data-nvme` (10Gi). These claims use NVMe, and their
 backups are stored on Houston.
 
-Home Assistant's `configuration.yaml` is managed in Git. Integrations, accounts
+Home Assistant's `configuration.yaml` and its content packages are managed in Git
+([Home Assistant content](#home-assistant-content)). Integrations, accounts
 and UI-managed automations live on its PVC. An init container creates missing
 automation, script and scene files without overwriting existing settings.
 

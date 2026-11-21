@@ -65,7 +65,6 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         policy = next(item for item in resources if item["kind"] == "BackendTLSPolicy")
         service = next(item for item in resources if item["kind"] == "Service")
         deployment = next(item for item in resources if item["kind"] == "Deployment")
-        config = next(item for item in resources if item["kind"] == "ConfigMap")
         self.assertEqual(
             policy["spec"]["targetRefs"],
             [
@@ -126,17 +125,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             self.assertEqual(
                 port["containerPort"], service["spec"]["ports"][0]["targetPort"]
             )
-        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
-            fixture = Path(directory) / "configuration.yaml"
-            fixture.write_text(config["data"]["configuration.yaml"])
-            result = subprocess.run(
-                ["yq", "-o=json", ".http", str(fixture)],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-        http = json.loads(result.stdout)
+        http = self.main_configuration()["http"]
         self.assertEqual(http["ssl_certificate"], mount["mountPath"] + "/tls.crt")
         self.assertEqual(http["ssl_key"], mount["mountPath"] + "/tls.key")
 
@@ -197,10 +186,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             node_rules, [{"toEntities": ["host", "remote-node"], "toPorts": ports}]
         )
 
-    def home_assistant_configuration(self, config: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def yaml_json(text: str) -> Any:
         with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
-            fixture = Path(directory) / "configuration.yaml"
-            fixture.write_text(config["data"]["configuration.yaml"])
+            fixture = Path(directory) / "fixture.yaml"
+            fixture.write_text(text)
             result = subprocess.run(
                 ["yq", "-o=json", ".", str(fixture)],
                 check=True,
@@ -210,13 +200,29 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             )
         return json.loads(result.stdout)
 
+    def main_configuration(self) -> dict[str, Any]:
+        """The configuration.yaml owned by the platform, without the packages."""
+        config = self.config_map("home-assistant-config")
+        return self.yaml_json(config["data"]["configuration.yaml"])
+
+    def packages(self) -> dict[str, dict[str, Any]]:
+        return {
+            Path(name).stem: self.yaml_json(text)
+            for name, text in self.config_map("home-assistant-packages")["data"].items()
+        }
+
     def front_door_configuration(self) -> dict[str, Any]:
-        config = next(
-            item
-            for item in self.rendered("apps-home-assistant.yaml")
-            if item["kind"] == "ConfigMap"
-        )
-        return self.home_assistant_configuration(config)
+        """The configuration that Home Assistant runs: the main file plus its packages.
+
+        Home Assistant merges the keys of each package into the configuration; a key
+        in both would be an error there, so it is one here.
+        """
+        configuration = self.main_configuration()
+        for package in self.packages().values():
+            for key, value in package.items():
+                self.assertNotIn(key, configuration)
+                configuration[key] = value
+        return configuration
 
     def test_camera_snapshot_is_a_raw_jpeg_mqtt_image_on_a_topic_the_camera_may_write(
         self,
@@ -499,26 +505,14 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         )
 
     def card_source(self) -> str:
-        return self.config_map("home-assistant-front-door-card")["data"][CARD]
+        return self.config_map("home-assistant-www-front-door")["data"][CARD]
 
     def card_version(self) -> str:
         return hashlib.sha256(self.card_source().encode()).hexdigest()[:16]
 
     def front_door_dashboard(self) -> dict[str, Any]:
-        text = self.config_map("home-assistant-front-door-dashboard")["data"][
-            "front-door.yaml"
-        ]
-        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
-            fixture = Path(directory) / "front-door.yaml"
-            fixture.write_text(text)
-            result = subprocess.run(
-                ["yq", "-o=json", ".", str(fixture)],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-        return json.loads(result.stdout)
+        data = self.config_map("home-assistant-dashboards")["data"]
+        return self.yaml_json(data["front-door.yaml"])
 
     def test_events_dashboard_is_declared_next_to_the_default_ui_dashboard(self):
         configuration = self.front_door_configuration()
@@ -575,7 +569,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
 
     def test_card_script_is_the_only_file_served_without_authentication(self):
         configuration = self.front_door_configuration()
-        card = self.config_map("home-assistant-front-door-card")
+        card = self.config_map("home-assistant-www-front-door")
         self.assertEqual(set(card["data"]), {CARD})
         self.assertEqual(
             configuration["frontend"],
@@ -591,17 +585,17 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         container = pod["containers"][0]
         mounts = {item["name"]: item for item in container["volumeMounts"]}
         self.assertEqual(
-            mounts["front-door-card"],
+            mounts["www-front-door"],
             {
-                "name": "front-door-card",
+                "name": "www-front-door",
                 "mountPath": "/config/www/front-door",
                 "readOnly": True,
             },
         )
         self.assertEqual(
-            mounts["front-door-dashboard"],
+            mounts["dashboards"],
             {
-                "name": "front-door-dashboard",
+                "name": "dashboards",
                 "mountPath": "/config/dashboards",
                 "readOnly": True,
             },
@@ -618,12 +612,12 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             self.assertFalse(source.startswith("/config/www"))
         volumes = {item["name"]: item for item in pod["volumes"]}
         self.assertEqual(
-            volumes["front-door-card"]["configMap"]["name"], card["metadata"]["name"]
+            volumes["www-front-door"]["configMap"]["name"], card["metadata"]["name"]
         )
-        dashboard = self.config_map("home-assistant-front-door-dashboard")
+        dashboard = self.config_map("home-assistant-dashboards")
         self.assertEqual(set(dashboard["data"]), {"front-door.yaml"})
         self.assertEqual(
-            volumes["front-door-dashboard"]["configMap"]["name"],
+            volumes["dashboards"]["configMap"]["name"],
             dashboard["metadata"]["name"],
         )
         # The generated names carry a content hash, so a change rolls the pod.
@@ -673,3 +667,79 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             "front_door_snapshot_cleanup"
         ]
         self.assertIn("'????-??-??_??-??-??.jpg'", cleanup)
+
+    def test_platform_configuration_only_loads_the_content_directory(self):
+        main = self.main_configuration()
+        # The platform owns plumbing: the URLs, the media folder, the HTTP server and
+        # the files that the UI edits. Cameras, automations and dashboards are packages.
+        self.assertEqual(
+            set(main),
+            {
+                "default_config",
+                "homeassistant",
+                "http",
+                "automation ui",
+                "script",
+                "scene",
+            },
+        )
+        self.assertEqual(main["homeassistant"]["packages"], "packages")
+        packages = self.packages()
+        self.assertEqual(set(packages), {"front_door"})
+        self.assertEqual(
+            set(packages["front_door"]),
+            {
+                "frontend",
+                "lovelace",
+                "mqtt",
+                "shell_command",
+                "automation front_door",
+            },
+        )
+        # A package cannot hold `homeassistant`, so the media folder stays in the
+        # main file; the package only refers to it.
+        self.assertEqual(
+            main["homeassistant"]["media_dirs"],
+            {"front_door": "/config/media/front-door"},
+        )
+
+    def test_config_directory_mirrors_config_and_every_file_is_delivered(self):
+        directory = ROOT / "apps/home-assistant"
+        kustomization = self.yaml_json((directory / "kustomization.yaml").read_text())
+        generators = kustomization["configMapGenerator"]
+        listed = {file for item in generators for file in item["files"]}
+        on_disk = {
+            str(path.relative_to(directory))
+            for path in (directory / "config").rglob("*")
+            if path.is_file() and path.name != "README.md"
+        }
+        # A file that no generator lists would silently never reach the pod.
+        self.assertEqual(listed, on_disk)
+        deployment = next(
+            item
+            for item in self.rendered("apps-home-assistant.yaml")
+            if item["kind"] == "Deployment"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        mounts = {
+            item["name"]: item["mountPath"]
+            for item in pod["containers"][0]["volumeMounts"]
+        }
+        volumes = {item["name"]: item for item in pod["volumes"]}
+        for generator in generators:
+            folders = {str(Path(file).parent) for file in generator["files"]}
+            self.assertEqual(len(folders), 1, "one ConfigMap per folder")
+            folder = folders.pop()
+            self.assertTrue(folder.startswith("config/"))
+            volume = next(
+                name
+                for name, item in volumes.items()
+                if re.fullmatch(
+                    generator["name"] + r"-[0-9a-z]+",
+                    item.get("configMap", {}).get("name", ""),
+                )
+            )
+            # The folder is mounted at the same path under /config, read-only.
+            self.assertEqual(
+                mounts[volume], "/config/" + folder.removeprefix("config/")
+            )
