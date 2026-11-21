@@ -21,6 +21,27 @@ data:
       media_dirs:
         front_door: /config/media/front-door
 
+    # The card that lists the front-door snapshots. /local serves /config/www without
+    # authentication, so that directory holds only this script (a read-only mount of
+    # the front-door-card ConfigMap) and never a picture. The version in the URL is
+    # the start of the file's SHA-256, so a change to the card busts the browser's
+    # month-long cache for /local.
+    frontend:
+      extra_module_url:
+        - /local/front-door/front-door-events-card.js?v=f4506b59c422f4af
+
+    # The default dashboard stays in the UI. This one is read from the repository
+    # and listed in the sidebar for every user.
+    lovelace:
+      dashboards:
+        front-door:
+          mode: yaml
+          title: Front door
+          icon: mdi:doorbell-video
+          show_in_sidebar: true
+          require_admin: false
+          filename: dashboards/front-door.yaml
+
     # Imported once: confirm HTTP server settings in HA on first startup.
     http:
       ssl_certificate: /etc/home-assistant/tls/tls.crt
@@ -94,6 +115,10 @@ data:
                       title: Front door
                       message: Motion detected at the front door.
                       data:
+                        # Tapping the notification opens the events dashboard: `url` is read
+                        # by iOS and `clickAction` by Android.
+                        url: /front-door/events
+                        clickAction: /front-door/events
                         image: /api/image_proxy/image.front_door_camera_snapshot
                         attachment:
                           url: /api/image_proxy/image.front_door_camera_snapshot
@@ -102,6 +127,9 @@ data:
                 data:
                   title: Front door
                   message: Motion detected, but no snapshot arrived.
+                  data:
+                    url: /front-door/events
+                    clickAction: /front-door/events
           - delay: "00:01:00"
       - id: front_door_snapshot_archive
         alias: Front door snapshot archive

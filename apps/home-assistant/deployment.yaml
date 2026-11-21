@@ -78,6 +78,12 @@ spec:
         - name: config-file
           mountPath: /config/configuration.yaml
           subPath: configuration.yaml
+        - name: front-door-card
+          mountPath: /config/www/front-door
+          readOnly: true
+        - name: front-door-dashboard
+          mountPath: /config/dashboards
+          readOnly: true
         - name: backend-tls
           mountPath: /etc/home-assistant/tls
           readOnly: true
@@ -113,6 +119,12 @@ spec:
       - name: config-file
         configMap:
           name: home-assistant-config
+      - name: front-door-card
+        configMap:
+          name: home-assistant-front-door-card
+      - name: front-door-dashboard
+        configMap:
+          name: home-assistant-front-door-dashboard
       - name: backend-tls
         secret:
           secretName: home-assistant-backend-tls

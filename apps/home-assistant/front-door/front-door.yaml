@@ -1,0 +1,16 @@
+title: Front door
+views:
+  - title: Events
+    path: events
+    icon: mdi:doorbell-video
+    # A panel view gives the card the whole width of the phone.
+    panel: true
+    cards:
+      - type: custom:front-door-events-card
+        page_size: 30
+        # One entry per kind of event, each a media folder of snapshots named
+        # YYYY-MM-DD_HH-MM-SS.jpg; the label is shown under each picture.
+        sources:
+          - label: Motion
+            icon: mdi:motion-sensor
+            media_content_id: media-source://media_source/front_door
