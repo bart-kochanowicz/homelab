@@ -13,18 +13,24 @@ resources:
   - service.yaml
   - httproute.yaml
 
-# The names get a content hash, so a change to the card or the dashboard rolls the pod.
+# One ConfigMap per directory of config/, which mirrors the layout of /config. The names
+# get a content hash, so a change to any of them rolls the pod. A new file in one of
+# these directories must be listed here.
+generatorOptions:
+  labels:
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/part-of: homelab
+
 configMapGenerator:
-  - name: home-assistant-front-door-card
+  - name: home-assistant-packages
     files:
-      - front-door/front-door-events-card.js
-  - name: home-assistant-front-door-dashboard
+      - config/packages/front_door.yaml
+  - name: home-assistant-dashboards
     files:
-      - front-door/front-door.yaml
-    options:
-      labels:
-        app.kubernetes.io/name: home-assistant
-        app.kubernetes.io/part-of: homelab
+      - config/dashboards/front-door.yaml
+  - name: home-assistant-www-front-door
+    files:
+      - config/www/front-door/front-door-events-card.js
 
 labels:
   - pairs:
