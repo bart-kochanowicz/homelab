@@ -13,6 +13,19 @@ resources:
   - service.yaml
   - httproute.yaml
 
+# The names get a content hash, so a change to the card or the dashboard rolls the pod.
+configMapGenerator:
+  - name: home-assistant-front-door-card
+    files:
+      - front-door/front-door-events-card.js
+  - name: home-assistant-front-door-dashboard
+    files:
+      - front-door/front-door.yaml
+    options:
+      labels:
+        app.kubernetes.io/name: home-assistant
+        app.kubernetes.io/part-of: homelab
+
 labels:
   - pairs:
       app.kubernetes.io/managed-by: argocd

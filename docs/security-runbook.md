@@ -129,7 +129,8 @@ image entity has not updated within 5 seconds before the motion, it waits up to 
 seconds for it, then sends a phone notification through the mobile app with the image
 (or a text-only message when none arrives). It then holds a one-minute cooldown; motion
 during the wait or cooldown starts no second run. The phone downloads the image from
-Home Assistant through `/api/image_proxy/`, which requires its login.
+Home Assistant through `/api/image_proxy/`, which requires its login. Tapping either
+notification opens the [events dashboard](#events-dashboard).
 
 A second automation, `front_door_snapshot_archive`, saves the picture that follows each
 motion to `/config/media/front-door/YYYY-MM-DD_HH-MM-SS.jpg` on the Home Assistant PVC,
@@ -219,6 +220,88 @@ to this broker. Verify two assumptions on first use, because they depend on the
 live cluster: that Home Assistant, which uses host networking, can reach the VIP
 from its worker, and that the camera's address survives to the pod under
 `externalTrafficPolicy: Local` so that the pod policy matches it.
+
+##### Events dashboard
+
+Tapping the motion notification, or **Front door** in the sidebar, opens
+`/front-door/events`: the archived snapshots as a list of events, newest first, grouped
+by day, each with its time, its kind (today only **Motion**) and the picture. Tapping a
+picture opens it full size; swipe or use the arrows to move between events. The
+first page holds the 30 newest events and **Show older events** adds 30 more; the
+drop-down lists every day in the archive with its event count and shows that day only.
+The default dashboard stays in the UI; this one is declared in the repository.
+
+- `apps/home-assistant/front-door/front-door.yaml` is the dashboard, registered under
+  `lovelace.dashboards` in `configmap.yaml` (YAML mode, in the sidebar for every user,
+  not only administrators) and mounted read-only at `/config/dashboards`. The dashboard
+  URL needs a hyphen, so changing the `front-door` key changes the notification URL.
+- `apps/home-assistant/front-door/front-door-events-card.js` is the card, about 360
+  lines (a third of them CSS) written for this repository. It lists `media-source://media_source/front_door`
+  through the `media_source/browse_media` WebSocket command. The time of an event is
+  the time in the file name, which is Home Assistant's time zone, shown as written
+  whatever the zone of the phone; it is when the picture arrived, not the motion
+  itself. Each picture is resolved through `media_source/resolve_media` only when it is
+  within about 400 px of the screen, which returns a signed
+  `/media/front_door/...?authSig=` URL valid for 24 hours; **Refresh** signs them again.
+  Without a login (or with a tampered signature) the same path returns 401.
+- Home Assistant has no thumbnails for media files, so a tile is the full picture
+  (100 to 250 KB). The first screen loads about a dozen of them and the rest load as
+  you scroll, so a page costs a few megabytes on mobile data, not the whole archive.
+
+The card is delivered through two ConfigMaps that Kustomize generates from those files.
+Their names carry a content hash, so a change to the card or the dashboard rolls the pod
+on sync. `/local` serves `/config/www` without authentication, so the card's directory
+(`/config/www/front-door`, a read-only mount of a ConfigMap, not the PVC) holds only that
+script, which contains no data and loads nothing from the internet; pictures never go
+there and the dashboard file is not under it. `frontend.extra_module_url` loads the
+script on every page. Home Assistant caches `/local` for 31 days, so the URL ends in
+`?v=` plus the first 16 hex digits of the script's SHA-256, which a test checks:
+after editing the card run
+`sha256sum apps/home-assistant/front-door/front-door-events-card.js | cut -c1-16`
+and put the result in `configuration.yaml`.
+
+Why a card of our own: built-in cards cannot do this. `picture` and `picture-entity`
+do not resolve `media-source://`, markdown templates cannot list files or sign URLs
+(the `/media` URL needs a signature that only the WebSocket API gives, and an image
+tag cannot send a bearer token), and the logbook shows no pictures. A sensor that
+lists files (`command_line` or `folder`) would still leave the signature problem or
+force the pictures into `/local`.
+
+Community cards were read about, not run against this Home Assistant version:
+`TarheelGrad1998/GalleryCard` parses the date from the file name, but its author
+archived it in 2024 with no licence and it shows one picture with a strip of
+thumbnails, not a list by day (its date search needs date-named folders);
+`pennisiandrea/media-explorer-card` and `markaggar/ha-media-card` are maintained and
+MIT-licensed, but are a folder browser and a slideshow viewer, with no event time, kind or
+day grouping. Any of them would also be a third-party bundle running with the full
+session of the logged-in user, which would have to be pinned by SHA-256, shipped by an
+init container and reviewed again on each update; a card the repository owns is small
+enough to review. The cost is that this card is ours to maintain when Home Assistant's
+frontend changes; it uses only `callWS`, `hassUrl`, `locale` and `config.time_zone`.
+
+To add a kind of event (for example a doorbell button): give it its own media folder
+under `media_dirs` and an archive automation like `front_door_snapshot_archive` that
+names the files `YYYY-MM-DD_HH-MM-SS.jpg`, extend `front_door_snapshot_cleanup` and
+`excludePaths` in `system/backups/values.yaml` to that folder (the retention and the
+backup exclusion only know `front-door`), then add a `sources` entry with a `label`,
+an `icon` and the `media_content_id` to `front-door.yaml`. The card merges all sources
+by time.
+
+After syncing run `kubectl -n home-assistant rollout restart deployment/home-assistant`
+unless the pod was recreated by the sync (a change to the card or the dashboard is),
+then open `/front-door/events` while logged in, check that **Front door** is in the
+sidebar and trigger a motion to see the notification open it. Check the pictures are
+private with `curl -sk -o /dev/null -w '%{http_code}' https://ha.thecavespace.net/media/front_door/<file>.jpg`,
+which must print `401`. Open **Settings > Dashboards** if the entry is missing.
+
+Limits: the whole listing is read each time the dashboard opens, about 300 bytes per
+picture, so 50 motions a day for 90 days (4500 files) is 1.4 MB of JSON before WebSocket
+compression and took about 0.2 s to build in a test; a much busier camera would
+warrant subfolders per month. The event list is not live: it updates on open, on
+**Refresh** and when the page becomes visible again. Anyone with a Home Assistant login
+sees every picture, as in the Media browser. The card was exercised in Chromium
+(Brave) emulating a phone, not in the iOS Companion app, so confirm that on the phone
+after the first rollout.
 
 ## Bootstrap and platform changes
 

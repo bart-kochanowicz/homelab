@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -7,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from .support import ROOT, GatewayTestCase
+
+CARD = "front-door-events-card.js"
 
 
 class HomeAssistantGatewayTests(GatewayTestCase):
@@ -285,7 +289,10 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         data = choice["sequence"][0]["data"]["data"]
         self.assertEqual(data["image"], f"/api/image_proxy/{image}")
         self.assertEqual(data["attachment"], {"url": f"/api/image_proxy/{image}"})
-        self.assertNotIn("data", actions[2]["default"][0]["data"])
+        # Both branches open the events dashboard: iOS reads url, Android clickAction.
+        opens = {"url": "/front-door/events", "clickAction": "/front-door/events"}
+        self.assertEqual({key: data[key] for key in opens}, opens)
+        self.assertEqual(actions[2]["default"][0]["data"]["data"], opens)
         # The run holds the single slot for the cooldown, so repeated motion is dropped.
         self.assertEqual(actions[-1], {"delay": "00:01:00"})
 
@@ -356,10 +363,14 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertIn(f"states('{image}')", filename)
         self.assertIn("'%Y-%m-%d_%H-%M-%S'", filename)
         self.assertTrue(filename.endswith(".jpg"))
-        # /local serves /config/www without authentication.
+        # /local serves /config/www without authentication: no picture goes there, and
+        # the only /local URL is the card's script.
         text = json.dumps(configuration)
         self.assertNotIn("/www", text)
-        self.assertNotIn("/local", text)
+        self.assertEqual(
+            re.findall(r"/local[^\"]*", text),
+            [f"/local/front-door/{CARD}?v={self.card_version()}"],
+        )
         self.assertNotIn("allowlist_external_dirs", text)
 
     def test_archive_directory_exists_before_home_assistant_validates_media_dirs(self):
@@ -478,3 +489,187 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             if item["pvc"] == "home-assistant-data-nvme"
         )
         self.assertEqual(application["excludePaths"], ["media/front-door"])
+
+    def config_map(self, prefix: str) -> dict[str, Any]:
+        return next(
+            item
+            for item in self.rendered("apps-home-assistant.yaml")
+            if item["kind"] == "ConfigMap"
+            and re.fullmatch(prefix + r"(-[0-9a-z]+)?", item["metadata"]["name"])
+        )
+
+    def card_source(self) -> str:
+        return self.config_map("home-assistant-front-door-card")["data"][CARD]
+
+    def card_version(self) -> str:
+        return hashlib.sha256(self.card_source().encode()).hexdigest()[:16]
+
+    def front_door_dashboard(self) -> dict[str, Any]:
+        text = self.config_map("home-assistant-front-door-dashboard")["data"][
+            "front-door.yaml"
+        ]
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
+            fixture = Path(directory) / "front-door.yaml"
+            fixture.write_text(text)
+            result = subprocess.run(
+                ["yq", "-o=json", ".", str(fixture)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        return json.loads(result.stdout)
+
+    def test_events_dashboard_is_declared_next_to_the_default_ui_dashboard(self):
+        configuration = self.front_door_configuration()
+        lovelace = configuration["lovelace"]
+        # The default dashboard stays in the UI: only extra dashboards are declared.
+        self.assertEqual(set(lovelace), {"dashboards"})
+        self.assertEqual(set(lovelace["dashboards"]), {"front-door"})
+        entry = lovelace["dashboards"]["front-door"]
+        self.assertEqual(
+            entry,
+            {
+                "mode": "yaml",
+                "title": "Front door",
+                "icon": "mdi:doorbell-video",
+                "show_in_sidebar": True,
+                "require_admin": False,
+                "filename": "dashboards/front-door.yaml",
+            },
+        )
+        # The URL path of a dashboard needs a hyphen.
+        self.assertRegex(next(iter(lovelace["dashboards"])), r"^[a-z]+-[a-z-]+$")
+        dashboard = self.front_door_dashboard()
+        self.assertEqual([view["path"] for view in dashboard["views"]], ["events"])
+        view = dashboard["views"][0]
+        # A panel view holds exactly one card, which then spans the phone.
+        self.assertTrue(view["panel"])
+        self.assertEqual(len(view["cards"]), 1)
+        card = view["cards"][0]
+        self.assertEqual(card["type"], "custom:front-door-events-card")
+        self.assertEqual(
+            set(card), {"type", "page_size", "sources"}, "the card takes no other keys"
+        )
+        self.assertTrue(30 <= card["page_size"] <= 50)
+        media_dirs = configuration["homeassistant"]["media_dirs"]
+        for source in card["sources"]:
+            self.assertEqual(set(source), {"label", "icon", "media_content_id"})
+            match = re.fullmatch(
+                r"media-source://media_source/([a-z_]+)", source["media_content_id"]
+            )
+            assert match, source
+            self.assertIn(match.group(1), media_dirs)
+        self.assertEqual([source["label"] for source in card["sources"]], ["Motion"])
+
+    def test_notifications_open_the_dashboard_view(self):
+        dashboards = self.front_door_configuration()["lovelace"]["dashboards"]
+        view = self.front_door_dashboard()["views"][0]["path"]
+        # Companion opens /<dashboard url path>/<view path>.
+        path = f"/{next(iter(dashboards))}/{view}"
+        self.assertEqual(path, "/front-door/events")
+        notification = self.front_door_automation("front_door_motion_notification")
+        text = json.dumps(notification)
+        self.assertEqual(text.count(f'"url": "{path}"'), 2)
+        self.assertEqual(text.count(f'"clickAction": "{path}"'), 2)
+
+    def test_card_script_is_the_only_file_served_without_authentication(self):
+        configuration = self.front_door_configuration()
+        card = self.config_map("home-assistant-front-door-card")
+        self.assertEqual(set(card["data"]), {CARD})
+        self.assertEqual(
+            configuration["frontend"],
+            {"extra_module_url": [f"/local/front-door/{CARD}?v={self.card_version()}"]},
+            "update ?v= to the start of the card's SHA-256 when the card changes",
+        )
+        deployment = next(
+            item
+            for item in self.rendered("apps-home-assistant.yaml")
+            if item["kind"] == "Deployment"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        container = pod["containers"][0]
+        mounts = {item["name"]: item for item in container["volumeMounts"]}
+        self.assertEqual(
+            mounts["front-door-card"],
+            {
+                "name": "front-door-card",
+                "mountPath": "/config/www/front-door",
+                "readOnly": True,
+            },
+        )
+        self.assertEqual(
+            mounts["front-door-dashboard"],
+            {
+                "name": "front-door-dashboard",
+                "mountPath": "/config/dashboards",
+                "readOnly": True,
+            },
+        )
+        # Nothing but the card's directory is mounted under /config/www, and the
+        # archive is not under it.
+        www = [
+            item["mountPath"]
+            for item in container["volumeMounts"]
+            if item["mountPath"].startswith("/config/www")
+        ]
+        self.assertEqual(www, ["/config/www/front-door"])
+        for source in configuration["homeassistant"]["media_dirs"].values():
+            self.assertFalse(source.startswith("/config/www"))
+        volumes = {item["name"]: item for item in pod["volumes"]}
+        self.assertEqual(
+            volumes["front-door-card"]["configMap"]["name"], card["metadata"]["name"]
+        )
+        dashboard = self.config_map("home-assistant-front-door-dashboard")
+        self.assertEqual(set(dashboard["data"]), {"front-door.yaml"})
+        self.assertEqual(
+            volumes["front-door-dashboard"]["configMap"]["name"],
+            dashboard["metadata"]["name"],
+        )
+        # The generated names carry a content hash, so a change rolls the pod.
+        for name in (card, dashboard):
+            self.assertRegex(name["metadata"]["name"], r"-[0-9a-z]{10}$")
+
+    def test_card_reaches_pictures_only_through_signed_media_source_urls(self):
+        source = self.card_source()
+        # Authenticated mechanisms only: the listing and a signed URL per picture.
+        self.assertIn('"media_source/browse_media"', source)
+        self.assertIn('"media_source/resolve_media"', source)
+        # No fixed picture path, no unauthenticated route, nothing from outside.
+        forbidden = [
+            r"/media/",
+            r"/local",
+            r"/api/image_proxy",
+            r"/www",
+            r"authSig",
+            r"\bfetch\(",
+            r"XMLHttpRequest",
+            r"\bWebSocket\(",
+            r"\bimport\b",
+            r"innerHTML",
+            r"\beval\(",
+            r"localStorage",
+            r"https?://",
+        ]
+        self.assertEqual(
+            [pattern for pattern in forbidden if re.search(pattern, source)], []
+        )
+
+    def test_card_reads_the_archive_file_names(self):
+        source = self.card_source()
+        pattern = re.search(r"const NAME = /(.+)/;", source)
+        assert pattern
+        name = re.compile(pattern.group(1))
+        self.assertTrue(name.fullmatch("2026-11-21_18-30-00.jpg"))
+        for other in ("notes.jpg", "2026-11-21_18-30-00.png", "2026-11-21 18-30.jpg"):
+            self.assertIsNone(name.fullmatch(other))
+        # The archive names its files with the format that the card parses and that
+        # the retention matches.
+        archive = self.front_door_automation("front_door_snapshot_archive")
+        self.assertIn(
+            "'%Y-%m-%d_%H-%M-%S'", archive["actions"][2]["then"][0]["data"]["filename"]
+        )
+        cleanup = self.front_door_configuration()["shell_command"][
+            "front_door_snapshot_cleanup"
+        ]
+        self.assertIn("'????-??-??_??-??-??.jpg'", cleanup)
