@@ -239,7 +239,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             "topic write doorview/front-door-camera/#",
             broker["data"]["acl"].splitlines(),
         )
-        self.assertIn("max_packet_size 65536", broker["data"]["mosquitto.conf"])
+        self.assertIn("max_packet_size 524288", broker["data"]["mosquitto.conf"])
         # The snapshot needs no credentials, router rule or Secret of its own.
         text = json.dumps(configuration)
         self.assertNotIn("10.0.50.190", text)

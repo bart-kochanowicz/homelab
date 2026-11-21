@@ -14,7 +14,7 @@ data:
     acl_file /mosquitto/runtime/acl
     persistence false
     max_connections 20
-    max_packet_size 65536
+    max_packet_size 524288
     log_dest stdout
     log_type error
     log_type warning
