@@ -26,7 +26,7 @@ normal operation and do not form an atomic application-wide snapshot. Preparatio
 has a 4 GiB staging limit for both intermediate and final archives and does not
 change PVC ownership.
 
-Home Assistant's `media/front-door` directory, the seven-day archive of door camera
+Home Assistant's `media/front-door` directory, the 90-day archive of door camera
 snapshots, is excluded: backups would retain deleted photos for months. Restored
 instances start with an empty archive.
 
