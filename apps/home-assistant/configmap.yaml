@@ -20,7 +20,7 @@ data:
       # to allowlist_external_dirs automatically.
       media_dirs:
         front_door: /config/media/front-door
-      # Everything else, such as the camera, its automations and its dashboard, is
+      # Everything else, such as the camera, its automations and its panel, is
       # content in apps/home-assistant/config/, mounted here one file per package.
       packages: !include_dir_named packages
 

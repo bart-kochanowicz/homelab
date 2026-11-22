@@ -1,5 +1,5 @@
 # Front door camera: the snapshot image, its notification, archive and retention,
-# and the events dashboard. Loaded as a Home Assistant package, so each key below
+# and the "Door events" panel. Loaded as a Home Assistant package, so each key below
 # is merged into the configuration.
 
 # The card that lists the front-door snapshots, as a sidebar panel. /local serves
@@ -31,19 +31,6 @@ panel_custom:
         switch: switch.front_door_live_view
         image: image.front_door_live
         online: binary_sensor.front_door_camera_online
-
-# The default dashboard stays in the UI. This one is read from the repository. It is
-# not listed in the sidebar: the "Door events" panel has the events and the live view;
-# the dashboard stays reachable at /front-door as a fallback.
-lovelace:
-  dashboards:
-    front-door:
-      mode: yaml
-      title: Front door
-      icon: mdi:doorbell-video
-      show_in_sidebar: false
-      require_admin: false
-      filename: dashboards/front-door.yaml
 
 # The camera publishes a JPEG after motion, and, while the live view is on, a frame
 # up to twice a second. The broker connection itself is added in the UI; entities
@@ -151,7 +138,7 @@ automation front_door:
                   title: Front door
                   message: Motion detected at the front door.
                   data:
-                    # Tapping the notification opens the events dashboard: `url` is read
+                    # Tapping the notification opens the events panel: `url` is read
                     # by iOS and `clickAction` by Android.
                     url: /front-door-gallery
                     clickAction: /front-door-gallery

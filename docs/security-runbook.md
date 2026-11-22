@@ -130,7 +130,7 @@ seconds for it, then sends a phone notification through the mobile app with the 
 (or a text-only message when none arrives). It then holds a one-minute cooldown; motion
 during the wait or cooldown starts no second run. The phone downloads the image from
 Home Assistant through `/api/image_proxy/`, which requires its login. Tapping either
-notification opens the [events dashboard](#events-dashboard).
+notification opens the [Door events panel](#door-events-panel).
 
 A second automation, `front_door_snapshot_archive`, saves the picture that follows each
 motion to `/config/media/front-door/YYYY-MM-DD_HH-MM-SS.jpg` on the Home Assistant PVC,
@@ -221,23 +221,22 @@ live cluster: that Home Assistant, which uses host networking, can reach the VIP
 from its worker, and that the camera's address survives to the pod under
 `externalTrafficPolicy: Local` so that the pod policy matches it.
 
-##### Events dashboard
+##### Door events panel
 
-Tapping the motion notification, or **Front door** in the sidebar, opens
-`/front-door/events`: the archived snapshots as a list of events, newest first, grouped
-by day, each with its time, its kind (today only **Motion**) and the picture. Tapping a
-picture opens it full size; swipe or use the arrows to move between events. The
-first page holds the 30 newest events and **Show older events** adds 30 more; the
-drop-down lists every day in the archive with its event count and shows that day only.
-The default dashboard stays in the UI; this one is declared in the repository.
+Tapping the motion notification, or **Door events** in the sidebar, opens
+`/front-door-gallery`, a panel with two tabs. **Events** lists the archived snapshots as
+events, newest first, grouped by day, each with its time, its kind (today only
+**Motion**) and the picture. Tapping a picture opens it full size; swipe or use the
+arrows to move between events. The first page holds the 30 newest events and **Show
+older events** adds 30 more; the drop-down lists every day in the archive with its event
+count and shows that day only. **Live** is described under [Live view](#live-view).
 
-- `apps/home-assistant/config/dashboards/front-door.yaml` is the dashboard, registered
-  under `lovelace.dashboards` in the `front_door` package (YAML mode, in the sidebar for
-  every user, not only administrators) and mounted read-only at `/config/dashboards`.
-  The dashboard URL needs a hyphen, so changing the `front-door` key changes the
-  notification URL.
-- `apps/home-assistant/config/www/front-door/front-door-events-card.js` is the card, about 360
-  lines (a third of them CSS) written for this repository. It lists `media-source://media_source/front_door`
+- `panel_custom` in the `front_door` package (`apps/home-assistant/config/packages/front_door.yaml`)
+  registers the panel (visible to every user, not only administrators). Its `config` holds
+  the card's `sources` and `page_size` and the entities of the Live tab. The URL path needs
+  a hyphen, so changing `url_path` changes the notification URL.
+- `apps/home-assistant/config/www/front-door/front-door-events-card.js` is the card, a
+  custom element written for this repository. It lists `media-source://media_source/front_door`
   through the `media_source/browse_media` WebSocket command. The time of an event is
   the time in the file name, which is Home Assistant's time zone, shown as written
   whatever the zone of the phone; it is when the picture arrived, not the motion
@@ -249,15 +248,25 @@ The default dashboard stays in the UI; this one is declared in the repository.
   (100 to 250 KB). The first screen loads about a dozen of them and the rest load as
   you scroll, so a page costs a few megabytes on mobile data, not the whole archive.
 
-The card is delivered through ConfigMaps that Kustomize generates from those files (see
-[Home Assistant content](#home-assistant-content)). Their names carry a content hash, so a
-change to the card or the dashboard rolls the pod on sync. `/local` serves `/config/www` without authentication, so the card's directory
-(`/config/www/front-door`, a read-only mount of a ConfigMap, not the PVC) holds only that
-script, which contains no data and loads nothing from the internet; pictures never go
-there and the dashboard file is not under it. `frontend.extra_module_url` loads the
-script on every page. Home Assistant caches `/local` for 31 days, so the URL ends in
-`?v=` plus the first 16 hex digits of the script's SHA-256, which a test checks:
-after editing the card run
+**Why a panel and not a card on a dashboard.** Observed in the Companion app on iOS: a
+dashboard with `type: custom:front-door-events-card` showed only "Configuration error"
+after a pull-down refresh (a full page reload), though the browser and the 3-dot
+**Refresh** worked. Home Assistant draws that text for a card whose element is not yet
+defined (the message is shown only in the editor preview). Loading the script as a Lovelace
+resource did not help; a custom panel does, because Home Assistant loads its module
+before it creates the element (confirmed by the owner on the phone). The media browser was
+tried as a fallback and its thumbnails did not load. The cause of the failing dashboard
+card was not found; the explanation above is read from the frontend's code and the
+symptoms.
+
+The card is delivered through a ConfigMap that Kustomize generates from that file (see
+[Home Assistant content](#home-assistant-content)); its name carries a content hash, so a
+change to the card rolls the pod on sync. `/local` serves `/config/www` without
+authentication, so the card's directory (`/config/www/front-door`, a read-only mount of a
+ConfigMap, not the PVC) holds only that script, which contains no data and loads nothing
+from the internet; pictures never go there. The panel's `module_url` loads it. Home
+Assistant caches `/local` for 31 days, so the URL ends in `?v=` plus the first 16 hex digits
+of the script's SHA-256, which a test checks: after editing the card run
 `sha256sum apps/home-assistant/config/www/front-door/front-door-events-card.js | cut -c1-16`
 and put the result in `config/packages/front_door.yaml`.
 
@@ -285,24 +294,24 @@ under `media_dirs` and an archive automation like `front_door_snapshot_archive` 
 names the files `YYYY-MM-DD_HH-MM-SS.jpg`, extend `front_door_snapshot_cleanup` and
 `excludePaths` in `system/backups/values.yaml` to that folder (the retention and the
 backup exclusion only know `front-door`), then add a `sources` entry with a `label`,
-an `icon` and the `media_content_id` to `front-door.yaml`. The card merges all sources
-by time.
+an `icon` and the `media_content_id` to the `sources` of the panel's `config`. The card
+merges all sources by time.
 
 After syncing run `kubectl -n home-assistant rollout restart deployment/home-assistant`
-unless the pod was recreated by the sync (a change to the card or the dashboard is),
-then open `/front-door/events` while logged in, check that **Front door** is in the
+unless the pod was recreated by the sync (a change to the card or the package is),
+then open `/front-door-gallery` while logged in, check that **Door events** is in the
 sidebar and trigger a motion to see the notification open it. Check the pictures are
 private with `curl -sk -o /dev/null -w '%{http_code}' https://ha.thecavespace.net/media/front_door/<file>.jpg`,
-which must print `401`. Open **Settings > Dashboards** if the entry is missing.
+which must print `401`.
 
-Limits: the whole listing is read each time the dashboard opens, about 300 bytes per
+Limits: the whole listing is read each time the panel opens, about 300 bytes per
 picture, so 50 motions a day for 90 days (4500 files) is 1.4 MB of JSON before WebSocket
 compression and took about 0.2 s to build in a test; a much busier camera would
 warrant subfolders per month. The event list is not live: it updates on open, on
 **Refresh** and when the page becomes visible again. Anyone with a Home Assistant login
-sees every picture, as in the Media browser. The card was exercised in Chromium
-(Brave) emulating a phone, not in the iOS Companion app, so confirm that on the phone
-after the first rollout.
+sees every picture, as in the Media browser. The panel was exercised in Chromium and
+WebKit with a mock `hass` and by the owner in the iOS Companion app, including a
+pull-down reload.
 
 ##### Home Assistant content
 
@@ -315,15 +324,14 @@ repository of its own when it grows.
   container that creates the media folder stays with it.
 - **Content, in `apps/home-assistant/config/`:** the layout of Home Assistant's `/config`.
   `packages/` holds one file per feature (`front_door.yaml`: camera image, automations,
-  retention, dashboard registration), `dashboards/` the YAML dashboards and
-  `www/<name>/` the scripts of custom cards. `configuration.yaml` loads the packages with
+  retention, the panel registration) and `www/<name>/` the scripts of custom cards. `configuration.yaml` loads the packages with
   `homeassistant.packages: !include_dir_named packages`; Home Assistant merges each
   package's keys into the configuration, so a new feature is a new file and no edit to the
   platform. A package cannot hold the `homeassistant` key, which is why `media_dirs`
   stays in `configuration.yaml`.
 - **Delivery:** each folder of `config/` becomes one ConfigMap through a `configMapGenerator`
   in `kustomization.yaml` and is mounted read-only at the same path under `/config`
-  (`/config/packages`, `/config/dashboards`, `/config/www/front-door`). A test fails
+  (`/config/packages`, `/config/www/front-door`). A test fails
   if a file in `config/` is not listed in a generator or its folder is not mounted at the
   matching path. Names carry a content hash, so a change rolls the pod. Only
   `config/www/` is served without authentication (`/local`), so put nothing there but
@@ -332,13 +340,13 @@ repository of its own when it grows.
 To move the content to its own repository: copy `config/` as its root, keep the folder
 names, and have an init container clone it at a pinned commit into `/config` (or a
 `git-sync` sidecar at that commit) instead of the generators, which are limited to 1 MiB
-per ConfigMap. Home Assistant reads packages and dashboards at start, so a new commit
+per ConfigMap. Home Assistant reads packages at start, so a new commit
 needs a pod restart, as it does today. Secrets stay in SealedSecrets in this repository
 either way.
 
 #### Live view
 
-The **Live** view of the **Front door** dashboard (`/front-door/live`) shows the door on
+The **Live** tab of the **Door events** panel (`/front-door-gallery`) shows the door on
 demand: **Start** makes the camera send a 640 by 360 JPEG up to twice a second for about
 30 seconds, then it stops by itself. These are frames, not video, and they travel over
 MQTT like the snapshots, so Home Assistant never connects to the camera and its web
@@ -357,7 +365,7 @@ subscription gets nothing more because the broker checks the filter against the 
 write rules are unchanged. The broker reads the ACL at start, so after syncing run
 `kubectl -n mosquitto rollout restart deployment/mosquitto`; until then the camera is not
 granted the command and **Start** does nothing. The camera
-reconnects by itself. Then check Home Assistant: a change to the package or dashboard
+reconnects by itself. Then check Home Assistant: a change to the package or the card
 rolls its pod on sync, otherwise run
 `kubectl -n home-assistant rollout restart deployment/home-assistant`. Roll out in this
 order: sync, restart the broker, let Home Assistant restart.
@@ -372,21 +380,23 @@ same reason as the snapshot (the ACL allows no discovery topic for them):
   QoS 0, state from `.../live/state`, `optimistic: false`. A switch rather than a button
   because it shows what the camera reports: if the camera does not answer, or has not yet
   got the new ACL, it stays off instead of pretending. The iOS app shows it like any
-  other switch. The dashboard does not use its toggle but two explicit buttons, **Start**
+  other switch. The panel does not use its toggle but two explicit buttons, **Start**
   (`switch.turn_on`, which sends `ON` again while the view runs, so it renews the 30
-  seconds) and **Stop** (`switch.turn_off`); a toggle could not renew.
+  seconds) and **Stop** (`switch.turn_off`); a toggle could not renew. Leaving the tab
+  sends `OFF` if the view is on.
 - `binary_sensor.front_door_camera_online`, the availability topic read as a state, which
   is what the card uses to say that the camera is offline and to hide the buttons. The
   live entities deliberately have no `availability` of their own: in Home Assistant
   2026.10.4 a YAML entity with one stayed `unavailable` after every restart, because the
   retained `online` was not applied to it, while a state topic is read correctly at
   start and after the camera's last will.
-- The dashboard view is built from built-in cards only (no script, nothing under
-  `/local`). One of three conditional cards shows at a time: the offline message,
-  the `picture-entity` of `image.front_door_live` while the switch is on, or "Live view is
-  off". The picture exists only while the view is on, so it never shows an old frame as
-  if it were live and nothing is fetched while it is off. The buttons come first so
-  that they do not move when the picture appears.
+- The Live tab of the card shows one of three things: the offline message, the frame of
+  `image.front_door_live` while the switch is on, or "Live view is off". The frame exists
+  only while the view is on, so it never shows an old frame as if it were live and nothing
+  is fetched while it is off; the buttons come first so that they do not move when the
+  picture appears. Its entities are in the panel's `live` configuration, which a test
+  checks against the MQTT entities. A frame is requested again when the image entity's
+  state (the time of its newest picture) changes.
 - `recorder` excludes `image.front_door_live`. The state of an image entity is the time of
   its last update, so up to two database rows a second while the view runs (the picture
   bytes are never stored); excluded, a 30 second view leaves none. The access token that
@@ -432,8 +442,8 @@ An action in the motion notification that starts the view and opens it was left 
 On iOS a notification action either opens a URL (`URI`) and sends Home Assistant no
 event, or sends the `mobile_app_notification_action` event and does not open the app, so
 doing both takes a workaround, and there are reports that `URI` actions open the default
-dashboard instead of the given path on current iOS. The notification still opens
-`/front-door/events`; open **Live** from the sidebar tab and tap **Start**.
+dashboard instead of the given path on current iOS. The notification opens the panel
+(`/front-door-gallery`); switch to its **Live** tab and tap **Start**.
 
 ## Bootstrap and platform changes
 

@@ -25,9 +25,6 @@ configMapGenerator:
   - name: home-assistant-packages
     files:
       - config/packages/front_door.yaml
-  - name: home-assistant-dashboards
-    files:
-      - config/dashboards/front-door.yaml
   - name: home-assistant-www-front-door
     files:
       - config/www/front-door/front-door-events-card.js
