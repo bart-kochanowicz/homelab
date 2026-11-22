@@ -293,7 +293,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         data = choice["sequence"][0]["data"]["data"]
         self.assertEqual(data["image"], f"/api/image_proxy/{image}")
         self.assertEqual(data["attachment"], {"url": f"/api/image_proxy/{image}"})
-        # Both branches open the events dashboard: iOS reads url, Android clickAction.
+        # Both branches open the events panel: iOS reads url, Android clickAction.
         opens = {"url": "/front-door-gallery", "clickAction": "/front-door-gallery"}
         self.assertEqual({key: data[key] for key in opens}, opens)
         self.assertEqual(actions[2]["default"][0]["data"]["data"], opens)
@@ -508,49 +508,6 @@ class HomeAssistantGatewayTests(GatewayTestCase):
     def card_version(self) -> str:
         return hashlib.sha256(self.card_source().encode()).hexdigest()[:16]
 
-    def front_door_dashboard(self) -> dict[str, Any]:
-        data = self.config_map("home-assistant-dashboards")["data"]
-        return self.yaml_json(data["front-door.yaml"])
-
-    def test_dashboard_is_declared_next_to_the_default_ui_dashboard(self):
-        configuration = self.front_door_configuration()
-        lovelace = configuration["lovelace"]
-        # The default dashboard stays in the UI: only extra dashboards are declared.
-        self.assertEqual(set(lovelace), {"dashboards"})
-        self.assertEqual(set(lovelace["dashboards"]), {"front-door"})
-        entry = lovelace["dashboards"]["front-door"]
-        self.assertEqual(
-            entry,
-            {
-                "mode": "yaml",
-                "title": "Front door",
-                "icon": "mdi:doorbell-video",
-                "show_in_sidebar": False,
-                "require_admin": False,
-                "filename": "dashboards/front-door.yaml",
-            },
-        )
-        # The URL path of a dashboard needs a hyphen.
-        self.assertRegex(next(iter(lovelace["dashboards"])), r"^[a-z]+-[a-z-]+$")
-        dashboard = self.front_door_dashboard()
-        self.assertEqual(
-            [view["path"] for view in dashboard["views"]], ["events", "live"]
-        )
-
-    def test_events_view_uses_only_cards_of_home_assistant(self):
-        # The phone app did not define a custom card on a dashboard after a full
-        # reload: no custom card here, the list of pictures is the panel.
-        view = self.front_door_dashboard()["views"][0]
-        self.assertEqual(view["path"], "events")
-        self.assertNotIn("panel", view)
-        for card in view["cards"]:
-            self.assertFalse(card["type"].startswith("custom:"), card)
-        picture, logbook = view["cards"]
-        self.assertEqual(picture["entity"], "image.front_door_camera_snapshot")
-        self.assertEqual(
-            logbook["entities"], ["binary_sensor.front_door_camera_motion"]
-        )
-
     def test_card_is_a_custom_panel_that_lists_the_archive(self):
         configuration = self.front_door_configuration()
         panels = configuration["panel_custom"]
@@ -620,14 +577,6 @@ class HomeAssistantGatewayTests(GatewayTestCase):
                 "readOnly": True,
             },
         )
-        self.assertEqual(
-            mounts["dashboards"],
-            {
-                "name": "dashboards",
-                "mountPath": "/config/dashboards",
-                "readOnly": True,
-            },
-        )
         # Nothing but the card's directory is mounted under /config/www, and the
         # archive is not under it.
         www = [
@@ -642,15 +591,8 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual(
             volumes["www-front-door"]["configMap"]["name"], card["metadata"]["name"]
         )
-        dashboard = self.config_map("home-assistant-dashboards")
-        self.assertEqual(set(dashboard["data"]), {"front-door.yaml"})
-        self.assertEqual(
-            volumes["dashboards"]["configMap"]["name"],
-            dashboard["metadata"]["name"],
-        )
-        # The generated names carry a content hash, so a change rolls the pod.
-        for name in (card, dashboard):
-            self.assertRegex(name["metadata"]["name"], r"-[0-9a-z]{10}$")
+        # The generated name carries a content hash, so a change rolls the pod.
+        self.assertRegex(card["metadata"]["name"], r"-[0-9a-z]{10}$")
 
     def test_card_reaches_pictures_only_through_signed_media_source_urls(self):
         source = self.card_source()
@@ -847,79 +789,10 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             set(configuration["shell_command"]), {"front_door_snapshot_cleanup"}
         )
 
-    def live_view(self) -> dict[str, Any]:
-        return next(
-            view
-            for view in self.front_door_dashboard()["views"]
-            if view["path"] == "live"
-        )
-
-    @staticmethod
-    def states_shown(card: dict[str, Any]) -> dict[str, list[str]]:
-        """The entity states under which a conditional card is visible."""
-        shown: dict[str, list[str]] = {}
-        for condition in card["conditions"]:
-            assert condition["condition"] == "state", condition
-            shown[condition["entity"]] = [condition["state"]]
-        return shown
-
-    def test_live_view_dashboard_controls_and_shows_the_live_image(self):
-        view = self.live_view()
+    def test_live_tab_drives_only_entities_that_the_package_declares(self):
         configuration = self.front_door_configuration()
         entities = self.live_view_entities()
-        image = self.entity_id("image", entities["image"])
-        switch = self.entity_id("switch", entities["switch"])
-        online = self.entity_id("binary_sensor", entities["binary_sensor"])
-        self.assertEqual(view["path"], "live")
-        # The events view is the one a notification opens and stays first.
-        self.assertEqual(self.front_door_dashboard()["views"][0]["path"], "events")
-        self.assertNotIn("panel", view)
-        cards = view["cards"]
-        for card in cards:
-            self.assertIn(card["type"], {"conditional", "markdown"})
-        conditional = [card for card in cards if card["type"] == "conditional"]
-        # Start and stop come first, so they do not move when the picture appears.
-        buttons = conditional[0]["card"]
-        self.assertEqual(self.states_shown(conditional[0]), {online: ["on"]})
-        self.assertEqual(buttons["type"], "horizontal-stack")
-        self.assertEqual(
-            [
-                (
-                    item["name"],
-                    item["tap_action"]["perform_action"],
-                    item["tap_action"]["target"],
-                )
-                for item in buttons["cards"]
-            ],
-            [
-                ("Start", "switch.turn_on", {"entity_id": switch}),
-                ("Stop", "switch.turn_off", {"entity_id": switch}),
-            ],
-        )
-        for item in buttons["cards"]:
-            self.assertEqual(item["tap_action"]["action"], "perform-action")
-        # Offline, live and off are three mutually exclusive states of one slot.
-        offline, live, idle = (item for item in conditional[1:])
-        self.assertEqual(self.states_shown(offline), {online: ["off"]})
-        self.assertIn("offline", offline["card"]["content"])
-        self.assertEqual(self.states_shown(live), {online: ["on"], switch: ["on"]})
-        self.assertEqual(
-            live["card"],
-            {
-                "type": "picture-entity",
-                "entity": image,
-                "show_name": False,
-                "show_state": False,
-            },
-        )
-        self.assertEqual(self.states_shown(idle), {online: ["on"], switch: ["off"]})
-        # It says that the view ends by itself.
-        self.assertIn("30 seconds", cards[-1]["content"])
-        # Every entity on the view is one that the package declares.
-        self.assertEqual(
-            {state for item in conditional for state in self.states_shown(item)},
-            {online, switch},
-        )
+        live = configuration["panel_custom"][0]["config"]["live"]
         declared = {
             item["unique_id"]
             for domain in configuration["mqtt"].values()
@@ -928,17 +801,24 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertLessEqual(
             {item["unique_id"] for item in entities.values()}, declared
         )
-        # No picture of the snapshot entity and no other address on this view.
-        text = json.dumps(view)
-        self.assertNotIn("image.front_door_camera_snapshot", text)
-        self.assertNotIn("/local", text)
-        self.assertNotIn("/media", text)
-        self.assertNotIn("/api/", text)
+        # The tab never uses the snapshot entity, which the notification and the archive
+        # follow, so a live frame can never be sent to the phone or saved.
+        self.assertNotIn("image.front_door_camera_snapshot", json.dumps(live))
+        source = self.card_source()
+        self.assertNotIn("image.front_door_camera_snapshot", source)
+        # It changes nothing but the live-view switch, through the two switch services.
+        self.assertEqual(
+            set(re.findall(r'callService\("([a-z_]+)", service', source)), {"switch"}
+        )
+        self.assertEqual(
+            set(re.findall(r'_liveCommand\("([a-z_]+)"\)', source)),
+            {"turn_on", "turn_off"},
+        )
 
     def test_platform_configuration_only_loads_the_content_directory(self):
         main = self.main_configuration()
         # The platform owns plumbing: the URLs, the media folder, the HTTP server and
-        # the files that the UI edits. Cameras, automations and dashboards are packages.
+        # the files that the UI edits. Cameras, automations and panels are packages.
         self.assertEqual(
             set(main),
             {
@@ -956,7 +836,6 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual(
             set(packages["front_door"]),
             {
-                "lovelace",
                 "panel_custom",
                 "mqtt",
                 "recorder",
