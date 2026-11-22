@@ -79,32 +79,40 @@ class FrontDoorEventsCard extends HTMLElement {
     this._urls = new Map();
     this._status = "Loading events…";
     this._loaded = false;
-    this._observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          this._observer.unobserve(entry.target);
-          this._load(entry.target);
-        }
-      },
-      { rootMargin: "400px 0px" },
-    );
+    // Without an observer (an old WebView) every picture is requested at once.
+    this._observer =
+      typeof IntersectionObserver === "function"
+        ? new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                this._observer.unobserve(entry.target);
+                this._load(entry.target);
+              }
+            },
+            { rootMargin: "400px 0px" },
+          )
+        : {
+            observe: (target) => this._load(target),
+            unobserve() {},
+            disconnect() {},
+          };
     this._onVisible = () => {
       if (document.visibilityState === "visible" && this._loaded) this._fetch();
     };
-    this.attachShadow({ mode: "open" });
+    this.shadowRoot || this.attachShadow({ mode: "open" });
   }
 
   setConfig(config) {
-    if (!Array.isArray(config.sources) || config.sources.length === 0) {
-      throw new Error("sources must list at least one media folder");
-    }
-    for (const source of config.sources) {
-      if (!source.media_content_id || !source.label) {
-        throw new Error("each source needs a label and a media_content_id");
-      }
-    }
     try {
+      if (!Array.isArray(config?.sources) || config.sources.length === 0) {
+        throw new Error("sources must list at least one media folder");
+      }
+      for (const source of config.sources) {
+        if (!source.media_content_id || !source.label) {
+          throw new Error("each source needs a label and a media_content_id");
+        }
+      }
       this._config = {
         page_size: 30,
         ...config,
@@ -115,6 +123,10 @@ class FrontDoorEventsCard extends HTMLElement {
     } catch (error) {
       this._fail("setConfig", error);
     }
+  }
+
+  get hass() {
+    return this._hass;
   }
 
   set hass(hass) {
@@ -130,19 +142,29 @@ class FrontDoorEventsCard extends HTMLElement {
   // Home Assistant hides the message of an error thrown by a card ("Configuration
   // error" and nothing else), so a failure is shown inside the card instead.
   _fail(where, error) {
-    console.error("front-door-events-card", where, error);
-    const note = this._element("div", {
-      className: "note",
-      textContent: `The events card failed in ${where}: ${error?.message || error}`,
-    });
-    this.shadowRoot.replaceChildren(
-      this._element("style", { textContent: STYLE }),
-      this._element("ha-card", {}, note),
-    );
+    try {
+      console.error("front-door-events-card", where, error);
+      const note = this._element("div", {
+        className: "note",
+        textContent: `The events card failed in ${where}: ${error?.message || error}`,
+      });
+      this.shadowRoot.replaceChildren(
+        this._element("style", { textContent: STYLE }),
+        this._element("ha-card", {}, note),
+      );
+    } catch (inner) {
+      this.textContent = `The events card failed in ${where}.`;
+    }
   }
 
   connectedCallback() {
     document.addEventListener("visibilitychange", this._onVisible);
+    // The pictures stopped being observed when the card left the page.
+    if (this._loaded && this.shadowRoot) {
+      for (const img of this.shadowRoot.querySelectorAll("img[data-id]")) {
+        if (!img.src) this._observer.observe(img);
+      }
+    }
   }
 
   disconnectedCallback() {
