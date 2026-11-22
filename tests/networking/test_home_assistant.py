@@ -525,7 +525,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
                 "mode": "yaml",
                 "title": "Front door",
                 "icon": "mdi:doorbell-video",
-                "show_in_sidebar": True,
+                "show_in_sidebar": False,
                 "require_admin": False,
                 "filename": "dashboards/front-door.yaml",
             },
@@ -566,7 +566,17 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The URL path of a panel needs a hyphen.
         self.assertRegex(panel["url_path"], r"^[a-z]+-[a-z-]+$")
         settings = panel["config"]
-        self.assertEqual(set(settings), {"page_size", "sources"})
+        self.assertEqual(set(settings), {"page_size", "sources", "live"})
+        # The live tab drives the entities of the live view.
+        entities = self.live_view_entities()
+        self.assertEqual(
+            settings["live"],
+            {
+                "switch": self.entity_id("switch", entities["switch"]),
+                "image": self.entity_id("image", entities["image"]),
+                "online": self.entity_id("binary_sensor", entities["binary_sensor"]),
+            },
+        )
         self.assertTrue(30 <= settings["page_size"] <= 50)
         media_dirs = configuration["homeassistant"]["media_dirs"]
         for source in settings["sources"]:

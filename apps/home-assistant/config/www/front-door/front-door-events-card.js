@@ -12,6 +12,14 @@
 // get (after a full reload of the phone app the card was not yet defined when the
 // dashboard drew it). As a panel the configuration arrives as the `config` of the panel.
 //
+// As a panel it also has a Live tab, which starts and stops the camera's live view
+// (a switch entity) and shows its frames (an image entity):
+//
+//   live:
+//     switch: switch.front_door_live_view
+//     image: image.front_door_live
+//     online: binary_sensor.front_door_camera_online
+//
 //   type: custom:front-door-events-card
 //   page_size: 30                    # events added by each "Show older events"
 //   sources:                         # one entry per kind of event
@@ -29,6 +37,15 @@ const STYLE = `
   .toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
     font-size: 1.25rem; font-weight: 500; }
   .toolbar button { font-size: 1.4rem; line-height: 1; padding: 6px 12px; }
+  .tabs { display: flex; gap: 8px; margin: 0 12px 8px; }
+  .tabs button { flex: 1; }
+  .tabs button[aria-pressed="true"] { background: var(--primary-color);
+    color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
+  .live .controls { display: flex; gap: 8px; margin-bottom: 12px; }
+  .live .controls button { flex: 1; }
+  .live button:disabled { opacity: 0.5; cursor: default; }
+  .live img { display: block; width: 100%; border-radius: 8px;
+    background: var(--secondary-background-color); }
   ha-card { padding: 12px; box-sizing: border-box; }
   .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
   .bar select { flex: 1; min-width: 0; font: inherit; padding: 8px; border-radius: 8px;
@@ -88,6 +105,8 @@ class FrontDoorEventsCard extends HTMLElement {
     this._day = LATEST;
     this._urls = new Map();
     this._status = "Loading events…";
+    this._tab = "events";
+    this._live = null;
     this._loaded = false;
     // Without an observer (an old WebView) every picture is requested at once.
     this._observer =
@@ -162,6 +181,7 @@ class FrontDoorEventsCard extends HTMLElement {
       const first = !this._hass;
       this._hass = hass;
       if (first && this._config) this._fetch();
+      if (this._tab === "live") this._updateLive();
     } catch (error) {
       this._fail("hass", error);
     }
@@ -169,6 +189,85 @@ class FrontDoorEventsCard extends HTMLElement {
 
   // Home Assistant hides the message of an error thrown by a card ("Configuration
   // error" and nothing else), so a failure is shown inside the card instead.
+  _selectTab(name) {
+    if (name === this._tab) return;
+    // Leaving the live tab ends the view, so the camera stops sending frames.
+    if (this._tab === "live") this._liveCommand("turn_off");
+    this._tab = name;
+    this._renderSafely();
+    if (name === "live") this._updateLive();
+  }
+
+  _liveCommand(service) {
+    const entity = this._config?.live?.switch;
+    if (!entity || !this._hass) return;
+    if (service === "turn_off" && this._hass.states?.[entity]?.state !== "on") return;
+    this._hass.callService("switch", service, { entity_id: entity }).catch((error) => {
+      console.error("front-door-events-card", service, error);
+    });
+  }
+
+  _renderLive(card) {
+    const start = this._element("button", { textContent: "▶ Start", type: "button" });
+    const stop = this._element("button", { textContent: "■ Stop", type: "button" });
+    // Start sends ON again while the view runs, which renews its 30 seconds.
+    start.addEventListener("click", () => this._liveCommand("turn_on"));
+    stop.addEventListener("click", () => this._liveCommand("turn_off"));
+    const status = this._element("div", { className: "note" });
+    const img = this._element("img", { alt: "Live view of the door" });
+    img.hidden = true;
+    const note = this._element("div", {
+      className: "note",
+      textContent: "The view stops by itself after about 30 seconds; tap Start again to keep watching.",
+    });
+    card.append(
+      this._element(
+        "div",
+        { className: "live" },
+        this._element("div", { className: "controls" }, start, stop),
+        status,
+        img,
+        note,
+      ),
+    );
+    this._live = { start, stop, status, img };
+    this._updateLive();
+  }
+
+  // Called with every state change of Home Assistant while the live tab is open.
+  _updateLive() {
+    const live = this._live;
+    const names = this._config?.live;
+    if (!live || !names || !this._hass) return;
+    const states = this._hass.states || {};
+    const online = states[names.online]?.state === "on";
+    const on = states[names.switch]?.state === "on";
+    live.start.disabled = !online;
+    live.stop.disabled = !online;
+    live.status.textContent = !online
+      ? "The camera is offline. Live view returns by itself when the camera reconnects to the broker."
+      : on
+        ? ""
+        : "Live view is off. Tap Start to watch the door.";
+    const frame = states[names.image];
+    const picture = frame?.attributes?.entity_picture;
+    // The picture exists only while the camera reports the view as on, so a frame
+    // from an earlier view is never shown as if it were live.
+    if (online && on && picture) {
+      // The state of an image entity is the time of its newest picture.
+      const url = `${picture}${picture.includes("?") ? "&" : "?"}t=${encodeURIComponent(frame.state)}`;
+      if (live.img.dataset.url !== url) {
+        live.img.dataset.url = url;
+        live.img.src = this._hass.hassUrl(url);
+      }
+      live.img.hidden = false;
+    } else {
+      delete live.img.dataset.url;
+      live.img.removeAttribute("src");
+      live.img.hidden = true;
+    }
+  }
+
   _renderSafely() {
     try {
       this._render();
@@ -340,8 +439,27 @@ class FrontDoorEventsCard extends HTMLElement {
       toolbar.append("Front door events");
       root.append(toolbar);
     }
+    if (this._panel && this._config?.live) {
+      const tab = (name, label) => {
+        const button = this._element("button", {
+          textContent: label,
+          type: "button",
+        });
+        button.setAttribute("aria-pressed", String(this._tab === name));
+        button.addEventListener("click", () => this._selectTab(name));
+        return button;
+      };
+      root.append(
+        this._element("div", { className: "tabs" }, tab("events", "Events"), tab("live", "Live")),
+      );
+    }
     const card = this._element("ha-card");
     root.append(card);
+    if (this._tab === "live" && this._config?.live) {
+      this._renderLive(card);
+      return;
+    }
+    this._live = null;
 
     const days = new Map();
     for (const event of this._events) {
