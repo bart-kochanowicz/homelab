@@ -372,10 +372,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # the only /local URL is the card's script.
         text = json.dumps(configuration)
         self.assertNotIn("/www", text)
-        # The card's script is listed twice, as an extra module and as a Lovelace resource.
+        # The card's script is listed three times: as an extra module, as a Lovelace
+        # resource and as the module of the custom panel.
         self.assertEqual(
             re.findall(r"/local[^\"]*", text),
-            [f"/local/front-door/{CARD}?v={self.card_version()}"] * 2,
+            [f"/local/front-door/{CARD}?v={self.card_version()}"] * 3,
         )
         self.assertNotIn("allowlist_external_dirs", text)
 
@@ -581,6 +582,23 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             "front_door",
         )
         self.assertIn("front_door", configuration["homeassistant"]["media_dirs"])
+
+    def test_card_is_also_a_custom_panel_with_the_dashboards_sources(self):
+        configuration = self.front_door_configuration()
+        panels = configuration["panel_custom"]
+        self.assertEqual(len(panels), 1)
+        panel = panels[0]
+        self.assertEqual(panel["name"], "front-door-events-card")
+        self.assertEqual(
+            panel["module_url"],
+            f"/local/front-door/{CARD}?v={self.card_version()}",
+        )
+        self.assertFalse(panel["require_admin"])
+        # The URL path of a panel needs a hyphen.
+        self.assertRegex(panel["url_path"], r"^[a-z]+-[a-z-]+$")
+        dashboard_card = self.front_door_dashboard()["views"][1]["cards"][0]
+        self.assertEqual(panel["config"]["sources"], dashboard_card["sources"])
+        self.assertEqual(panel["config"]["page_size"], dashboard_card["page_size"])
 
     def test_notifications_open_the_dashboard_view(self):
         dashboards = self.front_door_configuration()["lovelace"]["dashboards"]
@@ -967,6 +985,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             {
                 "frontend",
                 "lovelace",
+                "panel_custom",
                 "mqtt",
                 "recorder",
                 "shell_command",
