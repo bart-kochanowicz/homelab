@@ -156,14 +156,17 @@ automation front_door:
       - delay: "00:01:00"
   - id: front_door_camera_battery_low
     alias: Front door camera battery low
-    description: Tells the phone once when the camera's battery drops below 20 percent.
+    description: Tells the phone once when the camera's battery stays below 20 percent for ten minutes.
     # numeric_state fires when the value crosses the limit, not on every update below it
     # and not while the sensor is unavailable, so one message per drop.
+    # The MCU derives the percentage from the battery voltage, which sags under load:
+    # on 2026-11-22 it read 13 for one minute with the screen on and 51 again after it.
     mode: single
     triggers:
       - trigger: numeric_state
         entity_id: sensor.front_door_camera_battery
         below: 20
+        for: "00:10:00"
     actions:
       - action: notify.mobile_app_iphone_bart
         data:

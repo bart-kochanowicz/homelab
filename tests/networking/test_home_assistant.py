@@ -300,7 +300,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The run holds the single slot for the cooldown, so repeated motion is dropped.
         self.assertEqual(actions[-1], {"delay": "00:01:00"})
 
-    def test_low_battery_notification_fires_once_when_the_battery_drops_below_20(self):
+    def test_low_battery_notification_fires_once_when_the_battery_stays_below_20(self):
         automation = self.front_door_automation("front_door_camera_battery_low")
         self.assertEqual(
             automation["triggers"],
@@ -309,11 +309,13 @@ class HomeAssistantGatewayTests(GatewayTestCase):
                     "trigger": "numeric_state",
                     "entity_id": "sensor.front_door_camera_battery",
                     "below": 20,
+                    "for": "00:10:00",
                 }
             ],
         )
-        # No `above`, `for` or `attribute`: it fires on the crossing only, and the
-        # battery sensor is the one the camera's discovery declares.
+        # No `above` or `attribute`: it fires on the crossing only, `for` ignores a
+        # short voltage sag under load, and the battery sensor is the one the
+        # camera's discovery declares.
         self.assertEqual(automation["mode"], "single")
         self.assertNotIn("conditions", automation)
         (action,) = automation["actions"]
