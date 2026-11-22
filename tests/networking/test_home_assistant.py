@@ -5,6 +5,7 @@ import re
 import subprocess
 import tempfile
 import time
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -536,9 +537,10 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertRegex(next(iter(lovelace["dashboards"])), r"^[a-z]+-[a-z-]+$")
         dashboard = self.front_door_dashboard()
         self.assertEqual(
-            [view["path"] for view in dashboard["views"]], ["events", "live"]
+            [view["path"] for view in dashboard["views"]],
+            ["events", "gallery", "live"],
         )
-        view = dashboard["views"][0]
+        view = dashboard["views"][1]
         # A panel view holds exactly one card, which then spans the phone.
         self.assertTrue(view["panel"])
         self.assertEqual(len(view["cards"]), 1)
@@ -557,6 +559,28 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             assert match, source
             self.assertIn(match.group(1), media_dirs)
         self.assertEqual([source["label"] for source in card["sources"]], ["Motion"])
+
+    def test_events_view_uses_only_cards_of_home_assistant(self):
+        # A notification opens this view, in the phone app: no custom card here.
+        view = self.front_door_dashboard()["views"][0]
+        self.assertEqual(view["path"], "events")
+        self.assertNotIn("panel", view)
+        for card in view["cards"]:
+            self.assertFalse(card["type"].startswith("custom:"), card)
+        picture, button, logbook = view["cards"]
+        self.assertEqual(picture["entity"], "image.front_door_camera_snapshot")
+        self.assertEqual(
+            logbook["entities"], ["binary_sensor.front_door_camera_motion"]
+        )
+        action = button["tap_action"]
+        self.assertEqual(action["action"], "navigate")
+        configuration = self.front_door_configuration()
+        folder = urllib.parse.unquote(action["navigation_path"].rsplit("/", 1)[1])
+        self.assertEqual(
+            folder.removeprefix("app,media-source://media_source/"),
+            "front_door",
+        )
+        self.assertIn("front_door", configuration["homeassistant"]["media_dirs"])
 
     def test_notifications_open_the_dashboard_view(self):
         dashboards = self.front_door_configuration()["lovelace"]["dashboards"]
