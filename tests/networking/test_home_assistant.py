@@ -516,8 +516,9 @@ class HomeAssistantGatewayTests(GatewayTestCase):
     def test_events_dashboard_is_declared_next_to_the_default_ui_dashboard(self):
         configuration = self.front_door_configuration()
         lovelace = configuration["lovelace"]
-        # The default dashboard stays in the UI: only extra dashboards are declared.
-        self.assertEqual(set(lovelace), {"dashboards"})
+        # The default dashboard stays in the UI: only extra dashboards and the card's
+        # resource are declared.
+        self.assertEqual(set(lovelace), {"dashboards", "resource_mode", "resources"})
         self.assertEqual(set(lovelace["dashboards"]), {"front-door"})
         entry = lovelace["dashboards"]["front-door"]
         self.assertEqual(
