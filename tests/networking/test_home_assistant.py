@@ -580,7 +580,12 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual(configuration["lovelace"]["resource_mode"], "yaml")
         self.assertEqual(
             configuration["lovelace"]["resources"],
-            [{"url": f"/local/front-door/{CARD}?v={self.card_version()}", "type": "module"}],
+            [
+                {
+                    "url": f"/local/front-door/{CARD}?v={self.card_version()}",
+                    "type": "module",
+                }
+            ],
             "the resource and the extra module are one URL",
         )
         deployment = next(
