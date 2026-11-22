@@ -18,24 +18,30 @@ panel_custom:
     sidebar_icon: mdi:image-multiple
     url_path: front-door-gallery
     require_admin: false
-    module_url: /local/front-door/front-door-events-card.js?v=562cf6d474368373
+    module_url: /local/front-door/front-door-events-card.js?v=8a423f37cc381c5e
     config:
       page_size: 30
       sources:
         - label: Motion
           icon: mdi:motion-sensor
           media_content_id: media-source://media_source/front_door
+      # The Live tab: the switch that starts and stops the view, the frames, and the
+      # camera's availability.
+      live:
+        switch: switch.front_door_live_view
+        image: image.front_door_live
+        online: binary_sensor.front_door_camera_online
 
-# The default dashboard stays in the UI. This one is read from the repository
-# and listed in the sidebar for every user: the latest picture, the motion log and
-# the live view.
+# The default dashboard stays in the UI. This one is read from the repository. It is
+# not listed in the sidebar: the "Door events" panel has the events and the live view;
+# the dashboard stays reachable at /front-door as a fallback.
 lovelace:
   dashboards:
     front-door:
       mode: yaml
       title: Front door
       icon: mdi:doorbell-video
-      show_in_sidebar: true
+      show_in_sidebar: false
       require_admin: false
       filename: dashboards/front-door.yaml
 
