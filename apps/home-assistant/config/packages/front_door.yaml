@@ -9,7 +9,25 @@
 # month-long cache for /local.
 frontend:
   extra_module_url:
-    - /local/front-door/front-door-events-card.js?v=c311dbc21af5a774
+    - /local/front-door/front-door-events-card.js?v=562cf6d474368373
+
+# The same card as a sidebar panel. Home Assistant loads the module of a custom panel
+# before it creates the element, so the card is defined when it is drawn; on a
+# dashboard it was not after a full reload of the phone app, which showed
+# "Configuration error". The configuration is the one of the dashboard's card.
+panel_custom:
+  - name: front-door-events-card
+    sidebar_title: Door events
+    sidebar_icon: mdi:doorbell-video
+    url_path: front-door-gallery
+    require_admin: false
+    module_url: /local/front-door/front-door-events-card.js?v=562cf6d474368373
+    config:
+      page_size: 30
+      sources:
+        - label: Motion
+          icon: mdi:motion-sensor
+          media_content_id: media-source://media_source/front_door
 
 # The default dashboard stays in the UI. This one is read from the repository
 # and listed in the sidebar for every user.
@@ -22,7 +40,7 @@ lovelace:
   # kept in the UI, so the resources are read from this file.
   resource_mode: yaml
   resources:
-    - url: /local/front-door/front-door-events-card.js?v=c311dbc21af5a774
+    - url: /local/front-door/front-door-events-card.js?v=562cf6d474368373
       type: module
   dashboards:
     front-door:

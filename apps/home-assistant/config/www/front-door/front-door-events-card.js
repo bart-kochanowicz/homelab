@@ -7,6 +7,11 @@
 // `media_source/resolve_media` WebSocket command when it scrolls into view, which
 // returns a short-lived signed URL for the logged-in user.
 //
+// It is also a custom panel (panel_custom with this element name): Home Assistant then
+// loads the module before it creates the element, which a card on a dashboard does not
+// get (after a full reload of the phone app the card was not yet defined when the
+// dashboard drew it). As a panel the configuration arrives as the `config` of the panel.
+//
 //   type: custom:front-door-events-card
 //   page_size: 30                    # events added by each "Show older events"
 //   sources:                         # one entry per kind of event
@@ -19,6 +24,11 @@ const LATEST = "latest";
 
 const STYLE = `
   :host { display: block; }
+  :host([panel]) { min-height: 100%; box-sizing: border-box;
+    background: var(--primary-background-color); color: var(--primary-text-color); }
+  .toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    font-size: 1.25rem; font-weight: 500; }
+  .toolbar button { font-size: 1.4rem; line-height: 1; padding: 6px 12px; }
   ha-card { padding: 12px; box-sizing: border-box; }
   .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
   .bar select { flex: 1; min-width: 0; font: inherit; padding: 8px; border-radius: 8px;
@@ -129,6 +139,24 @@ class FrontDoorEventsCard extends HTMLElement {
     return this._hass;
   }
 
+  // Home Assistant sets these on a custom panel, in this order: hass, narrow, route, panel.
+  set narrow(narrow) {
+    const changed = this._narrow !== narrow;
+    this._narrow = narrow;
+    if (changed && this._panel && this._config) this._renderSafely();
+  }
+
+  get narrow() {
+    return this._narrow;
+  }
+
+  set panel(panel) {
+    this._panel = true;
+    this.setAttribute("panel", "");
+    this.setConfig({ page_size: 30, ...panel?.config });
+    if (this._hass && this._config) this._fetch();
+  }
+
   set hass(hass) {
     try {
       const first = !this._hass;
@@ -141,6 +169,14 @@ class FrontDoorEventsCard extends HTMLElement {
 
   // Home Assistant hides the message of an error thrown by a card ("Configuration
   // error" and nothing else), so a failure is shown inside the card instead.
+  _renderSafely() {
+    try {
+      this._render();
+    } catch (error) {
+      this._fail("render", error);
+    }
+  }
+
   _fail(where, error) {
     try {
       console.error("front-door-events-card", where, error);
@@ -292,6 +328,18 @@ class FrontDoorEventsCard extends HTMLElement {
   _render() {
     const root = this.shadowRoot;
     root.replaceChildren(this._element("style", { textContent: STYLE }));
+    if (this._panel) {
+      const toolbar = this._element("div", { className: "toolbar" });
+      if (this._narrow) {
+        const menu = this._element("button", { textContent: "☰", type: "button", ariaLabel: "Menu" });
+        menu.addEventListener("click", () =>
+          this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true })),
+        );
+        toolbar.append(menu);
+      }
+      toolbar.append("Front door events");
+      root.append(toolbar);
+    }
     const card = this._element("ha-card");
     root.append(card);
 
