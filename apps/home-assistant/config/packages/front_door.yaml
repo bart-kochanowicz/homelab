@@ -9,7 +9,7 @@
 # month-long cache for /local.
 frontend:
   extra_module_url:
-    - /local/front-door/front-door-events-card.js?v=f4506b59c422f4af
+    - /local/front-door/front-door-events-card.js?v=c956f1eb3cbe72ee
 
 # The default dashboard stays in the UI. This one is read from the repository
 # and listed in the sidebar for every user.

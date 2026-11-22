@@ -104,19 +104,41 @@ class FrontDoorEventsCard extends HTMLElement {
         throw new Error("each source needs a label and a media_content_id");
       }
     }
-    this._config = {
-      page_size: 30,
-      ...config,
-      sources: config.sources.map((source) => ({ ...source })),
-    };
-    this._shown = this._config.page_size;
-    this._render();
+    try {
+      this._config = {
+        page_size: 30,
+        ...config,
+        sources: config.sources.map((source) => ({ ...source })),
+      };
+      this._shown = this._config.page_size;
+      this._render();
+    } catch (error) {
+      this._fail("setConfig", error);
+    }
   }
 
   set hass(hass) {
-    const first = !this._hass;
-    this._hass = hass;
-    if (first && this._config) this._fetch();
+    try {
+      const first = !this._hass;
+      this._hass = hass;
+      if (first && this._config) this._fetch();
+    } catch (error) {
+      this._fail("hass", error);
+    }
+  }
+
+  // Home Assistant hides the message of an error thrown by a card ("Configuration
+  // error" and nothing else), so a failure is shown inside the card instead.
+  _fail(where, error) {
+    console.error("front-door-events-card", where, error);
+    const note = this._element("div", {
+      className: "note",
+      textContent: `The events card failed in ${where}: ${error?.message || error}`,
+    });
+    this.shadowRoot.replaceChildren(
+      this._element("style", { textContent: STYLE }),
+      this._element("ha-card", {}, note),
+    );
   }
 
   connectedCallback() {
@@ -159,7 +181,11 @@ class FrontDoorEventsCard extends HTMLElement {
       this._status = `Could not list the events: ${error.message || error.code || error}`;
     }
     this._loaded = true;
-    this._render();
+    try {
+      this._render();
+    } catch (error) {
+      this._fail("render", error);
+    }
   }
 
   async _load(img) {
