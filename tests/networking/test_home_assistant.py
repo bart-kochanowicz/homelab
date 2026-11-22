@@ -300,12 +300,36 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The run holds the single slot for the cooldown, so repeated motion is dropped.
         self.assertEqual(actions[-1], {"delay": "00:01:00"})
 
+    def test_low_battery_notification_fires_once_when_the_battery_drops_below_20(self):
+        automation = self.front_door_automation("front_door_camera_battery_low")
+        self.assertEqual(
+            automation["triggers"],
+            [
+                {
+                    "trigger": "numeric_state",
+                    "entity_id": "sensor.front_door_camera_battery",
+                    "below": 20,
+                }
+            ],
+        )
+        # No `above`, `for` or `attribute`: it fires on the crossing only, and the
+        # battery sensor is the one the camera's discovery declares.
+        self.assertEqual(automation["mode"], "single")
+        self.assertNotIn("conditions", automation)
+        (action,) = automation["actions"]
+        self.assertEqual(action["action"], "notify.mobile_app_iphone_bart")
+        self.assertIn("front_door_camera_battery", json.dumps(automation))
+        # The same phone as the motion notification.
+        motion = self.front_door_automation("front_door_motion_notification")
+        self.assertIn(f'"action": "{action["action"]}"', json.dumps(motion["actions"]))
+
     def test_notification_automation_does_not_depend_on_the_archive(self):
         automations = self.front_door_configuration()["automation front_door"]
         self.assertEqual(
             [item["id"] for item in automations],
             [
                 "front_door_motion_notification",
+                "front_door_camera_battery_low",
                 "front_door_snapshot_archive",
                 "front_door_snapshot_retention",
             ],

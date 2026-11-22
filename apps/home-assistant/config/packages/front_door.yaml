@@ -154,6 +154,25 @@ automation front_door:
                 url: /front-door-gallery
                 clickAction: /front-door-gallery
       - delay: "00:01:00"
+  - id: front_door_camera_battery_low
+    alias: Front door camera battery low
+    description: Tells the phone once when the camera's battery drops below 20 percent.
+    # numeric_state fires when the value crosses the limit, not on every update below it
+    # and not while the sensor is unavailable, so one message per drop.
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.front_door_camera_battery
+        below: 20
+    actions:
+      - action: notify.mobile_app_iphone_bart
+        data:
+          title: Front door camera
+          message: >-
+            Battery is at {{ states('sensor.front_door_camera_battery') | int(0) }} %.
+            {{ 'It is on USB power.' if is_state('binary_sensor.front_door_camera_external_power', 'on')
+               else 'It is running on the battery.' }}
+
   - id: front_door_snapshot_archive
     alias: Front door snapshot archive
     description: Saves the snapshot that follows each motion as a timestamped JPEG in the Media browser.
