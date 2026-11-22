@@ -371,9 +371,10 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # the only /local URL is the card's script.
         text = json.dumps(configuration)
         self.assertNotIn("/www", text)
+        # The card's script is listed twice, as an extra module and as a Lovelace resource.
         self.assertEqual(
             re.findall(r"/local[^\"]*", text),
-            [f"/local/front-door/{CARD}?v={self.card_version()}"],
+            [f"/local/front-door/{CARD}?v={self.card_version()}"] * 2,
         )
         self.assertNotIn("allowlist_external_dirs", text)
 
@@ -575,6 +576,12 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             configuration["frontend"],
             {"extra_module_url": [f"/local/front-door/{CARD}?v={self.card_version()}"]},
             "update ?v= to the start of the card's SHA-256 when the card changes",
+        )
+        self.assertEqual(configuration["lovelace"]["resource_mode"], "yaml")
+        self.assertEqual(
+            configuration["lovelace"]["resources"],
+            [{"url": f"/local/front-door/{CARD}?v={self.card_version()}", "type": "module"}],
+            "the resource and the extra module are one URL",
         )
         deployment = next(
             item

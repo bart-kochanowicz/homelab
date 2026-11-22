@@ -14,6 +14,16 @@ frontend:
 # The default dashboard stays in the UI. This one is read from the repository
 # and listed in the sidebar for every user.
 lovelace:
+  # The card is also a Lovelace resource, which the dashboard loads before it draws
+  # its cards. As only an extra module the card was not yet defined when a full
+  # reload of the phone app drew the Events view, and the view showed "Configuration
+  # error" (what Home Assistant shows for a card whose element does not exist). The
+  # two entries are one URL, so the browser runs the script once. No resource is
+  # kept in the UI, so the resources are read from this file.
+  resource_mode: yaml
+  resources:
+    - url: /local/front-door/front-door-events-card.js?v=c311dbc21af5a774
+      type: module
   dashboards:
     front-door:
       mode: yaml
