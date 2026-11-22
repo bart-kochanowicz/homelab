@@ -2,23 +2,20 @@
 # and the events dashboard. Loaded as a Home Assistant package, so each key below
 # is merged into the configuration.
 
-# The card that lists the front-door snapshots. /local serves /config/www without
-# authentication, so that directory holds only this script (a read-only mount of
-# the front-door-card ConfigMap) and never a picture. The version in the URL is
-# the start of the file's SHA-256, so a change to the card busts the browser's
-# month-long cache for /local.
-frontend:
-  extra_module_url:
-    - /local/front-door/front-door-events-card.js?v=562cf6d474368373
-
-# The same card as a sidebar panel. Home Assistant loads the module of a custom panel
-# before it creates the element, so the card is defined when it is drawn; on a
-# dashboard it was not after a full reload of the phone app, which showed
-# "Configuration error". The configuration is the one of the dashboard's card.
+# The card that lists the front-door snapshots, as a sidebar panel. /local serves
+# /config/www without authentication, so that directory holds only this script (a
+# read-only mount of the front-door-card ConfigMap) and never a picture. The version
+# in the URL is the start of the file's SHA-256, so a change to the card busts the
+# browser's month-long cache for /local.
+#
+# It is a panel and not a card on a dashboard because Home Assistant loads the module
+# of a custom panel before it creates the element. On a dashboard the card was not yet
+# defined when a full reload of the phone app drew it, which showed "Configuration
+# error", also when it was a Lovelace resource.
 panel_custom:
   - name: front-door-events-card
     sidebar_title: Door events
-    sidebar_icon: mdi:doorbell-video
+    sidebar_icon: mdi:image-multiple
     url_path: front-door-gallery
     require_admin: false
     module_url: /local/front-door/front-door-events-card.js?v=562cf6d474368373
@@ -30,18 +27,9 @@ panel_custom:
           media_content_id: media-source://media_source/front_door
 
 # The default dashboard stays in the UI. This one is read from the repository
-# and listed in the sidebar for every user.
+# and listed in the sidebar for every user: the latest picture, the motion log and
+# the live view.
 lovelace:
-  # The card is also a Lovelace resource, which the dashboard loads before it draws
-  # its cards. As only an extra module the card was not yet defined when a full
-  # reload of the phone app drew the Events view, and the view showed "Configuration
-  # error" (what Home Assistant shows for a card whose element does not exist). The
-  # two entries are one URL, so the browser runs the script once. No resource is
-  # kept in the UI, so the resources are read from this file.
-  resource_mode: yaml
-  resources:
-    - url: /local/front-door/front-door-events-card.js?v=562cf6d474368373
-      type: module
   dashboards:
     front-door:
       mode: yaml
@@ -159,8 +147,8 @@ automation front_door:
                   data:
                     # Tapping the notification opens the events dashboard: `url` is read
                     # by iOS and `clickAction` by Android.
-                    url: /front-door/events
-                    clickAction: /front-door/events
+                    url: /front-door-gallery
+                    clickAction: /front-door-gallery
                     image: /api/image_proxy/image.front_door_camera_snapshot
                     attachment:
                       url: /api/image_proxy/image.front_door_camera_snapshot
@@ -170,8 +158,8 @@ automation front_door:
               title: Front door
               message: Motion detected, but no snapshot arrived.
               data:
-                url: /front-door/events
-                clickAction: /front-door/events
+                url: /front-door-gallery
+                clickAction: /front-door-gallery
       - delay: "00:01:00"
   - id: front_door_snapshot_archive
     alias: Front door snapshot archive

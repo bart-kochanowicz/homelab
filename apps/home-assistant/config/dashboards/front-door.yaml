@@ -1,8 +1,7 @@
 title: Front door
 views:
-  # Only Home Assistant's own cards: this view is the one a notification opens, and
-  # it must work in the phone app. The Gallery view below needs a custom card, which
-  # the app did not have defined after a full reload ("Configuration error").
+  # Only Home Assistant's own cards. The list of pictures is the "Door events" panel,
+  # which a notification opens (see packages/front_door.yaml).
   - title: Events
     path: events
     icon: mdi:doorbell-video
@@ -12,33 +11,11 @@ views:
         name: Latest motion picture
         show_name: true
         show_state: true
-      - type: button
-        name: Open the picture archive
-        icon: mdi:folder-image
-        # Home Assistant's media browser lists the archive folder with a thumbnail
-        # and the file name (the date and time) of each picture.
-        tap_action:
-          action: navigate
-          navigation_path: /media-browser/browser/app%2Cmedia-source%3A%2F%2Fmedia_source%2Ffront_door
       - type: logbook
         title: Motion, last 7 days
         hours_to_show: 168
         entities:
           - binary_sensor.front_door_camera_motion
-  - title: Gallery
-    path: gallery
-    icon: mdi:image-multiple
-    # A panel view gives the card the whole width of the phone.
-    panel: true
-    cards:
-      - type: custom:front-door-events-card
-        page_size: 30
-        # One entry per kind of event, each a media folder of snapshots named
-        # YYYY-MM-DD_HH-MM-SS.jpg; the label is shown under each picture.
-        sources:
-          - label: Motion
-            icon: mdi:motion-sensor
-            media_content_id: media-source://media_source/front_door
   - title: Live
     path: live
     icon: mdi:cctv

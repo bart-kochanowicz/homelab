@@ -5,7 +5,6 @@ import re
 import subprocess
 import tempfile
 import time
-import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -295,7 +294,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual(data["image"], f"/api/image_proxy/{image}")
         self.assertEqual(data["attachment"], {"url": f"/api/image_proxy/{image}"})
         # Both branches open the events dashboard: iOS reads url, Android clickAction.
-        opens = {"url": "/front-door/events", "clickAction": "/front-door/events"}
+        opens = {"url": "/front-door-gallery", "clickAction": "/front-door-gallery"}
         self.assertEqual({key: data[key] for key in opens}, opens)
         self.assertEqual(actions[2]["default"][0]["data"]["data"], opens)
         # The run holds the single slot for the cooldown, so repeated motion is dropped.
@@ -372,11 +371,9 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # the only /local URL is the card's script.
         text = json.dumps(configuration)
         self.assertNotIn("/www", text)
-        # The card's script is listed three times: as an extra module, as a Lovelace
-        # resource and as the module of the custom panel.
         self.assertEqual(
             re.findall(r"/local[^\"]*", text),
-            [f"/local/front-door/{CARD}?v={self.card_version()}"] * 3,
+            [f"/local/front-door/{CARD}?v={self.card_version()}"],
         )
         self.assertNotIn("allowlist_external_dirs", text)
 
@@ -515,12 +512,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         data = self.config_map("home-assistant-dashboards")["data"]
         return self.yaml_json(data["front-door.yaml"])
 
-    def test_events_dashboard_is_declared_next_to_the_default_ui_dashboard(self):
+    def test_dashboard_is_declared_next_to_the_default_ui_dashboard(self):
         configuration = self.front_door_configuration()
         lovelace = configuration["lovelace"]
-        # The default dashboard stays in the UI: only extra dashboards and the card's
-        # resource are declared.
-        self.assertEqual(set(lovelace), {"dashboards", "resource_mode", "resources"})
+        # The default dashboard stays in the UI: only extra dashboards are declared.
+        self.assertEqual(set(lovelace), {"dashboards"})
         self.assertEqual(set(lovelace["dashboards"]), {"front-door"})
         entry = lovelace["dashboards"]["front-door"]
         self.assertEqual(
@@ -538,52 +534,24 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertRegex(next(iter(lovelace["dashboards"])), r"^[a-z]+-[a-z-]+$")
         dashboard = self.front_door_dashboard()
         self.assertEqual(
-            [view["path"] for view in dashboard["views"]],
-            ["events", "gallery", "live"],
+            [view["path"] for view in dashboard["views"]], ["events", "live"]
         )
-        view = dashboard["views"][1]
-        # A panel view holds exactly one card, which then spans the phone.
-        self.assertTrue(view["panel"])
-        self.assertEqual(len(view["cards"]), 1)
-        card = view["cards"][0]
-        self.assertEqual(card["type"], "custom:front-door-events-card")
-        self.assertEqual(
-            set(card), {"type", "page_size", "sources"}, "the card takes no other keys"
-        )
-        self.assertTrue(30 <= card["page_size"] <= 50)
-        media_dirs = configuration["homeassistant"]["media_dirs"]
-        for source in card["sources"]:
-            self.assertEqual(set(source), {"label", "icon", "media_content_id"})
-            match = re.fullmatch(
-                r"media-source://media_source/([a-z_]+)", source["media_content_id"]
-            )
-            assert match, source
-            self.assertIn(match.group(1), media_dirs)
-        self.assertEqual([source["label"] for source in card["sources"]], ["Motion"])
 
     def test_events_view_uses_only_cards_of_home_assistant(self):
-        # A notification opens this view, in the phone app: no custom card here.
+        # The phone app did not define a custom card on a dashboard after a full
+        # reload: no custom card here, the list of pictures is the panel.
         view = self.front_door_dashboard()["views"][0]
         self.assertEqual(view["path"], "events")
         self.assertNotIn("panel", view)
         for card in view["cards"]:
             self.assertFalse(card["type"].startswith("custom:"), card)
-        picture, button, logbook = view["cards"]
+        picture, logbook = view["cards"]
         self.assertEqual(picture["entity"], "image.front_door_camera_snapshot")
         self.assertEqual(
             logbook["entities"], ["binary_sensor.front_door_camera_motion"]
         )
-        action = button["tap_action"]
-        self.assertEqual(action["action"], "navigate")
-        configuration = self.front_door_configuration()
-        folder = urllib.parse.unquote(action["navigation_path"].rsplit("/", 1)[1])
-        self.assertEqual(
-            folder.removeprefix("app,media-source://media_source/"),
-            "front_door",
-        )
-        self.assertIn("front_door", configuration["homeassistant"]["media_dirs"])
 
-    def test_card_is_also_a_custom_panel_with_the_dashboards_sources(self):
+    def test_card_is_a_custom_panel_that_lists_the_archive(self):
         configuration = self.front_door_configuration()
         panels = configuration["panel_custom"]
         self.assertEqual(len(panels), 1)
@@ -592,20 +560,31 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual(
             panel["module_url"],
             f"/local/front-door/{CARD}?v={self.card_version()}",
+            "update ?v= to the start of the card's SHA-256 when the card changes",
         )
         self.assertFalse(panel["require_admin"])
         # The URL path of a panel needs a hyphen.
         self.assertRegex(panel["url_path"], r"^[a-z]+-[a-z-]+$")
-        dashboard_card = self.front_door_dashboard()["views"][1]["cards"][0]
-        self.assertEqual(panel["config"]["sources"], dashboard_card["sources"])
-        self.assertEqual(panel["config"]["page_size"], dashboard_card["page_size"])
+        settings = panel["config"]
+        self.assertEqual(set(settings), {"page_size", "sources"})
+        self.assertTrue(30 <= settings["page_size"] <= 50)
+        media_dirs = configuration["homeassistant"]["media_dirs"]
+        for source in settings["sources"]:
+            self.assertEqual(set(source), {"label", "icon", "media_content_id"})
+            match = re.fullmatch(
+                r"media-source://media_source/([a-z_]+)", source["media_content_id"]
+            )
+            assert match, source
+            self.assertIn(match.group(1), media_dirs)
+        self.assertEqual(
+            [source["label"] for source in settings["sources"]], ["Motion"]
+        )
 
-    def test_notifications_open_the_dashboard_view(self):
-        dashboards = self.front_door_configuration()["lovelace"]["dashboards"]
-        view = self.front_door_dashboard()["views"][0]["path"]
-        # Companion opens /<dashboard url path>/<view path>.
-        path = f"/{next(iter(dashboards))}/{view}"
-        self.assertEqual(path, "/front-door/events")
+    def test_notifications_open_the_events_panel(self):
+        panel = self.front_door_configuration()["panel_custom"][0]
+        # Companion opens the path of the panel.
+        path = f"/{panel['url_path']}"
+        self.assertEqual(path, "/front-door-gallery")
         notification = self.front_door_automation("front_door_motion_notification")
         text = json.dumps(notification)
         self.assertEqual(text.count(f'"url": "{path}"'), 2)
@@ -615,22 +594,6 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         configuration = self.front_door_configuration()
         card = self.config_map("home-assistant-www-front-door")
         self.assertEqual(set(card["data"]), {CARD})
-        self.assertEqual(
-            configuration["frontend"],
-            {"extra_module_url": [f"/local/front-door/{CARD}?v={self.card_version()}"]},
-            "update ?v= to the start of the card's SHA-256 when the card changes",
-        )
-        self.assertEqual(configuration["lovelace"]["resource_mode"], "yaml")
-        self.assertEqual(
-            configuration["lovelace"]["resources"],
-            [
-                {
-                    "url": f"/local/front-door/{CARD}?v={self.card_version()}",
-                    "type": "module",
-                }
-            ],
-            "the resource and the extra module are one URL",
-        )
         deployment = next(
             item
             for item in self.rendered("apps-home-assistant.yaml")
@@ -983,7 +946,6 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual(
             set(packages["front_door"]),
             {
-                "frontend",
                 "lovelace",
                 "panel_custom",
                 "mqtt",
