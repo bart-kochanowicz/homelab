@@ -371,15 +371,39 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         command = self.front_door_configuration()["shell_command"][
             "front_door_person_detect"
         ]
+        # Home Assistant runs a command that contains a template without a shell
+        # (create_subprocess_exec after shlex.split): it must only start the script
+        # with the file as its one argument, with no pipe, quote or `;` that only a
+        # shell would understand.
+        self.assertEqual(
+            command, "sh /config/bin/front-door-person-detect.sh {{ file }}"
+        )
+        script_path = (
+            ROOT / "apps/home-assistant/config/bin/front-door-person-detect.sh"
+        )
+        script = script_path.read_text()
         # The only address is the pod's own loopback, where the sidecar listens.
         self.assertEqual(
-            re.findall(r"https?://[^\s]+", command), ["http://127.0.0.1:8089/detect"]
+            re.findall(r"https?://[^\s]+", script), ["http://127.0.0.1:8089/detect"]
         )
         # A path outside the archive is refused before anything is read.
-        self.assertIn(
-            'case "$f" in /config/media/front-door/????-??-??_??-??-??.jpg)', command
-        )
-        self.assertIn("exit 2", command)
+        self.assertIn("/config/media/front-door/????-??-??_??-??-??.jpg) ;;", script)
+        self.assertIn("*) exit 2 ;;", script)
+        for argument in (
+            "/etc/passwd",
+            "/config/media/front-door/../../etc/passwd",
+            "/config/media/front-door/2026-11-23_14-05-24.jpg.sh",
+            "/config/media/front-door/a/b/-11-23_14-05-24.jpg",
+            "",
+        ):
+            result = subprocess.run(
+                ["sh", str(script_path), argument],
+                capture_output=True,
+                timeout=15,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 2, argument)
+            self.assertEqual(result.stdout, b"")
         configuration = self.rendered("apps-home-assistant.yaml")
         deployment = next(
             item for item in configuration if item["kind"] == "Deployment"

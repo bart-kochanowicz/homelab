@@ -105,20 +105,12 @@ shell_command:
     find "$archive" -maxdepth 1 -type f -name '????-??-??_??-??-??.jpg'
     -mmin +$((retention_days * 1440)) -delete
 
-  # Sends an archived snapshot to the person detector that runs beside Home Assistant
-  # (the person-detector container in the same pod, loopback only) and prints its JSON.
-  # The path must be an archive file name, the file is waited for (the archive automation
-  # writes it) and the answer is the detector's own, so the caller sees a failure as a
-  # non-zero return code or an answer without `detections`.
-  front_door_person_detect: >-
-    f='{{ file }}';
-    case "$f" in /config/media/front-door/????-??-??_??-??-??.jpg) ;; *) exit 2;; esac;
-    for i in 1 2 3 4 5 6 7 8 9 10; do [ -s "$f" ] && break; sleep 1; done;
-    [ -s "$f" ] || exit 3;
-    sleep 1;
-    { printf '{"detector_name":"person","detect":{"person":50},"data":"'; base64 -w0 "$f"; printf '"}'; } |
-    curl -sf -m 30 -X POST -H 'Content-Type: application/json' --data-binary @-
-    http://127.0.0.1:8089/detect
+  # Sends an archived snapshot to the person detector that runs beside Home Assistant (the person-detector
+  # container in the same pod, loopback only) and prints its JSON. Home Assistant runs a command that has a
+  # template without a shell (no pipe, no quotes, no `case`), so it only starts the script, which accepts nothing
+  # but an archive file name, waits for the file and answers with the detector's own JSON; a failure is a non-zero
+  # return code or an answer without `detections`.
+  front_door_person_detect: sh /config/bin/front-door-person-detect.sh {{ file }}
 
 automation front_door:
   - id: front_door_motion_notification

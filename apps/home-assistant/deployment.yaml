@@ -84,6 +84,9 @@ spec:
         - name: www-front-door
           mountPath: /config/www/front-door
           readOnly: true
+        - name: bin
+          mountPath: /config/bin
+          readOnly: true
         - name: backend-tls
           mountPath: /etc/home-assistant/tls
           readOnly: true
@@ -156,6 +159,9 @@ spec:
       - name: www-front-door
         configMap:
           name: home-assistant-www-front-door
+      - name: bin
+        configMap:
+          name: home-assistant-bin
       - name: backend-tls
         secret:
           secretName: home-assistant-backend-tls
