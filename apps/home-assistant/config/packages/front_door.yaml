@@ -276,14 +276,20 @@ automation front_door:
                             image: /api/image_proxy/image.front_door_camera_snapshot
                             attachment:
                               url: /api/image_proxy/image.front_door_camera_snapshot
-        default:
-          - action: notify.mobile_app_iphone_bart
-            data:
-              title: Front door
-              message: Motion detected, but no snapshot arrived.
-              data:
-                url: /front-door-gallery
-                clickAction: /front-door-gallery
+          # No new picture is expected when the camera took one a moment ago: it takes at
+          # most one picture per 30 seconds, but the PIR reports every movement. Only a
+          # picture that is missing although the last one is older than that is a fault.
+          - conditions: >-
+              {{ states('image.front_door_camera_snapshot') in ['unavailable', 'unknown']
+                 or motion_at - as_timestamp(states('image.front_door_camera_snapshot')) > 35 }}
+            sequence:
+              - action: notify.mobile_app_iphone_bart
+                data:
+                  title: Front door
+                  message: Motion detected, but no snapshot arrived.
+                  data:
+                    url: /front-door-gallery
+                    clickAction: /front-door-gallery
   - id: front_door_snapshot_retention
     alias: Front door snapshot retention
     description: Deletes archived snapshots older than the retention.
