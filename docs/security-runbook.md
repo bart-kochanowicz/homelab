@@ -151,6 +151,22 @@ motion event, is not archived; a replay within that window after a real motion w
 be saved again under its own, equally recent, name; two motions sharing one picture
 rewrite one file.
 
+**Person detection.** The `person-detector` container in the Home Assistant pod
+(DOODS2, Faster R-CNN on COCO, no network access needed) finds people in the archived
+snapshot. The pod is on the host network, so the detector listens on `127.0.0.1:8089`
+only and Home Assistant calls it through the `front_door_person_detect` shell command,
+which accepts only an archive file name. The container runs as a non-root user with a
+read-only root filesystem, no capabilities, no secrets and no mount of `/config`; its
+configuration is the `person-detector-config` ConfigMap (restart the pod after a
+change). It uses about 0.4 GB at rest and one to two CPU seconds per picture. The
+`front_door_person_detection` automation turns `binary_sensor.front_door_person` on for a
+minute and replaces the motion notification (same `tag`) with a silent one that says
+"Person at the front door". The first notification is still sent for every motion, so a
+slow or failed detector only means that the update does not arrive. The first start
+pulls a 1.3 GB image, during which the pod stays pending; a detector container that
+keeps crashing makes the pod not ready, so look at `kubectl -n home-assistant get pods`
+first when Home Assistant is unreachable after a change here.
+
 The directory is a Home Assistant media folder (`media_dirs: front_door`), so the
 pictures are in **Media > My media > front_door** and under `/media/front_door/` only
 for a logged-in user. Never store them in `/config/www`: its `/local/` URL is served

@@ -40,3 +40,30 @@ data:
   automations.yaml: '[]'
   scripts.yaml: '{}'
   scenes.yaml: '[]'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: person-detector-config
+  namespace: home-assistant
+  labels:
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/part-of: homelab
+data:
+  # One detector, Faster R-CNN on the COCO classes: about 1.7 s per 1080p picture on
+  # the worker, more accurate than the bundled SSD model, which matters for a wide
+  # lens and infrared night pictures. Restart the pod after changing this file.
+  doods.yaml: |
+    server:
+      host: 127.0.0.1
+      port: 8089
+      metrics: false
+    logger:
+      level: info
+    doods:
+      detectors:
+        - name: person
+          type: tensorflow
+          modelFile: models/faster_rcnn_inception_v2_coco_2018_01_28.pb
+          labelFile: models/coco_labels1.txt
+          numThreads: 2
