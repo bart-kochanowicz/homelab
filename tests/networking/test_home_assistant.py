@@ -265,9 +265,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             if item["id"] == automation_id
         )
 
-    def test_motion_automation_waits_for_a_fresh_snapshot_and_is_rate_limited(self):
-        automation = self.front_door_automation("front_door_motion_notification")
-        self.assertEqual(automation["mode"], "single")
+    def test_person_alert_waits_for_a_fresh_snapshot_and_says_nothing_without_a_person(
+        self,
+    ):
+        automation = self.front_door_automation("front_door_person_detection")
+        self.assertEqual(automation["mode"], "queued")
         self.assertEqual(automation["max_exceeded"], "silent")
         self.assertEqual(
             automation["triggers"],
@@ -292,15 +294,38 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertTrue(wait["continue_on_timeout"])
         choice = actions[2]["choose"][0]
         self.assertIn("snapshot_is_new", choice["conditions"])
-        data = choice["sequence"][0]["data"]["data"]
-        self.assertEqual(data["image"], f"/api/image_proxy/{image}")
-        self.assertEqual(data["attachment"], {"url": f"/api/image_proxy/{image}"})
-        # Both branches open the events panel: iOS reads url, Android clickAction.
+        inner = choice["sequence"][2]["choose"]
+        # Two branches only: a person, and a check that did not work. A working check
+        # that finds nobody has no branch, so it sends nothing.
+        self.assertEqual(
+            [branch["conditions"] for branch in inner],
+            ["{{ person_found }}", "{{ not checked }}"],
+        )
+        person = inner[0]["sequence"][1]["data"]["data"]
+        self.assertEqual(person["image"], f"/api/image_proxy/{image}")
+        self.assertEqual(person["attachment"], {"url": f"/api/image_proxy/{image}"})
+        # Every notification opens the events panel: iOS reads url, Android clickAction.
         opens = {"url": "/front-door-gallery", "clickAction": "/front-door-gallery"}
-        self.assertEqual({key: data[key] for key in opens}, opens)
-        self.assertEqual(actions[2]["default"][0]["data"]["data"], opens)
-        # The run holds the single slot for the cooldown, so repeated motion is dropped.
-        self.assertEqual(actions[-1], {"delay": "00:01:00"})
+        self.assertEqual({key: person[key] for key in opens}, opens)
+        self.assertEqual(
+            inner[0]["sequence"][0]["data"]["topic"],
+            "doorview/front-door-camera/person",
+        )
+        failed = inner[1]["sequence"][0]["data"]["data"]
+        self.assertEqual({key: failed[key] for key in opens}, opens)
+        self.assertEqual(failed["image"], f"/api/image_proxy/{image}")
+        # A picture that never arrives is reported, not silent.
+        default = actions[2]["default"][0]["data"]
+        self.assertIn("no snapshot arrived", default["message"])
+        self.assertEqual(default["data"], opens)
+        # The only generic "motion detected" notification is gone.
+        self.assertNotIn(
+            "front_door_motion_notification",
+            [
+                item["id"]
+                for item in self.front_door_configuration()["automation front_door"]
+            ],
+        )
 
     def test_low_battery_notification_fires_once_when_the_battery_stays_below_20(self):
         automation = self.front_door_automation("front_door_camera_battery_low")
@@ -323,49 +348,40 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         (action,) = automation["actions"]
         self.assertEqual(action["action"], "notify.mobile_app_iphone_bart")
         self.assertIn("front_door_camera_battery", json.dumps(automation))
-        # The same phone as the motion notification.
-        motion = self.front_door_automation("front_door_motion_notification")
-        self.assertIn(f'"action": "{action["action"]}"', json.dumps(motion["actions"]))
+        # The same phone as the person alert.
+        alert = self.front_door_automation("front_door_person_detection")
+        self.assertIn(f'"action": "{action["action"]}"', json.dumps(alert["actions"]))
 
     def test_notification_automation_does_not_depend_on_the_archive(self):
         automations = self.front_door_configuration()["automation front_door"]
         self.assertEqual(
             [item["id"] for item in automations],
             [
-                "front_door_motion_notification",
                 "front_door_camera_battery_low",
                 "front_door_snapshot_archive",
                 "front_door_person_detection",
                 "front_door_snapshot_retention",
             ],
         )
-        notification = json.dumps(automations[0])
-        self.assertNotIn("image.snapshot", notification)
-        self.assertNotIn("shell_command", notification)
+        alert = json.dumps(automations[2])
+        self.assertNotIn("image.snapshot", alert)
 
-    def test_person_detection_is_its_own_automation_and_never_blocks_the_notification(
-        self,
-    ):
+    def test_person_check_never_stops_the_alert_and_never_blocks_the_archive(self):
         automation = self.front_door_automation("front_door_person_detection")
         self.assertEqual(automation["mode"], "queued")
         self.assertEqual(
             [item["entity_id"] for item in automation["triggers"]],
             ["binary_sensor.front_door_camera_motion"],
         )
-        call = automation["actions"][2]["then"][0]
+        call = automation["actions"][2]["choose"][0]["sequence"][0]
         self.assertEqual(call["action"], "shell_command.front_door_person_detect")
-        # A detector that is down or slow must not stop the automation, and the first
-        # notification is sent by another automation anyway.
+        # A detector that is down or slow must not stop the automation: the next
+        # step reports that the check did not work.
         self.assertTrue(call["continue_on_error"])
-        self.assertIn("front_door_person_detect", json.dumps(automation))
-        notification = self.front_door_automation("front_door_motion_notification")
-        self.assertNotIn("person", json.dumps(notification["actions"]))
-        # The person notification replaces the motion one (same tag), silently.
-        found = automation["actions"][2]["then"][2]["then"]
-        data = found[1]["data"]["data"]
-        self.assertEqual(data["push"], {"interruption-level": "passive"})
-        first = notification["actions"][2]["choose"][0]["sequence"][0]["data"]["data"]
-        self.assertEqual(data["tag"], first["tag"])
+        variables = automation["actions"][2]["choose"][0]["sequence"][1]["variables"]
+        self.assertIn("'detections' in answer", variables["checked"])
+        # It does not write the archive: that is another automation.
+        self.assertNotIn("image.snapshot", json.dumps(automation))
 
     def test_detector_is_reached_only_on_loopback_from_an_archive_file_name(self):
         command = self.front_door_configuration()["shell_command"][
@@ -467,11 +483,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         )
         self.assertEqual(automation["mode"], "queued")
         image = "image.front_door_camera_snapshot"
-        notification = self.front_door_automation("front_door_motion_notification")
-        # Same freshness rule as the notification, so both act on the same picture.
+        alert = self.front_door_automation("front_door_person_detection")
+        # Same freshness rule as the alert, so both act on the same picture.
         self.assertEqual(
             automation["variables"]["snapshot_is_new"],
-            notification["variables"]["snapshot_is_new"],
+            alert["variables"]["snapshot_is_new"],
         )
         wait = automation["actions"][0]["then"][0]
         self.assertEqual(
@@ -682,10 +698,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # Companion opens the path of the panel.
         path = f"/{panel['url_path']}"
         self.assertEqual(path, "/front-door-gallery")
-        notification = self.front_door_automation("front_door_motion_notification")
-        text = json.dumps(notification)
-        self.assertEqual(text.count(f'"url": "{path}"'), 2)
-        self.assertEqual(text.count(f'"clickAction": "{path}"'), 2)
+        alert = self.front_door_automation("front_door_person_detection")
+        text = json.dumps(alert)
+        # The person, the failed check and the missing picture each open the panel.
+        self.assertEqual(text.count(f'"url": "{path}"'), 3)
+        self.assertEqual(text.count(f'"clickAction": "{path}"'), 3)
 
     def test_card_script_is_the_only_file_served_without_authentication(self):
         configuration = self.front_door_configuration()
@@ -895,7 +912,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The archive and the notification react to Motion alone and wait for the
         # snapshot entity, so a frame changes neither their trigger nor their picture.
         for automation_id in (
-            "front_door_motion_notification",
+            "front_door_person_detection",
             "front_door_snapshot_archive",
         ):
             self.assertEqual(
