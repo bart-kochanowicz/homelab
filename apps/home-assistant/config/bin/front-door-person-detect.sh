@@ -12,15 +12,23 @@ esac
 case "${f#/config/media/front-door/}" in
     */*) exit 2 ;;
 esac
-# The archive automation writes the file; wait for it for up to ten seconds.
+# The archive automation writes the file; wait for it for up to ten seconds, in tenths, and then until its size
+# stops changing, so a half-written picture is never sent.
 i=0
-while [ "$i" -lt 10 ]; do
+while [ "$i" -lt 100 ]; do
     [ -s "$f" ] && break
     i=$((i + 1))
-    sleep 1
+    sleep 0.1
 done
 [ -s "$f" ] || exit 3
-sleep 1
+size=$(wc -c < "$f")
+while [ "$i" -lt 100 ]; do
+    sleep 0.1
+    i=$((i + 1))
+    now=$(wc -c < "$f")
+    [ "$now" = "$size" ] && break
+    size=$now
+done
 {
     printf '{"detector_name":"person","detect":{"person":50},"data":"'
     base64 -w0 "$f"
