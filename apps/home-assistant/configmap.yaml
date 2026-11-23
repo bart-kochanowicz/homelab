@@ -50,9 +50,12 @@ metadata:
     app.kubernetes.io/name: home-assistant
     app.kubernetes.io/part-of: homelab
 data:
-  # One detector, Faster R-CNN on the COCO classes: about 1.7 s per 1080p picture on
-  # the worker, more accurate than the bundled SSD model, which matters for a wide
-  # lens and infrared night pictures. Restart the pod after changing this file.
+  # Two detectors. "fast" (the bundled SSD MobileNet, about 15 ms) answers first; only
+  # a person it is sure of (60 % or more) is taken from it. Everything else goes to
+  # "person" (Faster R-CNN, about 1 s per picture on the worker), which is more
+  # accurate on a wide lens and infrared night pictures. On 80 snapshots of the camera
+  # (2026-11-23) the fast one at 60 % reported 8 of the 24 people Faster R-CNN found
+  # and nothing that it did not. Restart the pod after changing this file.
   doods.yaml: |
     server:
       host: 127.0.0.1
@@ -62,6 +65,11 @@ data:
       level: info
     doods:
       detectors:
+        - name: fast
+          type: tflite
+          modelFile: models/coco_ssd_mobilenet_v1_1.0_quant.tflite
+          labelFile: models/coco_labels0.txt
+          numThreads: 2
         - name: person
           type: tensorflow
           modelFile: models/faster_rcnn_inception_v2_coco_2018_01_28.pb

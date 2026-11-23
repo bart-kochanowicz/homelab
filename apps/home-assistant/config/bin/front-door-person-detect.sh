@@ -29,8 +29,17 @@ while [ "$i" -lt 100 ]; do
     [ "$now" = "$size" ] && break
     size=$now
 done
-{
-    printf '{"detector_name":"person","detect":{"person":50},"data":"'
-    base64 -w0 "$f"
-    printf '"}'
-} | curl -sf -m 30 -X POST -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:8089/detect
+# detect <detector> <minimum confidence>: the detector's JSON answer for the picture.
+detect() {
+    {
+        printf '{"detector_name":"%s","detect":{"person":%s},"data":"' "$1" "$2"
+        base64 -w0 "$f"
+        printf '"}'
+    } | curl -sf -m 30 -X POST -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:8089/detect
+}
+# The fast detector first: a person it reports at 60 % or more is the answer. Otherwise the accurate one decides.
+answer=$(detect fast 60) || answer=
+case "$answer" in
+    *'"label":"person"'*) printf '%s\n' "$answer" ;;
+    *) detect person 50 ;;
+esac
