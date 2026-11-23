@@ -315,9 +315,16 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         self.assertEqual({key: failed[key] for key in opens}, opens)
         self.assertEqual(failed["image"], f"/api/image_proxy/{image}")
         # A picture that never arrives is reported, not silent.
-        default = actions[2]["default"][0]["data"]
+        missing = actions[2]["choose"][1]
+        self.assertIn("35", missing["conditions"])
+        self.assertIn(
+            "as_timestamp(states('image.front_door_camera_snapshot'))",
+            missing["conditions"],
+        )
+        default = missing["sequence"][0]["data"]
         self.assertIn("no snapshot arrived", default["message"])
         self.assertEqual(default["data"], opens)
+        self.assertNotIn("default", actions[2])
         # The only generic "motion detected" notification is gone.
         self.assertNotIn(
             "front_door_motion_notification",
