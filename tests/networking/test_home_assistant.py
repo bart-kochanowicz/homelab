@@ -251,9 +251,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The snapshot needs no credentials, router rule or Secret of its own.
         text = json.dumps(configuration)
         self.assertNotIn("10.0.50.190", text)
-        # The only shell command prunes the archive; nothing reaches the camera.
+        # Two shell commands, the archive pruning and the detector call; nothing
+        # reaches the camera.
         self.assertEqual(
-            set(configuration["shell_command"]), {"front_door_snapshot_cleanup"}
+            set(configuration["shell_command"]),
+            {"front_door_snapshot_cleanup", "front_door_person_detect"},
         )
 
     def front_door_automation(self, automation_id: str) -> dict[str, Any]:
@@ -333,12 +335,90 @@ class HomeAssistantGatewayTests(GatewayTestCase):
                 "front_door_motion_notification",
                 "front_door_camera_battery_low",
                 "front_door_snapshot_archive",
+                "front_door_person_detection",
                 "front_door_snapshot_retention",
             ],
         )
         notification = json.dumps(automations[0])
         self.assertNotIn("image.snapshot", notification)
         self.assertNotIn("shell_command", notification)
+
+    def test_person_detection_is_its_own_automation_and_never_blocks_the_notification(
+        self,
+    ):
+        automation = self.front_door_automation("front_door_person_detection")
+        self.assertEqual(automation["mode"], "queued")
+        self.assertEqual(
+            [item["entity_id"] for item in automation["triggers"]],
+            ["binary_sensor.front_door_camera_motion"],
+        )
+        call = automation["actions"][2]["then"][0]
+        self.assertEqual(call["action"], "shell_command.front_door_person_detect")
+        # A detector that is down or slow must not stop the automation, and the first
+        # notification is sent by another automation anyway.
+        self.assertTrue(call["continue_on_error"])
+        self.assertIn("front_door_person_detect", json.dumps(automation))
+        notification = self.front_door_automation("front_door_motion_notification")
+        self.assertNotIn("person", json.dumps(notification["actions"]))
+        # The person notification replaces the motion one (same tag), silently.
+        found = automation["actions"][2]["then"][2]["then"]
+        data = found[1]["data"]["data"]
+        self.assertEqual(data["push"], {"interruption-level": "passive"})
+        first = notification["actions"][2]["choose"][0]["sequence"][0]["data"]["data"]
+        self.assertEqual(data["tag"], first["tag"])
+
+    def test_detector_is_reached_only_on_loopback_from_an_archive_file_name(self):
+        command = self.front_door_configuration()["shell_command"][
+            "front_door_person_detect"
+        ]
+        # The only address is the pod's own loopback, where the sidecar listens.
+        self.assertEqual(
+            re.findall(r"https?://[^\s]+", command), ["http://127.0.0.1:8089/detect"]
+        )
+        # A path outside the archive is refused before anything is read.
+        self.assertIn(
+            'case "$f" in /config/media/front-door/????-??-??_??-??-??.jpg)', command
+        )
+        self.assertIn("exit 2", command)
+        configuration = self.rendered("apps-home-assistant.yaml")
+        deployment = next(
+            item for item in configuration if item["kind"] == "Deployment"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        detector = next(
+            item for item in pod["containers"] if item["name"] == "person-detector"
+        )
+        self.assertRegex(
+            detector["image"],
+            r"^docker\.io/snowzach/doods2:\d+\.\d+\.\d+-amd64@sha256:[0-9a-f]{64}$",
+        )
+        self.assertEqual(
+            detector["securityContext"],
+            {
+                "runAsNonRoot": True,
+                "runAsUser": 65532,
+                "runAsGroup": 65532,
+                "allowPrivilegeEscalation": False,
+                "readOnlyRootFilesystem": True,
+                "capabilities": {"drop": ["ALL"]},
+            },
+        )
+        self.assertIn("limits", detector["resources"])
+        # It holds no credentials and does not see /config or the archive.
+        mounted = {item["name"] for item in detector["volumeMounts"]}
+        self.assertEqual(mounted, {"person-detector-config", "person-detector-tmp"})
+        self.assertNotIn("envFrom", detector)
+        # The configuration binds the loopback, the port the command calls.
+        config = next(
+            item
+            for item in configuration
+            if item["kind"] == "ConfigMap"
+            and item["metadata"]["name"] == "person-detector-config"
+        )
+        doods = self.yaml_json(config["data"]["doods.yaml"])
+        self.assertEqual(
+            doods["server"], {"host": "127.0.0.1", "port": 8089, "metrics": False}
+        )
 
     def test_snapshots_are_archived_in_an_authenticated_media_directory(self):
         configuration = self.front_door_configuration()
@@ -812,7 +892,8 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             {"entity_id": "image.front_door_camera_snapshot"},
         )
         self.assertEqual(
-            set(configuration["shell_command"]), {"front_door_snapshot_cleanup"}
+            set(configuration["shell_command"]),
+            {"front_door_snapshot_cleanup", "front_door_person_detect"},
         )
 
     def test_live_tab_drives_only_entities_that_the_package_declares(self):

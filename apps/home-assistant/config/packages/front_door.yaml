@@ -62,6 +62,14 @@ mqtt:
       payload_on: online
       payload_off: offline
       device_class: connectivity
+    # ON for a minute after the detector finds a person in the snapshot of a motion
+    # event. Home Assistant publishes it itself (see front_door_person_detection).
+    - name: Front door person
+      unique_id: front_door_person
+      state_topic: doorview/front-door-camera/person
+      payload_on: "ON"
+      payload_off: "OFF"
+      off_delay: 60
   switch:
     # ON asks the camera for about 30 seconds of frames and ON again renews them; the
     # camera ends the view by itself and reports it on the state topic (retained).
@@ -96,6 +104,21 @@ shell_command:
     [ ! -d "$archive" ] ||
     find "$archive" -maxdepth 1 -type f -name '????-??-??_??-??-??.jpg'
     -mmin +$((retention_days * 1440)) -delete
+
+  # Sends an archived snapshot to the person detector that runs beside Home Assistant
+  # (the person-detector container in the same pod, loopback only) and prints its JSON.
+  # The path must be an archive file name, the file is waited for (the archive automation
+  # writes it) and the answer is the detector's own, so the caller sees a failure as a
+  # non-zero return code or an answer without `detections`.
+  front_door_person_detect: >-
+    f='{{ file }}';
+    case "$f" in /config/media/front-door/????-??-??_??-??-??.jpg) ;; *) exit 2;; esac;
+    for i in 1 2 3 4 5 6 7 8 9 10; do [ -s "$f" ] && break; sleep 1; done;
+    [ -s "$f" ] || exit 3;
+    sleep 1;
+    { printf '{"detector_name":"person","detect":{"person":50},"data":"'; base64 -w0 "$f"; printf '"}'; } |
+    curl -sf -m 30 -X POST -H 'Content-Type: application/json' --data-binary @-
+    http://127.0.0.1:8089/detect
 
 automation front_door:
   - id: front_door_motion_notification
@@ -138,6 +161,8 @@ automation front_door:
                   title: Front door
                   message: Motion detected at the front door.
                   data:
+                    # The tag lets the person detection replace this notification.
+                    tag: front-door-motion
                     # Tapping the notification opens the events panel: `url` is read
                     # by iOS and `clickAction` by Android.
                     url: /front-door-gallery
@@ -225,6 +250,78 @@ automation front_door:
               filename: >-
                 /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
                 | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
+  - id: front_door_person_detection
+    alias: Front door person detection
+    description: >-
+      Asks the person detector whether the snapshot of a motion event shows a person.
+      If it does, it turns the person sensor on and replaces the motion notification
+      with one that says so.
+    # Its own automation, like the archive, so a slow or failed detection never delays
+    # or suppresses the first notification, which is sent for every motion. Motion
+    # during a run queues.
+    mode: queued
+    max: 5
+    max_exceeded: silent
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.front_door_camera_motion
+        from: "off"
+        to: "on"
+    variables:
+      motion_at: "{{ as_timestamp(trigger.to_state.last_changed) }}"
+      snapshot_is_new: >-
+        {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
+           and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+    actions:
+      - if: "{{ not snapshot_is_new }}"
+        then:
+          - wait_for_trigger:
+              - trigger: state
+                entity_id: image.front_door_camera_snapshot
+                to: null
+            timeout: "00:00:20"
+            continue_on_timeout: true
+      - variables:
+          snapshot_is_new: >-
+            {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
+               and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+      - if: "{{ snapshot_is_new }}"
+        then:
+          # The archive automation names the file after the image state, so this is the
+          # same file; the command waits up to ten seconds for it.
+          - action: shell_command.front_door_person_detect
+            data:
+              file: >-
+                /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
+                | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
+            response_variable: detection
+            continue_on_error: true
+          - variables:
+              answer: >-
+                {{ detection.stdout | from_json(default={}) if detection is defined else {} }}
+              person_found: >-
+                {{ answer.get('detections', []) | selectattr('label', 'eq', 'person') | list | count > 0 }}
+          - if: "{{ person_found }}"
+            then:
+              - action: mqtt.publish
+                data:
+                  topic: doorview/front-door-camera/person
+                  payload: "ON"
+              # The same tag replaces the motion notification; passive, so it updates
+              # the text without a second sound.
+              - action: notify.mobile_app_iphone_bart
+                data:
+                  title: Front door
+                  message: Person at the front door.
+                  data:
+                    tag: front-door-motion
+                    url: /front-door-gallery
+                    clickAction: /front-door-gallery
+                    image: /api/image_proxy/image.front_door_camera_snapshot
+                    attachment:
+                      url: /api/image_proxy/image.front_door_camera_snapshot
+                    push:
+                      interruption-level: passive
   - id: front_door_snapshot_retention
     alias: Front door snapshot retention
     description: Deletes archived snapshots older than the retention.
