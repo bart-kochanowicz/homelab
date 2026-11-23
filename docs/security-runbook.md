@@ -154,20 +154,37 @@ be saved again under its own, equally recent, name; two motions sharing one pict
 rewrite one file.
 
 **Person detection.** The `person-detector` container in the Home Assistant pod
-(DOODS2, Faster R-CNN on COCO, no network access needed) finds people in the archived
-snapshot. The pod is on the host network, so the detector listens on `127.0.0.1:8089`
-only and Home Assistant calls it through the `front_door_person_detect` shell command,
-which accepts only an archive file name. The container runs as a non-root user with a
-read-only root filesystem, no capabilities, no secrets and no mount of `/config`; its
-configuration is the `person-detector-config` ConfigMap (restart the pod after a
-change). It uses about 0.4 GB at rest and one to two CPU seconds per picture. The
-`front_door_person_detection` automation turns `binary_sensor.front_door_person` on for a
-minute and sends the phone notification "Person at the front door". There is no generic
-"motion detected" notification any more: the camera's own video motion detection was
-replaced by the PIR (a wake-up or an alarm), and the picture is judged by the detector. The first start
-pulls a 1.3 GB image, during which the pod stays pending; a detector container that
-keeps crashing makes the pod not ready, so look at `kubectl -n home-assistant get pods`
-first when Home Assistant is unreachable after a change here.
+(DOODS2, no network access needed) finds people in the archived snapshot with two
+detectors: `fast` (SSD MobileNet, about 15 ms) answers first and a person it reports at
+60 % or more is the answer; everything else goes to `person` (Faster R-CNN, about 1 s),
+which is more accurate on the wide lens and at night. The pod is on the host network, so
+the detector listens on `127.0.0.1:8089` only. Home Assistant runs a templated shell
+command without a shell, so `front_door_person_detect` only starts
+`/config/bin/front-door-person-detect.sh` (the `home-assistant-bin` ConfigMap) with the
+file as its argument; the script accepts only an archive file name, waits for the file in
+tenths of a second until its size is stable, and prints the detector's JSON. The container
+runs as user 65532 with group root (the image ships the SSD model readable by group root
+only), a read-only root filesystem, no capabilities, no secrets and no mount of `/config`;
+its configuration is the `person-detector-config` ConfigMap, which has no content hash:
+restart the pod after a change. It uses about 0.4 GB at rest. The first call to Faster
+R-CNN after a restart takes a few seconds.
+
+`front_door_person_detection` is the only door notification. A person turns
+`binary_sensor.front_door_person` on for a minute and sends "Person at the front door"
+with the picture; a working check that finds nobody sends nothing. A check that did not
+answer, or a picture that never arrived although the last one is older than 35 seconds,
+is reported; a movement within 35 seconds of a picture is not, because the camera takes
+at most one picture per 30 seconds while its PIR reports every movement.
+
+The camera sleeps and is online for about a minute per wake-up, so its own entities are
+unavailable most of the time. `sensor.front_door_camera_battery_last_known` (a
+trigger-based template sensor) keeps the last battery reading, and the low-battery alert
+watches it (below 20 % for ten minutes, once per crossing).
+
+The first start pulls a 1.3 GB image, during which the pod stays pending; a detector
+container that keeps crashing makes the pod not ready, so look at
+`kubectl -n home-assistant get pods` first when Home Assistant is unreachable after a
+change here.
 
 The directory is a Home Assistant media folder (`media_dirs: front_door`), so the
 pictures are in **Media > My media > front_door** and under `/media/front_door/` only
