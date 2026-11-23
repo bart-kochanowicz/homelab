@@ -113,64 +113,6 @@ shell_command:
   front_door_person_detect: sh /config/bin/front-door-person-detect.sh {{ file }}
 
 automation front_door:
-  - id: front_door_motion_notification
-    alias: Front door motion notification
-    description: Sends a phone notification with the camera snapshot when it reports motion.
-    # Further motion is dropped while a run waits for the image or the cooldown.
-    mode: single
-    max_exceeded: silent
-    triggers:
-      - trigger: state
-        entity_id: binary_sensor.front_door_camera_motion
-        from: "off"
-        to: "on"
-    variables:
-      motion_at: "{{ as_timestamp(trigger.to_state.last_changed) }}"
-      snapshot_is_new: >-
-        {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
-           and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
-    actions:
-      # The image may arrive before or after the motion state; wait only if it has not.
-      - if: "{{ not snapshot_is_new }}"
-        then:
-          - wait_for_trigger:
-              # `to: null` ignores attribute changes, such as the access token that
-              # the image entity rotates every five minutes.
-              - trigger: state
-                entity_id: image.front_door_camera_snapshot
-                to: null
-            timeout: "00:00:20"
-            continue_on_timeout: true
-      - variables:
-          snapshot_is_new: >-
-            {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
-               and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
-      - choose:
-          - conditions: "{{ snapshot_is_new }}"
-            sequence:
-              - action: notify.mobile_app_iphone_bart
-                data:
-                  title: Front door
-                  message: Motion detected at the front door.
-                  data:
-                    # The tag lets the person detection replace this notification.
-                    tag: front-door-motion
-                    # Tapping the notification opens the events panel: `url` is read
-                    # by iOS and `clickAction` by Android.
-                    url: /front-door-gallery
-                    clickAction: /front-door-gallery
-                    image: /api/image_proxy/image.front_door_camera_snapshot
-                    attachment:
-                      url: /api/image_proxy/image.front_door_camera_snapshot
-        default:
-          - action: notify.mobile_app_iphone_bart
-            data:
-              title: Front door
-              message: Motion detected, but no snapshot arrived.
-              data:
-                url: /front-door-gallery
-                clickAction: /front-door-gallery
-      - delay: "00:01:00"
   - id: front_door_camera_battery_low
     alias: Front door camera battery low
     description: Tells the phone once when the camera's battery stays below 20 percent for ten minutes.
@@ -243,14 +185,15 @@ automation front_door:
                 /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
                 | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
   - id: front_door_person_detection
-    alias: Front door person detection
+    alias: Front door person alert
     description: >-
-      Asks the person detector whether the snapshot of a motion event shows a person.
-      If it does, it turns the person sensor on and replaces the motion notification
-      with one that says so.
-    # Its own automation, like the archive, so a slow or failed detection never delays
-    # or suppresses the first notification, which is sent for every motion. Motion
-    # during a run queues.
+      The only phone notification about the door. When the camera reports motion (its PIR),
+      the snapshot is checked for a person: a person turns the person sensor on and sends
+      a notification with the picture, no person sends nothing (the picture is still
+      archived). If the check cannot be made, or no picture arrives, it says so instead of
+      staying silent.
+    # Its own automation, like the archive, so a slow or failed check never delays the
+    # archive. Motion during a run queues.
     mode: queued
     max: 5
     max_exceeded: silent
@@ -265,9 +208,12 @@ automation front_door:
         {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
            and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
     actions:
+      # The image may arrive before or after the motion state; wait only if it has not.
       - if: "{{ not snapshot_is_new }}"
         then:
           - wait_for_trigger:
+              # `to: null` ignores attribute changes, such as the access token that
+              # the image entity rotates every five minutes.
               - trigger: state
                 entity_id: image.front_door_camera_snapshot
                 to: null
@@ -277,43 +223,67 @@ automation front_door:
           snapshot_is_new: >-
             {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
                and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
-      - if: "{{ snapshot_is_new }}"
-        then:
-          # The archive automation names the file after the image state, so this is the
-          # same file; the command waits up to ten seconds for it.
-          - action: shell_command.front_door_person_detect
+      - choose:
+          - conditions: "{{ snapshot_is_new }}"
+            sequence:
+              # The archive automation names the file after the image state, so this is
+              # the same file; the script waits up to ten seconds for it.
+              - action: shell_command.front_door_person_detect
+                data:
+                  file: >-
+                    /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
+                    | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
+                response_variable: detection
+                continue_on_error: true
+              - variables:
+                  answer: >-
+                    {{ detection.stdout | from_json(default={}) if detection is defined else {} }}
+                  checked: "{{ 'detections' in answer }}"
+                  person_found: >-
+                    {{ answer.get('detections', []) | selectattr('label', 'eq', 'person') | list | count > 0 }}
+              - choose:
+                  - conditions: "{{ person_found }}"
+                    sequence:
+                      - action: mqtt.publish
+                        data:
+                          topic: doorview/front-door-camera/person
+                          payload: "ON"
+                      - action: notify.mobile_app_iphone_bart
+                        data:
+                          title: Front door
+                          message: Person at the front door.
+                          data:
+                            tag: front-door-person
+                            # Tapping the notification opens the events panel: `url` is
+                            # read by iOS and `clickAction` by Android.
+                            url: /front-door-gallery
+                            clickAction: /front-door-gallery
+                            image: /api/image_proxy/image.front_door_camera_snapshot
+                            attachment:
+                              url: /api/image_proxy/image.front_door_camera_snapshot
+                  # No person and a working check: nothing to say. A check that did not
+                  # work is reported, with the picture, so a person is not missed.
+                  - conditions: "{{ not checked }}"
+                    sequence:
+                      - action: notify.mobile_app_iphone_bart
+                        data:
+                          title: Front door
+                          message: Motion at the front door; the person check did not answer.
+                          data:
+                            tag: front-door-person
+                            url: /front-door-gallery
+                            clickAction: /front-door-gallery
+                            image: /api/image_proxy/image.front_door_camera_snapshot
+                            attachment:
+                              url: /api/image_proxy/image.front_door_camera_snapshot
+        default:
+          - action: notify.mobile_app_iphone_bart
             data:
-              file: >-
-                /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
-                | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
-            response_variable: detection
-            continue_on_error: true
-          - variables:
-              answer: >-
-                {{ detection.stdout | from_json(default={}) if detection is defined else {} }}
-              person_found: >-
-                {{ answer.get('detections', []) | selectattr('label', 'eq', 'person') | list | count > 0 }}
-          - if: "{{ person_found }}"
-            then:
-              - action: mqtt.publish
-                data:
-                  topic: doorview/front-door-camera/person
-                  payload: "ON"
-              # The same tag replaces the motion notification; passive, so it updates
-              # the text without a second sound.
-              - action: notify.mobile_app_iphone_bart
-                data:
-                  title: Front door
-                  message: Person at the front door.
-                  data:
-                    tag: front-door-motion
-                    url: /front-door-gallery
-                    clickAction: /front-door-gallery
-                    image: /api/image_proxy/image.front_door_camera_snapshot
-                    attachment:
-                      url: /api/image_proxy/image.front_door_camera_snapshot
-                    push:
-                      interruption-level: passive
+              title: Front door
+              message: Motion detected, but no snapshot arrived.
+              data:
+                url: /front-door-gallery
+                clickAction: /front-door-gallery
   - id: front_door_snapshot_retention
     alias: Front door snapshot retention
     description: Deletes archived snapshots older than the retention.

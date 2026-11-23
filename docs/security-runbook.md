@@ -124,20 +124,22 @@ far above it (about 10 MB, from third-party sources; Apple's table was not check
 The broker reads its configuration at start: after syncing a change run
 `kubectl -n mosquitto rollout restart deployment/mosquitto`; the camera reconnects and republishes.
 
-The automation `front_door_motion_notification` reacts to `Motion` turning on. If the
-image entity has not updated within 5 seconds before the motion, it waits up to 20
-seconds for it, then sends a phone notification through the mobile app with the image
-(or a text-only message when none arrives). It then holds a one-minute cooldown; motion
-during the wait or cooldown starts no second run. The phone downloads the image from
-Home Assistant through `/api/image_proxy/`, which requires its login. Tapping either
-notification opens the [Door events panel](#door-events-panel).
+The automation `front_door_person_detection` reacts to `Motion` turning on (the camera
+reports its PIR). If the image entity has not updated within 5 seconds before the motion,
+it waits up to 20 seconds for it, then asks the person detector about the picture. Only
+a person sends a phone notification through the mobile app, with the image; a working check
+that finds nobody sends nothing (the picture is still archived). A check that did not
+answer, or a picture that never arrives, is reported instead of staying silent. Motion
+during a run queues up to five more. The phone downloads the image from Home Assistant
+through `/api/image_proxy/`, which requires its login. Tapping a notification opens the
+[Door events panel](#door-events-panel).
 
 A second automation, `front_door_snapshot_archive`, saves the picture that follows each
 motion to `/config/media/front-door/YYYY-MM-DD_HH-MM-SS.jpg` on the Home Assistant PVC,
 named by the time the image arrived in Home Assistant's configured time zone, using the
 `image.snapshot` action; it needs no token or secret. It is independent of the
-notification, so a failed write (full disk, permissions) is only logged under
-**Settings > System > Logs** and never delays or suppresses the notification.
+alert, so a failed write (full disk, permissions) is only logged under
+**Settings > System > Logs** and never delays or suppresses the alert.
 
 The camera publishes snapshots with the MQTT retain flag, so Home Assistant receives
 the last picture again after every restart or broker reconnect, and the image entity
@@ -160,9 +162,9 @@ read-only root filesystem, no capabilities, no secrets and no mount of `/config`
 configuration is the `person-detector-config` ConfigMap (restart the pod after a
 change). It uses about 0.4 GB at rest and one to two CPU seconds per picture. The
 `front_door_person_detection` automation turns `binary_sensor.front_door_person` on for a
-minute and replaces the motion notification (same `tag`) with a silent one that says
-"Person at the front door". The first notification is still sent for every motion, so a
-slow or failed detector only means that the update does not arrive. The first start
+minute and sends the phone notification "Person at the front door". There is no generic
+"motion detected" notification any more: the camera's own video motion detection was
+replaced by the PIR (a wake-up or an alarm), and the picture is judged by the detector. The first start
 pulls a 1.3 GB image, during which the pod stays pending; a detector container that
 keeps crashing makes the pod not ready, so look at `kubectl -n home-assistant get pods`
 first when Home Assistant is unreachable after a change here.
@@ -239,7 +241,7 @@ from its worker, and that the camera's address survives to the pod under
 
 ##### Door events panel
 
-Tapping the motion notification, or **Door events** in the sidebar, opens
+Tapping a door notification, or **Door events** in the sidebar, opens
 `/front-door-gallery`, a panel with two tabs. **Events** lists the archived snapshots as
 events, newest first, grouped by day, each with its time, its kind (today only
 **Motion**) and the picture. Tapping a picture opens it full size; swipe or use the
@@ -454,7 +456,7 @@ Check the frames are private with
 `curl -sk -o /dev/null -w '%{http_code}' https://ha.thecavespace.net/api/image_proxy/image.front_door_live`,
 which must print `403`.
 
-An action in the motion notification that starts the view and opens it was left out.
+An action in the door notification that starts the view and opens it was left out.
 On iOS a notification action either opens a URL (`URI`) and sends Home Assistant no
 event, or sends the `mobile_app_notification_action` event and does not open the app, so
 doing both takes a workaround, and there are reports that `URI` actions open the default
