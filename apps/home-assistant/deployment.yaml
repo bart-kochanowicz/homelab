@@ -124,10 +124,12 @@ spec:
         env:
         - name: CONFIG_FILE
           value: /etc/person-detector/doods.yaml
+        # The image ships the SSD model readable by the owner and group root only (mode 640):
+        # the group is root so that it can be read; the user is still not root.
         securityContext:
           runAsNonRoot: true
           runAsUser: 65532
-          runAsGroup: 65532
+          runAsGroup: 0
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:

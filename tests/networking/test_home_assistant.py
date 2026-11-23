@@ -444,7 +444,8 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             {
                 "runAsNonRoot": True,
                 "runAsUser": 65532,
-                "runAsGroup": 65532,
+                # Group root only to read the model file of the image (mode 640).
+                "runAsGroup": 0,
                 "allowPrivilegeEscalation": False,
                 "readOnlyRootFilesystem": True,
                 "capabilities": {"drop": ["ALL"]},
