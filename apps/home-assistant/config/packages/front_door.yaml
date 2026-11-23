@@ -87,6 +87,24 @@ mqtt:
       retain: false
       qos: 0
 
+# The camera sleeps and is online for about a minute per wake-up, so its own entities are
+# unavailable most of the time. This keeps the last reading of the battery from the last
+# wake-up (a trigger-based template sensor keeps its state over a restart).
+template:
+  - triggers:
+      - trigger: state
+        entity_id: sensor.front_door_camera_battery
+        not_to:
+          - unavailable
+          - unknown
+    sensor:
+      - name: Front door camera battery last known
+        unique_id: front_door_camera_battery_last_known
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        state: "{{ trigger.to_state.state | int(0) }}"
+
 # The live frames would write a state row up to twice a second (the state of an image
 # entity is the time it was updated); the bytes are never stored, only this.
 recorder:
@@ -115,15 +133,19 @@ shell_command:
 automation front_door:
   - id: front_door_camera_battery_low
     alias: Front door camera battery low
-    description: Tells the phone once when the camera's battery stays below 20 percent for ten minutes.
-    # numeric_state fires when the value crosses the limit, not on every update below it
-    # and not while the sensor is unavailable, so one message per drop.
-    # The MCU derives the percentage from the battery voltage, which sags under load:
-    # on 2026-11-22 it read 13 for one minute with the screen on and 51 again after it.
+    description: Tells the phone once when the camera's last known battery level stays below 20 percent for ten minutes.
+    # The camera sleeps and is online for about a minute per wake-up, so its own battery
+    # sensor is unavailable most of the time and a ten-minute condition on it never held.
+    # The last known value (below) keeps the reading of the last wake-up. numeric_state
+    # fires when the value crosses the limit, not on every update below it, so one
+    # message per drop. The MCU derives the percentage from the battery voltage, which
+    # sags under load: on 2026-11-22 it read 13 for one minute with the screen on and 51
+    # again after it. A later reading replaces such a value, and the alert needs ten
+    # minutes below the limit.
     mode: single
     triggers:
       - trigger: numeric_state
-        entity_id: sensor.front_door_camera_battery
+        entity_id: sensor.front_door_camera_battery_last_known
         below: 20
         for: "00:10:00"
     actions:
@@ -131,7 +153,7 @@ automation front_door:
         data:
           title: Front door camera
           message: >-
-            Battery is at {{ states('sensor.front_door_camera_battery') | int(0) }} %.
+            Battery is at {{ states('sensor.front_door_camera_battery_last_known') | int(0) }} %.
             {{ 'It is on USB power.' if is_state('binary_sensor.front_door_camera_external_power', 'on')
                else 'It is running on the battery.' }}
 

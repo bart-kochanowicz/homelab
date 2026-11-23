@@ -341,15 +341,15 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             [
                 {
                     "trigger": "numeric_state",
-                    "entity_id": "sensor.front_door_camera_battery",
+                    "entity_id": "sensor.front_door_camera_battery_last_known",
                     "below": 20,
                     "for": "00:10:00",
                 }
             ],
         )
-        # No `above` or `attribute`: it fires on the crossing only, `for` ignores a
-        # short voltage sag under load, and the battery sensor is the one the
-        # camera's discovery declares.
+        # No `above` or `attribute`: it fires on the crossing only and `for` ignores a
+        # short voltage sag under load. It watches the last known value, because the
+        # camera's own sensor is unavailable while the camera sleeps.
         self.assertEqual(automation["mode"], "single")
         self.assertNotIn("conditions", automation)
         (action,) = automation["actions"]
@@ -358,6 +358,29 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The same phone as the person alert.
         alert = self.front_door_automation("front_door_person_detection")
         self.assertIn(f'"action": "{action["action"]}"', json.dumps(alert["actions"]))
+
+    def test_last_known_battery_keeps_the_reading_of_the_last_wake_up(self):
+        configuration = self.front_door_configuration()
+        (entry,) = configuration["template"]
+        self.assertEqual(
+            entry["triggers"],
+            [
+                {
+                    "trigger": "state",
+                    "entity_id": "sensor.front_door_camera_battery",
+                    "not_to": ["unavailable", "unknown"],
+                }
+            ],
+        )
+        (sensor,) = entry["sensor"]
+        self.assertEqual(sensor["unique_id"], "front_door_camera_battery_last_known")
+        self.assertEqual(
+            self.entity_id("sensor", sensor),
+            "sensor.front_door_camera_battery_last_known",
+        )
+        self.assertEqual(sensor["unit_of_measurement"], "%")
+        self.assertEqual(sensor["device_class"], "battery")
+        self.assertIn("trigger.to_state.state", sensor["state"])
 
     def test_notification_automation_does_not_depend_on_the_archive(self):
         automations = self.front_door_configuration()["automation front_door"]
