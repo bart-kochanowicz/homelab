@@ -1019,6 +1019,7 @@ class HomeAssistantGatewayTests(GatewayTestCase):
                 "mqtt",
                 "recorder",
                 "shell_command",
+                "template",
                 "automation front_door",
             },
         )
