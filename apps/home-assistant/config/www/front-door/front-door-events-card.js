@@ -210,8 +210,14 @@ class FrontDoorEventsCard extends HTMLElement {
   _renderLive(card) {
     const start = this._element("button", { textContent: "▶ Start", type: "button" });
     const stop = this._element("button", { textContent: "■ Stop", type: "button" });
-    // Start sends ON again while the view runs, which renews its 30 seconds.
-    start.addEventListener("click", () => this._liveCommand("turn_on"));
+    // Start sends ON again while the view runs, which renews its 30 seconds. While the
+    // camera sleeps, the wake-up relay next to the broker reads the same ON and wakes it;
+    // the camera then starts the view by itself (open-doorview, docs/remote-wake.md).
+    start.addEventListener("click", () => {
+      if (this._hass?.states?.[this._config?.live?.online]?.state !== "on") this._wakingSince = Date.now();
+      this._liveCommand("turn_on");
+      this._updateLive();
+    });
     stop.addEventListener("click", () => this._liveCommand("turn_off"));
     const status = this._element("div", { className: "note" });
     const img = this._element("img", { alt: "Live view of the door" });
@@ -242,10 +248,14 @@ class FrontDoorEventsCard extends HTMLElement {
     const states = this._hass.states || {};
     const online = states[names.online]?.state === "on";
     const on = states[names.switch]?.state === "on";
-    live.start.disabled = !online;
+    const waking = !online && this._wakingSince && Date.now() - this._wakingSince < 30000;
+    if (online) this._wakingSince = 0;
+    live.start.disabled = waking;
     live.stop.disabled = !online;
     live.status.textContent = !online
-      ? "The camera is offline. Live view returns by itself when the camera reconnects to the broker."
+      ? waking
+        ? "Waking the camera… the picture comes in about 10 seconds."
+        : "The camera is asleep. Tap Start to wake it; the picture comes in about 10 seconds."
       : on
         ? ""
         : "Live view is off. Tap Start to watch the door.";
