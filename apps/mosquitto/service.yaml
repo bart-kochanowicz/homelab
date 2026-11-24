@@ -25,3 +25,7 @@ spec:
     port: 1883
     targetPort: mqtt
     protocol: TCP
+  - name: wake
+    port: 7967
+    targetPort: wake
+    protocol: TCP

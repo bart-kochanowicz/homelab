@@ -96,8 +96,9 @@ password and restrict the dongle's ZHA/Z2M IP whitelist to HA's worker.
 The RH-PD10 camera uses DHCP reservation `10.0.50.190` and private DNS name
 `front-door-camera.thecavespace.net` in IoT. The reservation preserves its
 current dynamic-pool address. The only inter-zone allowance is `camera-mqtt`: the
-camera's address may open TCP `1883` to the Mosquitto VIP `10.0.70.202` in Servers,
-with stateful replies. `mqtt.thecavespace.net` resolves to that VIP for Home
+camera's address may open TCP `1883` (MQTT) and `7967` (the wake-up relay that its
+Wi-Fi coprocessor keeps a connection to while the camera sleeps) to the Mosquitto VIP
+`10.0.70.202` in Servers, with stateful replies. `mqtt.thecavespace.net` resolves to that VIP for Home
 Assistant. IoT may initiate no other connection to Servers.
 
 The LG C4 USB Ethernet adapter uses DHCP reservation `10.0.40.199` and private DNS name

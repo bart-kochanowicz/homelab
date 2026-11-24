@@ -178,7 +178,7 @@ run "least_privilege_access_matrix" {
           rule.ip_version == "IPV4" &&
           rule.destination.zone == "launchpad" &&
           rule.destination.ips == ["10.0.70.202"] &&
-          rule.destination.ports == "1883"
+          rule.destination.ports == "1883,7967"
           ) : (
           rule.destination.zone == "external" ? try(rule.destination.invert_ips, false) :
           rule.destination.zone == "gateway" && (
@@ -320,10 +320,10 @@ run "camera_address_is_stable_with_only_the_mqtt_allowance" {
       local.firewall_rules.camera-mqtt.protocol == "tcp" &&
       local.firewall_rules.camera-mqtt.ip_version == "IPV4" &&
       local.firewall_rules.camera-mqtt.source == { zone = "stardust", ips = ["10.0.50.190"] } &&
-      local.firewall_rules.camera-mqtt.destination == { zone = "launchpad", ips = ["10.0.70.202"], ports = "1883" } &&
+      local.firewall_rules.camera-mqtt.destination == { zone = "launchpad", ips = ["10.0.70.202"], ports = "1883,7967" } &&
       local.private_dns_records.mosquitto.address == "10.0.70.202"
     )
-    error_message = "The camera may publish MQTT only from its reserved address to TCP 1883 on the Mosquitto VIP in Servers."
+    error_message = "The camera may reach only TCP 1883 (MQTT) and 7967 (its wake-up relay) on the Mosquitto VIP in Servers, from its reserved address."
   }
 }
 

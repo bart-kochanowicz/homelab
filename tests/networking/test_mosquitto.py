@@ -241,7 +241,10 @@ class MosquittoTests(GatewayTestCase):
         )
         self.assertEqual(
             spec["ports"],
-            [{"name": "mqtt", "port": 1883, "targetPort": "mqtt", "protocol": "TCP"}],
+            [
+                {"name": "mqtt", "port": 1883, "targetPort": "mqtt", "protocol": "TCP"},
+                {"name": "wake", "port": 7967, "targetPort": "wake", "protocol": "TCP"},
+            ],
         )
         self.assertIn("mosquitto", announcement["spec"]["ipAddressPools"])
 
@@ -264,10 +267,18 @@ class MosquittoTests(GatewayTestCase):
             {"matchLabels": {"app.kubernetes.io/name": "mosquitto"}},
         )
         port = [{"ports": [{"port": "1883", "protocol": "TCP"}]}]
+        camera = [
+            {
+                "ports": [
+                    {"port": "1883", "protocol": "TCP"},
+                    {"port": "7967", "protocol": "TCP"},
+                ]
+            }
+        ]
         self.assertEqual(
             allow["spec"]["ingress"],
             [
-                {"fromCIDR": [CAMERA + "/32"], "toPorts": port},
+                {"fromCIDR": [CAMERA + "/32"], "toPorts": camera},
                 {"fromEntities": ["host", "remote-node"], "toPorts": port},
             ],
         )
