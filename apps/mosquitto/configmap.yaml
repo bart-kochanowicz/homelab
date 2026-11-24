@@ -40,6 +40,8 @@ data:
     version logs what arrives and sends bytes only when asked on the pod-local control port:
 
         python3 doorview-wake.py send <hex>    send the bytes to every camera connection
+        python3 doorview-wake.py wake <hex>    the same, then close each connection at once, so that
+                                               no teardown traffic reaches the camera while it boots
         python3 doorview-wake.py status        list the camera connections
     """
 
@@ -77,7 +79,7 @@ data:
 
     async def control(reader, writer):
         command, _, argument = (await reader.readline()).decode().strip().partition(" ")
-        if command == "send":
+        if command in ("send", "wake"):
             data = bytes.fromhex(argument)
             if not 0 < len(data) <= MAX_SEND:
                 reply = "refused: 1 to 64 bytes"
@@ -85,7 +87,10 @@ data:
                 for peer, (target, _) in list(cameras.items()):
                     target.write(data)
                     await target.drain()
-                    log.info("sent %d bytes to camera %s", len(data), name(peer))
+                    if command == "wake":
+                        target.close()
+                    log.info("sent %d bytes to camera %s%s", len(data), name(peer),
+                             " and closed" if command == "wake" else "")
                 reply = f"sent to {len(cameras)} connection(s)"
         else:
             now = time.monotonic()
