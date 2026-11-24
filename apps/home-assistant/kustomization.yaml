@@ -27,6 +27,7 @@ configMapGenerator:
       - config/packages/front_door.yaml
   - name: home-assistant-bin
     files:
+      - config/bin/front-door-no-person.sh
       - config/bin/front-door-person-detect.sh
   - name: home-assistant-www-front-door
     files:

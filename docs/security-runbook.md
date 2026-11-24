@@ -128,7 +128,8 @@ The automation `front_door_person_detection` reacts to `Motion` turning on (the 
 reports its PIR). If the image entity has not updated within 5 seconds before the motion,
 it waits up to 20 seconds for it, then asks the person detector about the picture. Only
 a person sends a phone notification through the mobile app, with the image; a working check
-that finds nobody sends nothing (the picture is still archived). A check that did not
+that finds nobody sends nothing and moves the picture into the archive's `no-person`
+folder, out of the [Door events panel](#door-events-panel). A check that did not
 answer, or a picture that never arrives, is reported instead of staying silent. Motion
 during a run queues up to five more. The phone downloads the image from Home Assistant
 through `/api/image_proxy/`, which requires its login. Tapping a notification opens the
@@ -162,7 +163,11 @@ the detector listens on `127.0.0.1:8089` only. Home Assistant runs a templated s
 command without a shell, so `front_door_person_detect` only starts
 `/config/bin/front-door-person-detect.sh` (the `home-assistant-bin` ConfigMap) with the
 file as its argument; the script accepts only an archive file name, waits for the file in
-tenths of a second until its size is stable, and prints the detector's JSON. The container
+tenths of a second until its size is stable, and prints the detector's JSON. In the same
+way `front_door_snapshot_set_aside` starts `/config/bin/front-door-no-person.sh`, which
+accepts only an archive file name and moves that file into
+`/config/media/front-door/no-person/`. The automation names the file once, before the
+check, so a picture that arrives during the check is never the one moved. The container
 runs as user 65532 with group root (the image ships the SSD model readable by group root
 only), a read-only root filesystem, no capabilities, no secrets and no mount of `/config`;
 its configuration is the `person-detector-config` ConfigMap, which has no content hash:
@@ -171,8 +176,9 @@ R-CNN after a restart takes a few seconds.
 
 `front_door_person_detection` is the only door notification. A person turns
 `binary_sensor.front_door_person` on for a minute and sends "Person at the front door"
-with the picture; a working check that finds nobody sends nothing. A check that did not
-answer, or a picture that never arrived although the last one is older than 35 seconds,
+with the picture; a working check that finds nobody sends nothing and moves the picture
+into `no-person` (a failed move leaves it listed). A check that did not answer, whose
+picture stays listed, or a picture that never arrived although the last one is older than 35 seconds,
 is reported; a movement within 35 seconds of a picture is not, because the camera takes
 at most one picture per 30 seconds while its PIR reports every movement.
 
@@ -196,12 +202,16 @@ folder, which this deployment does not mount. The directory must exist when Home
 Assistant starts, otherwise the core configuration is invalid and Home Assistant starts
 in recovery mode, so the deployment's init container creates it.
 
-Snapshots older than 90 days are deleted by `front_door_snapshot_retention` at 04:15
-and when Home Assistant starts, through the `front_door_snapshot_cleanup` shell
-command; change `retention_days` there to change the retention. It runs `find` only in
-`/config/media/front-door`, at depth one, on regular files named like the snapshots
-(never symlinks or other names), so an empty or missing directory is not an error and
-nothing outside the archive is touched. Files can live up to a day longer than the
+Snapshots older than 90 days, and those in `no-person` older than 14 days, are deleted
+by `front_door_snapshot_retention` at 04:15 and when Home Assistant starts, through the
+`front_door_snapshot_cleanup` shell command; change `retention_days` (pictures with a
+person, and those whose check failed) or `no_person_days` there to change them. A
+picture the detector got wrong (a missed person) is therefore only kept for 14 days:
+look for it in **Media > My media > front_door > no-person** and move it back to
+`/config/media/front-door/` to keep it with the others. The command runs `find` only in
+`/config/media/front-door` and `/config/media/front-door/no-person`, at depth one each,
+on regular files named like the snapshots (never symlinks or other names), so an empty
+or missing directory is not an error and nothing outside the archive is touched. Files can live up to a day longer than the
 retention. The archive adds about the size of each picture (150 KB at 1920 by 1080, up
 to 250 KB) per motion, so it holds roughly 150 KB times motions per day times 90: 50
 motions a day come to about 700 MB, far below the 32Gi volume. The age is the file's
@@ -214,7 +224,7 @@ monthly retention, so a photo could outlive the 90-day retention by that long. T
 90 days therefore apply only to the live volume. Consequently a restored Home
 Assistant starts with an empty archive. To clear it early, delete the files in
 **Media** (the delete action) or run
-`kubectl -n home-assistant exec deployment/home-assistant -- sh -c 'rm -f /config/media/front-door/*.jpg'`.
+`kubectl -n home-assistant exec deployment/home-assistant -- sh -c 'rm -f /config/media/front-door/*.jpg /config/media/front-door/no-person/*.jpg'`.
 Deleting the directory itself needs a pod restart.
 
 The automation notifies the `iphone_bart` mobile app (`notify.mobile_app_iphone_bart`);
@@ -259,9 +269,11 @@ from its worker, and that the camera's address survives to the pod under
 ##### Door events panel
 
 Tapping a door notification, or **Door events** in the sidebar, opens
-`/front-door-gallery`, a panel with two tabs. **Events** lists the archived snapshots as
-events, newest first, grouped by day, each with its time, its kind (today only
-**Motion**) and the picture. Tapping a picture opens it full size; swipe or use the
+`/front-door-gallery`, a panel with two tabs. **Events** lists the archived snapshots
+with a person (and those whose check failed) as events, newest first, grouped by day,
+each with its time, its kind (today only **Person**) and the picture. It lists only the
+files of the archive itself, never a folder, so the pictures in `no-person` are not
+shown. Tapping a picture opens it full size; swipe or use the
 arrows to move between events. The first page holds the 30 newest events and **Show
 older events** adds 30 more; the drop-down lists every day in the archive with its event
 count and shows that day only. **Live** is described under [Live view](#live-view).
