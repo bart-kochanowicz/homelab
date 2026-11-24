@@ -54,6 +54,28 @@ class MosquittoTests(GatewayTestCase):
         self.assertNotIn("hostNetwork", pod)
         self.assertNotIn("hostPath", {key for v in pod["volumes"] for key in v})
 
+    def test_wake_relay_is_probed_on_its_own_port_not_the_camera_port(self):
+        resources = self.broker_resources()
+        deployment = next(item for item in resources if item["kind"] == "Deployment")
+        relay = next(
+            container
+            for container in deployment["spec"]["template"]["spec"]["containers"]
+            if container["name"] == "doorview-wake"
+        )
+        script = next(item for item in resources if item["kind"] == "ConfigMap")[
+            "data"
+        ]["doorview-wake.py"]
+        self.assertEqual(
+            relay["ports"],
+            [
+                {"name": "wake", "containerPort": 7967, "protocol": "TCP"},
+                {"name": "health", "containerPort": 7969, "protocol": "TCP"},
+            ],
+        )
+        self.assertEqual(relay["readinessProbe"]["tcpSocket"], {"port": "health"})
+        self.assertIn("HEALTH_PORT = 7969\n", script)
+        self.assertIn('asyncio.start_server(health, "0.0.0.0", HEALTH_PORT)', script)
+
     def test_broker_requires_authentication_and_limits_the_camera_to_its_own_topics(
         self,
     ):
