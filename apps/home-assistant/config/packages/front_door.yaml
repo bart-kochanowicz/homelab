@@ -18,7 +18,7 @@ panel_custom:
     sidebar_icon: mdi:image-multiple
     url_path: front-door-gallery
     require_admin: false
-    module_url: /local/front-door/front-door-events-card.js?v=8a423f37cc381c5e
+    module_url: /local/front-door/front-door-events-card.js?v=9ca9cca39dc1a4c5
     config:
       page_size: 30
       sources:
