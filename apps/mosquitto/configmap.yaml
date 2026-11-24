@@ -30,3 +30,89 @@ data:
     topic write homeassistant/binary_sensor/front-door-camera/+/config
     topic write homeassistant/event/front-door-camera/+/config
     topic read doorview/front-door-camera/live/set
+  # The front-door camera's wake-up relay (the doorview-wake container).
+  doorview-wake.py: |
+    """Test relay for the front-door camera's wake-up from the network.
+
+    While the camera sleeps, its Wi-Fi coprocessor keeps a TCP connection to this port and
+    sends its keep-alive packet at every interval; a wake-up pattern sent back on that
+    connection should wake the camera (open-doorview, docs/remote-wake.md). This test
+    version logs what arrives and sends bytes only when asked on the pod-local control port:
+
+        python3 doorview-wake.py send <hex>    send the bytes to every camera connection
+        python3 doorview-wake.py status        list the camera connections
+    """
+
+    import asyncio
+    import logging
+    import sys
+    import time
+
+    CAMERA_PORT = 7967
+    CONTROL_PORT = 7968
+    MAX_SEND = 64
+
+    log = logging.getLogger("doorview-wake")
+    cameras = {}
+
+
+    def name(peer):
+        return f"{peer[0]}:{peer[1]}"
+
+
+    async def camera(reader, writer):
+        peer = writer.get_extra_info("peername")
+        cameras[peer] = (writer, time.monotonic())
+        log.info("camera %s connected", name(peer))
+        try:
+            while data := await reader.read(512):
+                log.info("camera %s sent %d bytes: %s", name(peer), len(data), data.hex())
+        except ConnectionError as error:
+            log.info("camera %s: %s", name(peer), error)
+        finally:
+            cameras.pop(peer, None)
+            writer.close()
+            log.info("camera %s closed", name(peer))
+
+
+    async def control(reader, writer):
+        command, _, argument = (await reader.readline()).decode().strip().partition(" ")
+        if command == "send":
+            data = bytes.fromhex(argument)
+            if not 0 < len(data) <= MAX_SEND:
+                reply = "refused: 1 to 64 bytes"
+            else:
+                for peer, (target, _) in list(cameras.items()):
+                    target.write(data)
+                    await target.drain()
+                    log.info("sent %d bytes to camera %s", len(data), name(peer))
+                reply = f"sent to {len(cameras)} connection(s)"
+        else:
+            now = time.monotonic()
+            reply = ", ".join(f"{name(p)} for {now - t:.0f} s" for p, (_, t) in cameras.items())
+            reply = reply or "no camera connected"
+        writer.write(reply.encode() + b"\n")
+        await writer.drain()
+        writer.close()
+
+
+    async def serve():
+        await asyncio.start_server(camera, "0.0.0.0", CAMERA_PORT)
+        await asyncio.start_server(control, "127.0.0.1", CONTROL_PORT)
+        log.info("listening on %d, control on 127.0.0.1:%d", CAMERA_PORT, CONTROL_PORT)
+        await asyncio.Event().wait()
+
+
+    async def ask(line):
+        reader, writer = await asyncio.open_connection("127.0.0.1", CONTROL_PORT)
+        writer.write(line.encode() + b"\n")
+        await writer.drain()
+        print((await reader.readline()).decode().strip())
+
+
+    if __name__ == "__main__":
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(asctime)s %(message)s")
+        if len(sys.argv) > 1:
+            asyncio.run(ask(" ".join(sys.argv[1:])))
+        else:
+            asyncio.run(serve())

@@ -110,11 +110,51 @@ spec:
           limits:
             cpu: 200m
             memory: 64Mi
+      # Holds the connection that the camera's Wi-Fi coprocessor keeps while the camera
+      # sleeps, and wakes the camera on request (open-doorview, docs/remote-wake.md).
+      - name: doorview-wake
+        image: docker.io/library/python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "-I", "-B", "/wake/doorview-wake.py"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        ports:
+        - name: wake
+          containerPort: 7967
+          protocol: TCP
+        volumeMounts:
+        - name: wake
+          mountPath: /wake
+          readOnly: true
+        readinessProbe:
+          tcpSocket:
+            port: wake
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 5m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 48Mi
       volumes:
       - name: config
         configMap:
           name: mosquitto-config
           defaultMode: 0440
+      - name: wake
+        configMap:
+          name: mosquitto-config
+          defaultMode: 0440
+          items:
+          - key: doorview-wake.py
+            path: doorview-wake.py
       - name: secret
         secret:
           secretName: mosquitto-secret

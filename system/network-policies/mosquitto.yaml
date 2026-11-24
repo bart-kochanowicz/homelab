@@ -18,12 +18,15 @@ spec:
       app.kubernetes.io/name: mosquitto
   # The broker initiates no connections, so there are no egress rules.
   ingress:
-    # The front-door camera, preserved by externalTrafficPolicy: Local.
+    # The front-door camera, preserved by externalTrafficPolicy: Local: MQTT, and the
+    # wake-up relay that its Wi-Fi coprocessor connects to while the camera sleeps.
     - fromCIDR:
         - 10.0.50.190/32
       toPorts:
         - ports:
             - port: "1883"
+              protocol: TCP
+            - port: "7967"
               protocol: TCP
     # Home Assistant runs on a node's host network.
     - fromEntities:
