@@ -130,6 +130,9 @@ spec:
         - name: wake
           mountPath: /wake
           readOnly: true
+        - name: wake-secret
+          mountPath: /wake-secret
+          readOnly: true
         readinessProbe:
           tcpSocket:
             port: wake
@@ -155,6 +158,13 @@ spec:
           items:
           - key: doorview-wake.py
             path: doorview-wake.py
+      - name: wake-secret
+        secret:
+          secretName: mosquitto-secret
+          defaultMode: 0440
+          items:
+          - key: wake-pattern
+            path: wake-pattern
       - name: secret
         secret:
           secretName: mosquitto-secret

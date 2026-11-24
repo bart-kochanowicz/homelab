@@ -64,12 +64,22 @@ class MosquittoTests(GatewayTestCase):
         container = pod["containers"][0]
         settings = config["data"]["mosquitto.conf"].splitlines()
         self.assertEqual(
-            [line for line in settings if line.startswith("listener")],
-            ["listener 1883"],
+            [line for line in settings if line.startswith("listener ")],
+            ["listener 1883", "listener 1884 127.0.0.1"],
         )
         self.assertIn("allow_anonymous false", settings)
         self.assertIn("persistence false", settings)
         self.assertNotIn("allow_anonymous true", settings)
+        self.assertNotIn("per_listener_settings true", settings)
+        # Only the loopback listener, for the wake-up relay in the pod, admits anonymous clients.
+        self.assertEqual(
+            [line for line in settings if line.startswith("listener_allow_anonymous")],
+            ["listener_allow_anonymous true"],
+        )
+        self.assertGreater(
+            settings.index("listener_allow_anonymous true"),
+            settings.index("listener 1884 127.0.0.1"),
+        )
         # Mosquitto refuses symlinked files, so both come from the init-container copy.
         self.assertIn("acl_file /mosquitto/runtime/acl", settings)
         self.assertIn("password_file /mosquitto/runtime/passwd", settings)
@@ -80,6 +90,8 @@ class MosquittoTests(GatewayTestCase):
         self.assertEqual(
             acl,
             [
+                "# Anonymous clients, which only the loopback listener admits: the wake-up relay.",
+                "topic read doorview/front-door-camera/live/set",
                 "user home-assistant",
                 "topic readwrite #",
                 "user front-door-camera",
@@ -136,7 +148,9 @@ class MosquittoTests(GatewayTestCase):
         self.assertEqual(len(sealed), 1)
         self.assertEqual(sealed[0]["metadata"]["name"], "mosquitto-secret")
         self.assertEqual(sealed[0]["metadata"]["namespace"], "mosquitto")
-        self.assertEqual(list(sealed[0]["spec"]["encryptedData"]), ["passwd"])
+        self.assertEqual(
+            list(sealed[0]["spec"]["encryptedData"]), ["passwd", "wake-pattern"]
+        )
         self.assertNotIn("stringData", sealed[0]["spec"]["template"])
         self.assertNotIn("data", sealed[0]["spec"]["template"])
 

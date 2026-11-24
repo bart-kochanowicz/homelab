@@ -8,19 +8,27 @@ metadata:
     app.kubernetes.io/part-of: homelab
 data:
   mosquitto.conf: |
-    listener 1883
     allow_anonymous false
     password_file /mosquitto/runtime/passwd
     acl_file /mosquitto/runtime/acl
     persistence false
-    max_connections 20
     max_packet_size 524288
     log_dest stdout
     log_type error
     log_type warning
     log_type notice
     connection_messages true
+    listener 1883
+    max_connections 20
+    # The wake-up relay in this pod connects here without credentials; the ACL lets
+    # anonymous clients read only the camera's live view command.
+    listener 1884 127.0.0.1
+    listener_allow_anonymous true
+    max_connections 2
   acl: |
+    # Anonymous clients, which only the loopback listener admits: the wake-up relay.
+    topic read doorview/front-door-camera/live/set
+
     user home-assistant
     topic readwrite #
 
@@ -32,43 +40,61 @@ data:
     topic read doorview/front-door-camera/live/set
   # The front-door camera's wake-up relay (the doorview-wake container).
   doorview-wake.py: |
-    """Test relay for the front-door camera's wake-up from the network.
+    """Wake-up relay for the front-door camera (open-doorview, docs/remote-wake.md).
 
     While the camera sleeps, its Wi-Fi coprocessor keeps a TCP connection to this port and
-    sends its keep-alive packet at every interval; a wake-up pattern sent back on that
-    connection should wake the camera (open-doorview, docs/remote-wake.md). This test
-    version logs what arrives and sends bytes only when asked on the pod-local control port:
+    sends its keep-alive packet at every interval; the 6-byte wake-up pattern sent back on
+    that connection wakes it, and it then starts its live view by itself. The relay sends
+    the pattern when Home Assistant asks for a live view (ON on the camera's live/set
+    topic, read from the broker's pod-local listener) while the camera is asleep, at most
+    once per MIN_GAP seconds and MAX_PER_HOUR times an hour: every wake-up costs a boot
+    and about two minutes awake. The pattern comes from a file of the broker's Secret.
+    For tests, the pod-local control port also takes:
 
-        python3 doorview-wake.py send <hex>    send the bytes to every camera connection
-        python3 doorview-wake.py wake <hex>    the same, then close each connection at once, so that
-                                               no teardown traffic reaches the camera while it boots
-        python3 doorview-wake.py status        list the camera connections
+        python3 doorview-wake.py wake      wake the camera now (the same limits)
+        python3 doorview-wake.py status    list the camera connections
     """
 
     import asyncio
     import logging
+    import os
+    import struct
     import sys
     import time
 
     CAMERA_PORT = 7967
     CONTROL_PORT = 7968
-    MAX_SEND = 64
+    BROKER = ("127.0.0.1", int(os.environ.get("WAKE_BROKER_PORT", "1884")))
+    TOPIC = b"doorview/front-door-camera/live/set"
+    PATTERN_FILE = os.environ.get("WAKE_PATTERN_FILE", "/wake-secret/wake-pattern")
+    MIN_GAP = int(os.environ.get("WAKE_MIN_GAP", "30"))
+    MAX_PER_HOUR = 20
 
     log = logging.getLogger("doorview-wake")
     cameras = {}
+    wakes = []
 
 
     def name(peer):
         return f"{peer[0]}:{peer[1]}"
 
 
+    def load_pattern():
+        try:
+            with open(PATTERN_FILE) as source:
+                pattern = bytes.fromhex(source.read().strip())
+        except (OSError, ValueError):
+            return None
+        return pattern if len(pattern) == 6 else None
+
+
     async def camera(reader, writer):
         peer = writer.get_extra_info("peername")
         cameras[peer] = (writer, time.monotonic())
-        log.info("camera %s connected", name(peer))
+        log.info("camera %s connected (asleep, keep-alive armed)", name(peer))
         try:
             while data := await reader.read(512):
-                log.info("camera %s sent %d bytes: %s", name(peer), len(data), data.hex())
+                log.info("camera %s sent %d bytes", name(peer), len(data))
         except ConnectionError as error:
             log.info("camera %s: %s", name(peer), error)
         finally:
@@ -77,21 +103,32 @@ data:
             log.info("camera %s closed", name(peer))
 
 
+    async def wake(why):
+        """Sends the pattern to every armed connection and closes it; returns what happened."""
+        now = time.monotonic()
+        wakes[:] = [t for t in wakes if now - t < 3600]
+        if not cameras:
+            return "the camera is not asleep (no keep-alive connection)"
+        if wakes and now - wakes[-1] < MIN_GAP:
+            return f"refused: the last wake-up was {now - wakes[-1]:.0f} s ago"
+        if len(wakes) >= MAX_PER_HOUR:
+            return "refused: the hourly limit is reached"
+        pattern = load_pattern()
+        if pattern is None:
+            return "refused: no valid 6-byte pattern in " + PATTERN_FILE
+        wakes.append(now)
+        for peer, (target, _) in list(cameras.items()):
+            target.write(pattern)
+            await target.drain()
+            target.close()
+            log.info("woke camera %s (%s)", name(peer), why)
+        return f"woke {len(cameras)} connection(s)"
+
+
     async def control(reader, writer):
-        command, _, argument = (await reader.readline()).decode().strip().partition(" ")
-        if command in ("send", "wake"):
-            data = bytes.fromhex(argument)
-            if not 0 < len(data) <= MAX_SEND:
-                reply = "refused: 1 to 64 bytes"
-            else:
-                for peer, (target, _) in list(cameras.items()):
-                    target.write(data)
-                    await target.drain()
-                    if command == "wake":
-                        target.close()
-                    log.info("sent %d bytes to camera %s%s", len(data), name(peer),
-                             " and closed" if command == "wake" else "")
-                reply = f"sent to {len(cameras)} connection(s)"
+        command = (await reader.readline()).decode().strip()
+        if command == "wake":
+            reply = await wake("control port")
         else:
             now = time.monotonic()
             reply = ", ".join(f"{name(p)} for {now - t:.0f} s" for p, (_, t) in cameras.items())
@@ -101,11 +138,70 @@ data:
         writer.close()
 
 
+    def remaining_length(length):
+        out = bytearray()
+        while True:
+            byte, length = length % 128, length // 128
+            out.append(byte | (0x80 if length else 0))
+            if not length:
+                return bytes(out)
+
+
+    async def read_packet(reader):
+        header = (await reader.readexactly(1))[0]
+        length, shift = 0, 0
+        while True:
+            byte = (await reader.readexactly(1))[0]
+            length |= (byte & 0x7F) << shift
+            shift += 7
+            if not byte & 0x80:
+                break
+        return header, await reader.readexactly(length)
+
+
+    async def broker():
+        """Follows the live view command on the broker; MQTT 3.1.1, QoS 0, no credentials (pod-local listener)."""
+        delay = 2
+        while True:
+            try:
+                reader, writer = await asyncio.open_connection(*BROKER)
+                client = b"doorview-wake"
+                body = b"\x00\x04MQTT\x04\x02\x00\x3c" + struct.pack(">H", len(client)) + client
+                writer.write(b"\x10" + remaining_length(len(body)) + body)
+                header, payload = await asyncio.wait_for(read_packet(reader), 10)
+                if header >> 4 != 2 or payload[1:2] != b"\x00":
+                    raise ConnectionError("CONNACK refused")
+                body = b"\x00\x01" + struct.pack(">H", len(TOPIC)) + TOPIC + b"\x00"
+                writer.write(b"\x82" + remaining_length(len(body)) + body)
+                await writer.drain()
+                log.info("following %s", TOPIC.decode())
+                delay = 2
+                while True:
+                    try:
+                        header, payload = await asyncio.wait_for(read_packet(reader), 30)
+                    except asyncio.TimeoutError:
+                        writer.write(b"\xc0\x00")
+                        await writer.drain()
+                        continue
+                    if header >> 4 != 3 or header & 0x01:
+                        continue  # not a PUBLISH, or a retained one: a stale ON must not wake the camera
+                    topic_length = struct.unpack(">H", payload[:2])[0]
+                    topic = payload[2 : 2 + topic_length]
+                    message = payload[2 + topic_length + (2 if header & 0x06 else 0) :]
+                    if topic == TOPIC and message == b"ON":
+                        log.info("live view requested: %s", await wake("live view requested"))
+            except (OSError, asyncio.IncompleteReadError, asyncio.TimeoutError, ConnectionError) as error:
+                log.info("broker: %s; again in %d s", error or type(error).__name__, delay)
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 60)
+
+
     async def serve():
         await asyncio.start_server(camera, "0.0.0.0", CAMERA_PORT)
         await asyncio.start_server(control, "127.0.0.1", CONTROL_PORT)
-        log.info("listening on %d, control on 127.0.0.1:%d", CAMERA_PORT, CONTROL_PORT)
-        await asyncio.Event().wait()
+        log.info("listening on %d, control on 127.0.0.1:%d, pattern %s", CAMERA_PORT, CONTROL_PORT,
+                 "loaded" if load_pattern() else "missing")
+        await broker()
 
 
     async def ask(line):
