@@ -22,8 +22,11 @@ panel_custom:
     config:
       page_size: 30
       sources:
-        - label: Motion
-          icon: mdi:motion-sensor
+        # The archive's own files: the pictures with a person, and those the check
+        # could not answer. A picture without a person is moved to its no-person
+        # folder, which the panel does not list (see front_door_person_detection).
+        - label: Person
+          icon: mdi:account
           media_content_id: media-source://media_source/front_door
       # The Live tab: the switch that starts and stops the view, the frames, and the
       # camera's availability.
@@ -112,16 +115,20 @@ recorder:
     entities:
       - image.front_door_live
 
-# Deletes archived snapshots older than the retention in days; see front_door_snapshot_retention.
-# The directory is fixed, find stays inside it (-maxdepth 1, regular files only, no
-# symlinks) and a missing directory is not an error.
+# Deletes archived snapshots older than the retention in days, and those without a person
+# sooner; see front_door_snapshot_retention. The directories are fixed, find stays inside
+# each (-maxdepth 1, regular files only, no symlinks) and a missing one is not an error.
 shell_command:
   front_door_snapshot_cleanup: >-
     retention_days=90;
+    no_person_days=14;
     archive=/config/media/front-door;
     [ ! -d "$archive" ] ||
     find "$archive" -maxdepth 1 -type f -name '????-??-??_??-??-??.jpg'
-    -mmin +$((retention_days * 1440)) -delete
+    -mmin +$((retention_days * 1440)) -delete;
+    [ ! -d "$archive/no-person" ] ||
+    find "$archive/no-person" -maxdepth 1 -type f -name '????-??-??_??-??-??.jpg'
+    -mmin +$((no_person_days * 1440)) -delete
 
   # Sends an archived snapshot to the person detector that runs beside Home Assistant (the person-detector
   # container in the same pod, loopback only) and prints its JSON. Home Assistant runs a command that has a
@@ -129,6 +136,11 @@ shell_command:
   # but an archive file name, waits for the file and answers with the detector's own JSON; a failure is a non-zero
   # return code or an answer without `detections`.
   front_door_person_detect: sh /config/bin/front-door-person-detect.sh {{ file }}
+
+  # Moves an archived snapshot in which the check found nobody into the archive's no-person
+  # folder, out of the events panel; the same kind of script, which accepts nothing but an
+  # archive file name.
+  front_door_snapshot_set_aside: sh /config/bin/front-door-no-person.sh {{ file }}
 
 automation front_door:
   - id: front_door_camera_battery_low
@@ -211,9 +223,9 @@ automation front_door:
     description: >-
       The only phone notification about the door. When the camera reports motion (its PIR),
       the snapshot is checked for a person: a person turns the person sensor on and sends
-      a notification with the picture, no person sends nothing (the picture is still
-      archived). If the check cannot be made, or no picture arrives, it says so instead of
-      staying silent.
+      a notification with the picture, no person sends nothing and moves the picture out of
+      the events panel (into the archive's no-person folder). If the check cannot be made,
+      or no picture arrives, it says so instead of staying silent.
     # Its own automation, like the archive, so a slow or failed check never delays the
     # archive. Motion during a run queues.
     mode: queued
@@ -245,16 +257,20 @@ automation front_door:
           snapshot_is_new: >-
             {{ states('image.front_door_camera_snapshot') not in ['unavailable', 'unknown']
                and as_timestamp(states.image.front_door_camera_snapshot.last_updated) >= motion_at - 5 }}
+          # Named once: a picture that arrives during the check must not be the one moved.
+          # The archive automation names the file after the image state, so this is the
+          # same file. Used only for a new picture; the default keeps an unavailable image
+          # from failing the step.
+          archive_file: >-
+            /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'), 0)
+            | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
       - choose:
           - conditions: "{{ snapshot_is_new }}"
             sequence:
-              # The archive automation names the file after the image state, so this is
-              # the same file; the script waits up to ten seconds for it.
+              # The script waits up to ten seconds for the archive to write the file.
               - action: shell_command.front_door_person_detect
                 data:
-                  file: >-
-                    /config/media/front-door/{{ as_timestamp(states('image.front_door_camera_snapshot'))
-                    | timestamp_custom('%Y-%m-%d_%H-%M-%S') }}.jpg
+                  file: "{{ archive_file }}"
                 response_variable: detection
                 continue_on_error: true
               - variables:
@@ -283,8 +299,8 @@ automation front_door:
                             image: /api/image_proxy/image.front_door_camera_snapshot
                             attachment:
                               url: /api/image_proxy/image.front_door_camera_snapshot
-                  # No person and a working check: nothing to say. A check that did not
-                  # work is reported, with the picture, so a person is not missed.
+                  # A check that did not work is reported, with the picture, so a person
+                  # is not missed; the picture stays in the panel.
                   - conditions: "{{ not checked }}"
                     sequence:
                       - action: notify.mobile_app_iphone_bart
@@ -298,6 +314,14 @@ automation front_door:
                             image: /api/image_proxy/image.front_door_camera_snapshot
                             attachment:
                               url: /api/image_proxy/image.front_door_camera_snapshot
+                  # No person and a working check: nothing to say, and the picture leaves
+                  # the panel. A failed move only leaves it listed.
+                  - conditions: "{{ checked and not person_found }}"
+                    sequence:
+                      - action: shell_command.front_door_snapshot_set_aside
+                        data:
+                          file: "{{ archive_file }}"
+                        continue_on_error: true
           # No new picture is expected when the camera took one a moment ago: it takes at
           # most one picture per 30 seconds, but the PIR reports every movement. Only a
           # picture that is missing although the last one is older than that is a fault.

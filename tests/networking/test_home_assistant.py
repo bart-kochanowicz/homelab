@@ -251,11 +251,15 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         # The snapshot needs no credentials, router rule or Secret of its own.
         text = json.dumps(configuration)
         self.assertNotIn("10.0.50.190", text)
-        # Two shell commands, the archive pruning and the detector call; nothing
-        # reaches the camera.
+        # Three shell commands, the archive pruning, the detector call and the move
+        # of a picture without a person; nothing reaches the camera.
         self.assertEqual(
             set(configuration["shell_command"]),
-            {"front_door_snapshot_cleanup", "front_door_person_detect"},
+            {
+                "front_door_snapshot_cleanup",
+                "front_door_person_detect",
+                "front_door_snapshot_set_aside",
+            },
         )
 
     def front_door_automation(self, automation_id: str) -> dict[str, Any]:
@@ -295,12 +299,28 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         choice = actions[2]["choose"][0]
         self.assertIn("snapshot_is_new", choice["conditions"])
         inner = choice["sequence"][2]["choose"]
-        # Two branches only: a person, and a check that did not work. A working check
-        # that finds nobody has no branch, so it sends nothing.
+        # A person, a check that did not work, and a working check that finds nobody:
+        # that one sends nothing and only moves the picture out of the events panel.
         self.assertEqual(
             [branch["conditions"] for branch in inner],
-            ["{{ person_found }}", "{{ not checked }}"],
+            [
+                "{{ person_found }}",
+                "{{ not checked }}",
+                "{{ checked and not person_found }}",
+            ],
         )
+        self.assertNotIn("notify", json.dumps(inner[2]))
+        move = inner[2]["sequence"]
+        self.assertEqual(
+            [step["action"] for step in move],
+            ["shell_command.front_door_snapshot_set_aside"],
+        )
+        self.assertTrue(move[0]["continue_on_error"])
+        # The checked picture is the moved one: both calls use the name taken before
+        # the check, not the image state after it.
+        self.assertEqual(move[0]["data"], {"file": "{{ archive_file }}"})
+        self.assertEqual(choice["sequence"][0]["data"], {"file": "{{ archive_file }}"})
+        self.assertIn("archive_file", actions[1]["variables"])
         person = inner[0]["sequence"][1]["data"]["data"]
         self.assertEqual(person["image"], f"/api/image_proxy/{image}")
         self.assertEqual(person["attachment"], {"url": f"/api/image_proxy/{image}"})
@@ -640,6 +660,78 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(list(archive.iterdir()), [])
 
+    def test_retention_deletes_pictures_without_a_person_after_fourteen_days(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
+            archive = Path(directory) / "front-door"
+            no_person = archive / "no-person"
+            no_person.mkdir(parents=True)
+            files = {
+                no_person / "2026-11-01_10-00-00.jpg": 15 * 86400,
+                no_person / "2026-11-12_10-00-00.jpg": 13 * 86400,
+                no_person / "notes.jpg": 30 * 86400,
+                archive / "2026-11-02_10-00-00.jpg": 15 * 86400,
+            }
+            for path, age in files.items():
+                path.write_bytes(b"jpeg")
+                self.age(path, age)
+            result = self.run_cleanup(archive)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                {path.name for path in no_person.iterdir()},
+                {"2026-11-12_10-00-00.jpg", "notes.jpg"},
+            )
+            # A picture with a person keeps the 90 days.
+            self.assertTrue((archive / "2026-11-02_10-00-00.jpg").exists())
+
+    def test_set_aside_moves_only_an_archive_file_into_the_no_person_folder(self):
+        command = self.front_door_configuration()["shell_command"][
+            "front_door_snapshot_set_aside"
+        ]
+        # The same rule as the detector call: the script with the file, no shell.
+        self.assertEqual(command, "sh /config/bin/front-door-no-person.sh {{ file }}")
+        script = (
+            ROOT / "apps/home-assistant/config/bin/front-door-no-person.sh"
+        ).read_text()
+        self.assertIn("/config/media/front-door/????-??-??_??-??-??.jpg) ;;", script)
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache") as directory:
+            root = Path(directory)
+            archive = root / "front-door"
+            archive.mkdir()
+            copy = root / "no-person.sh"
+            copy.write_text(script.replace("/config/media/front-door", str(archive)))
+            outside = root / "2026-11-24_10-00-00.jpg"
+            outside.write_bytes(b"jpeg")
+            picture = archive / "2026-11-24_10-00-00.jpg"
+            picture.write_bytes(b"jpeg")
+            for argument in (
+                str(outside),
+                f"{archive}/../2026-11-24_10-00-00.jpg",
+                f"{archive}/2026-11-24_10-00-00.jpg.sh",
+                f"{archive}/a/b/-11-24_10-00-00.jpg",
+                "",
+            ):
+                result = subprocess.run(
+                    ["sh", str(copy), argument],
+                    capture_output=True,
+                    timeout=15,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 2, argument)
+            self.assertTrue(outside.exists())
+            self.assertFalse((archive / "no-person").exists())
+            result = subprocess.run(
+                ["sh", str(copy), str(picture)],
+                capture_output=True,
+                timeout=15,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(picture.exists())
+            self.assertEqual(
+                (archive / "no-person" / "2026-11-24_10-00-00.jpg").read_bytes(),
+                b"jpeg",
+            )
+
     def test_retention_runs_daily_and_at_startup_in_its_own_automation(self):
         automation = self.front_door_automation("front_door_snapshot_retention")
         self.assertEqual(
@@ -720,8 +812,10 @@ class HomeAssistantGatewayTests(GatewayTestCase):
             )
             assert match, source
             self.assertIn(match.group(1), media_dirs)
+        # The panel lists the pictures with a person: one source, the archive's own
+        # files (a picture without a person is moved to a folder the card skips).
         self.assertEqual(
-            [source["label"] for source in settings["sources"]], ["Motion"]
+            [source["label"] for source in settings["sources"]], ["Person"]
         )
 
     def test_notifications_open_the_events_panel(self):
@@ -965,7 +1059,11 @@ class HomeAssistantGatewayTests(GatewayTestCase):
         )
         self.assertEqual(
             set(configuration["shell_command"]),
-            {"front_door_snapshot_cleanup", "front_door_person_detect"},
+            {
+                "front_door_snapshot_cleanup",
+                "front_door_person_detect",
+                "front_door_snapshot_set_aside",
+            },
         )
 
     def test_live_tab_drives_only_entities_that_the_package_declares(self):
