@@ -126,6 +126,9 @@ spec:
         - name: wake
           containerPort: 7967
           protocol: TCP
+        - name: health
+          containerPort: 7969
+          protocol: TCP
         volumeMounts:
         - name: wake
           mountPath: /wake
@@ -133,9 +136,10 @@ spec:
         - name: wake-secret
           mountPath: /wake-secret
           readOnly: true
+        # Not the camera port: a probe there would show up as a camera connection.
         readinessProbe:
           tcpSocket:
-            port: wake
+            port: health
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3

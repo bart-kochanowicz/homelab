@@ -49,7 +49,8 @@ data:
     topic, read from the broker's pod-local listener) while the camera is asleep, at most
     once per MIN_GAP seconds and MAX_PER_HOUR times an hour: every wake-up costs a boot
     and about two minutes awake. The pattern comes from a file of the broker's Secret.
-    For tests, the pod-local control port also takes:
+    Kubernetes probes a port of its own (HEALTH_PORT), so that its checks never count as a
+    camera connection. For tests, the pod-local control port also takes:
 
         python3 doorview-wake.py wake      wake the camera now (the same limits)
         python3 doorview-wake.py status    list the camera connections
@@ -64,6 +65,7 @@ data:
 
     CAMERA_PORT = 7967
     CONTROL_PORT = 7968
+    HEALTH_PORT = 7969
     BROKER = ("127.0.0.1", int(os.environ.get("WAKE_BROKER_PORT", "1884")))
     TOPIC = b"doorview/front-door-camera/live/set"
     PATTERN_FILE = os.environ.get("WAKE_PATTERN_FILE", "/wake-secret/wake-pattern")
@@ -123,6 +125,10 @@ data:
             target.close()
             log.info("woke camera %s (%s)", name(peer), why)
         return f"woke {len(cameras)} connection(s)"
+
+
+    async def health(reader, writer):
+        writer.close()
 
 
     async def control(reader, writer):
@@ -199,6 +205,7 @@ data:
     async def serve():
         await asyncio.start_server(camera, "0.0.0.0", CAMERA_PORT)
         await asyncio.start_server(control, "127.0.0.1", CONTROL_PORT)
+        await asyncio.start_server(health, "0.0.0.0", HEALTH_PORT)
         log.info("listening on %d, control on 127.0.0.1:%d, pattern %s", CAMERA_PORT, CONTROL_PORT,
                  "loaded" if load_pattern() else "missing")
         await broker()
