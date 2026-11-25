@@ -16,6 +16,11 @@ and documentation. Document operational commands and non-obvious constraints.
 - `infra/unifi/`: network architecture and WAN operations.
 - `.agents/skills/`: agent skills; `.claude/skills/` holds symlinks to them.
 
+Worktrees share the main checkout's ignored local files listed in
+`.worktreeinclude`. `scripts/worktree-env.sh` links them; T3 and Codex run it
+when they create a worktree. Run it manually in older worktrees, and add new
+local inputs to `.worktreeinclude`.
+
 ## Checks
 
 Run `make validate` for Terraform format/validation/tests, YAML, ShellCheck,

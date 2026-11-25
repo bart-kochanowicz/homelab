@@ -1,0 +1,9 @@
+# Ignored local files shared by every worktree. scripts/worktree-env.sh links
+# them from the main checkout; Claude Code copies them for its own worktrees.
+# Use exact paths; each must stay ignored by .gitignore.
+.secrets
+terraform/cloudflare/terraform.tfvars
+terraform/unifi/terraform.tfvars
+talos/controlplane.yaml
+talos/talosconfig
+talos/worker.yaml

@@ -1,0 +1,13 @@
+version = 1
+name = "homelab"
+
+[setup]
+script = '''
+cd "${CODEX_WORKTREE_PATH:-$PWD}"
+bash scripts/worktree-env.sh
+'''
+
+[[actions]]
+name = "Link local files"
+icon = "run"
+command = "bash scripts/worktree-env.sh"
