@@ -5,6 +5,7 @@ namespace: webos-dev-mode
 
 resources:
   - cronjob.yaml
+  - sealed-secret.yaml
 
 labels:
   - pairs:

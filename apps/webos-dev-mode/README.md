@@ -15,14 +15,20 @@ connection as described in the [upstream guide](https://github.com/gabe565/webos
 With the TV on, retrieve the `sessionToken` from the TV using
 `ares-novacom --run 'cat /var/luna/preferences/devmode_enabled; echo'`.
 Treat its output as a password; do not share it or put it in shell history.
+If `ares-novacom --getkey` succeeds but commands fail with "All configured
+authentication methods failed", decrypt a temporary copy of the fetched key with
+`ssh-keygen -p` and read the file with OpenSSH on port `9922` as `prisoner`,
+adding `-o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa`.
+Delete the decrypted copy afterwards.
 
 Use [Sealed Secrets Web](../../system/sealed-secrets-web/README.md) to seal the
 `WEBOS_TOKEN` key for Secret `webos-dev-mode-token` in namespace `webos-dev-mode`.
-Save the result to `apps/webos-dev-mode/sealed-secret.yaml`, then add
-`sealed-secret.yaml` to `resources` in this directory's `kustomization.yaml`.
-Commit and merge both changes; ArgoCD deploys the encrypted secret and the
-controller creates the Secret. Until then, the Job cannot start. For a
-replacement token, regenerate the same file and commit it. If the session has
+`kubeseal --controller-namespace sealed-secrets --controller-name
+sealed-secrets-controller` produces the same result from a dry-run Secret.
+Save it to `apps/webos-dev-mode/sealed-secret.yaml`, which this directory's
+`kustomization.yaml` lists, then commit and merge; ArgoCD deploys the encrypted
+secret and the controller creates the Secret. For a replacement token,
+regenerate the same file and commit it. If the session has
 expired or LG rejects the token, re-enable Developer Mode on the TV, obtain the
 new token, and repeat these steps. Reinstall removed sideloaded apps if needed.
 Changes to the ArgoCD project under `system/argocd/` require a bootstrap or
