@@ -6,8 +6,4 @@ resource "unifi_client" "this" {
   fixed_ip               = each.value.ip
   allow_existing         = true
   skip_forget_on_destroy = true
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
