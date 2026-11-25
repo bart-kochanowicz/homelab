@@ -1,0 +1,540 @@
+# Fixable CRITICAL vulnerabilities in images whose newest upstream release
+# still ships them. Each entry covers only the listed package versions, so
+# an update that changes a package makes its entry inert. Entries expire so
+# the scan fails again and forces a review. Register: docs/exception-register.md.
+vulnerabilities:
+  # arcadiatechnology/crafty-4:4.11.1
+  - id: CVE-2026-102268
+    purls:
+      - "pkg:pypi/pyjwt@2.8.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  - id: CVE-2026-112393
+    purls:
+      - "pkg:pypi/pillow@12.2.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  - id: CVE-2026-112398
+    purls:
+      - "pkg:pypi/pillow@12.2.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  - id: CVE-2026-112403
+    purls:
+      - "pkg:pypi/pillow@12.2.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  - id: CVE-2026-112900
+    purls:
+      - "pkg:pypi/pillow@12.2.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  - id: CVE-2026-63374
+    purls:
+      - "pkg:pypi/anyio@4.9.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  - id: CVE-2026-63825
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@6.8.0-149.149"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64523
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@6.8.0-149.149"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-68426
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@6.8.0-149.149"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-90162
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@6.8.0-149.149"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-93221
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@6.8.0-149.149"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-96639
+    purls:
+      - "pkg:pypi/pillow@12.2.0"
+    expired_at: 2026-12-31
+    statement: "Crafty 4.11.1 is the newest release and still bundles this. The panel is private to Admin and WireGuard."
+  # docker.io/snowzach/doods2:1.3.3-amd64
+  - id: CVE-2024-26952
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2024-36886
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2024-38544
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2024-40937
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2024-44986
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2024-50283
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2025-21796
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2025-32434
+    purls:
+      - "pkg:pypi/torch@2.3.1%2Bcpu"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2025-38724
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2025-64459
+    purls:
+      - "pkg:pypi/django@5.2.4"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2025-68263
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2025-68284
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2025-68301
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2025-71068
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-100075
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-112393
+    purls:
+      - "pkg:pypi/pillow@11.3.0"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-112398
+    purls:
+      - "pkg:pypi/pillow@11.3.0"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-112403
+    purls:
+      - "pkg:pypi/pillow@11.3.0"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-112900
+    purls:
+      - "pkg:pypi/pillow@11.3.0"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-23216
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-23364
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-31402
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-31417
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-31637
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-43011
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-43037
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-43038
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-43185
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-43304
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-43501
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-45988
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-46043
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-46099
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-46135
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-52955
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-52989
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-52993
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-53002
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-53215
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-53398
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-63374
+    purls:
+      - "pkg:pypi/anyio@3.7.1"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-63887
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-63888
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-63940
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-63984
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64007
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64033
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64055
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64056
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64268
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64534
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64535
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-64564
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-68127
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-68159
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-72014
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-72129
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-72251
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-72339
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-72422
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74394
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74478
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74587
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74588
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74597
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74669
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-74746
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-78676
+    purls:
+      - "pkg:pypi/gitpython@3.1.44"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-80840
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89478
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89479
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89485
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89494
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89652
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89656
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-89662
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-96639
+    purls:
+      - "pkg:pypi/pillow@11.3.0"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  - id: CVE-2026-97413
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-97957
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98096
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98282
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98323
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98357
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98432
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98621
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98805
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: CVE-2026-98911
+    purls:
+      - "pkg:deb/ubuntu/linux-libc-dev@5.15.0-116.126"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV. linux-libc-dev holds kernel headers, not a running kernel."
+  - id: GHSA-6q48-6c7w-9gw2
+    purls:
+      - "pkg:pypi/certifi@2023.7.22"
+    expired_at: 2026-12-31
+    statement: "DOODS2 has no release after 1.3.3. It listens on the node's loopback only, runs as non-root with a read-only root filesystem and no credentials, and reads only the snapshots Home Assistant sends it, decoding them with OpenCV."
+  # ghcr.io/gabe565/webos-dev-mode:0.0.1
+  - id: CVE-2025-68121
+    purls:
+      - "pkg:golang/stdlib@v1.23.4"
+    expired_at: 2026-12-31
+    statement: "The project has no release after v0.0.1. The job calls LG's API over HTTPS as non-root with a read-only root filesystem and no ServiceAccount token; its namespace has no egress policy yet. Replacement: issue #237."
+  - id: CVE-2026-31789
+    purls:
+      - "pkg:apk/alpine/libcrypto3@3.3.2-r4"
+      - "pkg:apk/alpine/libssl3@3.3.2-r4"
+    expired_at: 2026-12-31
+    statement: "The project has no release after v0.0.1. The job calls LG's API over HTTPS as non-root with a read-only root filesystem and no ServiceAccount token; its namespace has no egress policy yet. Replacement: issue #237. This CVE affects 32-bit systems only; the cluster runs amd64."
+  # ghcr.io/home-assistant/home-assistant:2026.11.3
+  - id: CVE-2026-123158
+    purls:
+      - "pkg:apk/alpine/openssh-client-common@10.3_p1-r1"
+      - "pkg:apk/alpine/openssh-client-default@10.3_p1-r1"
+      - "pkg:apk/alpine/openssh-keygen@10.3_p1-r1"
+    expired_at: 2026-12-31
+    statement: "Home Assistant 2026.11.3 is the newest release and still ships this. The UI is private to Home, Admin and WireGuard. OpenSSH client tools only; the image runs no SSH server."
+  - id: CVE-2026-96760
+    purls:
+      - "pkg:pypi/authlib@1.7.2"
+    expired_at: 2026-12-31
+    statement: "Home Assistant 2026.11.3 is the newest release and still ships this. The UI is private to Home, Admin and WireGuard."
+  # ghcr.io/k8up-io/k8up:v2.16.1
+  - id: CVE-2026-123158
+    purls:
+      - "pkg:apk/alpine/openssh-client-common@10.3_p1-r1"
+      - "pkg:apk/alpine/openssh-client-default@10.3_p1-r1"
+      - "pkg:apk/alpine/openssh-keygen@10.3_p1-r1"
+    expired_at: 2026-12-31
+    statement: "k8up v2.16.1 is the newest release. K8up does not use SSH; restic reaches Houston over HTTPS. OpenSSH client tools only; the image runs no SSH server."

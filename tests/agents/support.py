@@ -17,7 +17,8 @@ def run_hook(
     return subprocess.run(
         [sys.executable, "-I", str(HOOKS / script)],
         input=json.dumps(dict(payload)),
-        env=os.environ | {"CLAUDE_PROJECT_DIR": str(project)},
+        # uv runs the repository's locked tools even in a temporary project.
+        env=os.environ | {"CLAUDE_PROJECT_DIR": str(project), "UV_PROJECT": str(ROOT)},
         capture_output=True,
         text=True,
         timeout=60,

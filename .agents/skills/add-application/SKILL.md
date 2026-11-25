@@ -26,7 +26,7 @@ the table below is the usual set.
 | Secrets | `sealed-secret.yaml` (use the `seal-secret` skill) and its path in `.gitleaks.toml` |
 | Data | PVC with `Prune=false,Delete=false`; entry in `system/backups/values.yaml`; backup credentials SealedSecret in `system/backups/`; namespace as a `backups` project destination; restic user in `infra/ansible/roles/restic_server`; namespace lists in `system/monitoring/security-alerts.yaml`; row in `docs/backups.md` |
 | Alerts | rules in `system/monitoring/security-alerts.yaml` with fixtures in `tests/monitoring-rules.test.yaml` |
-| Image exceptions | `.trivyignore.yaml` or `.kube-linter.yaml` entries, recorded in `docs/exception-register.md` |
+| Image exceptions | configuration findings in `.trivyignore.yaml` or `.kube-linter.yaml`; CRITICAL image CVEs without an upstream fix in `.trivyignore-images.yaml` (purl-scoped, expiring); each recorded in `docs/exception-register.md` |
 
 ## Rules
 

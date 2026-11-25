@@ -45,6 +45,10 @@ grafana:
     httpGet:
       scheme: HTTPS
   sidecar:
+    # The chart's default lags behind sidecar releases with security fixes.
+    image:
+      repository: kiwigrid/k8s-sidecar
+      tag: 2.14.3@sha256:52d311dcedd587421a236c4d6c621f05614c40a51386e955e0699dca97ec0880
     dashboards:
       folderAnnotation: grafana_folder
       provider:

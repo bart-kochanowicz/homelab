@@ -9,7 +9,7 @@
     argocd_release: argocd
     argocd_chart: argo-cd
     argocd_repo: https://argoproj.github.io/argo-helm
-    argocd_version: 10.11.6
+    argocd_version: 10.20.0
 
   tasks:
     - name: Check if kubectl is available
