@@ -45,6 +45,21 @@
         "image:\\s*(?<depName>[^\\s:@]+(?:/[^\\s:@]+)+):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Keep the OpenSpec CLI version in Makefile, CI and README together",
+      "managerFilePatterns": [
+        "/^Makefile$/",
+        "/^\\.github/workflows/validate\\.yaml$/",
+        "/^README\\.md$/"
+      ],
+      "matchStrings": [
+        "OPENSPEC_VERSION\\s*:?=?\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "@fission-ai/openspec@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "@fission-ai/openspec",
+      "datasourceTemplate": "npm"
     }
   ]
 }

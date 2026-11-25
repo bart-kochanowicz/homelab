@@ -37,9 +37,11 @@ uv run --locked python -m unittest tests.networking.test_n8n -v
 The full suite runs up to three modules concurrently, after rendering completes.
 Use `make validate-workflows PYTHON_TEST_JOBS=1` for serial execution.
 
-Tests are grouped under `networking/`, `backups/`, `logging/` and `monitoring/`;
-shared fixtures live in each package's `support.py`. Terraform's native tests
-live under `terraform/unifi/tests/` and run through `make validate-terraform-tests`.
+Tests are grouped under `networking/`, `backups/`, `logging/`, `monitoring/` and
+`agents/`; shared fixtures live in each package's `support.py`. `agents/` runs
+the Claude Code hooks as Claude Code does and checks that skills, subagents and
+OpenSpec are wired together. Terraform's native tests live under
+`terraform/unifi/tests/` and run through `make validate-terraform-tests`.
 
 ## VS Code
 

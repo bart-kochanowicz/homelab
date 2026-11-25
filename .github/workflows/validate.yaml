@@ -62,8 +62,22 @@ jobs:
           path: ~/.local/share/aquaproj-aqua
           key: ${{ steps.aqua-cache.outputs.cache-primary-key }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Install OpenSpec
+        env:
+          OPENSPEC_VERSION: 2.0.0
+        run: npm install --global --ignore-scripts "@fission-ai/openspec@${OPENSPEC_VERSION}"
+
       - name: Validate repository
         run: make validate
+
+      - name: Check OpenSpec changes are archived
+        if: github.event_name == 'pull_request'
+        run: make check-openspec-archived
 
       - name: Upload dependency vulnerability report
         if: always()
