@@ -8,7 +8,7 @@ fail() {
   exit 1
 }
 
-worktree=$(git -C "${CODEX_WORKTREE_PATH:-$PWD}" rev-parse --show-toplevel)
+worktree=$(git rev-parse --show-toplevel)
 main=$(dirname "$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)")
 [[ $worktree != "$main" ]] || exit 0
 [[ -f $worktree/.worktreeinclude ]] || fail 'Missing .worktreeinclude.'
