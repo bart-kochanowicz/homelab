@@ -21,7 +21,7 @@ terraform/**/*.tfvars
 terraform/**/*.tfvars.json
 
 # Local security and backup material
-.secrets/
+.secrets
 .backups/
 *.restic-password
 *.pem

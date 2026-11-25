@@ -42,6 +42,9 @@ chmod 600 terraform.tfvars
 | `cloudflare` | Account ID and management API token with R2 read, Zone Read and DNS Read access for `thecavespace.net`; S3 keys are separate. |
 | `unifi` | Local credentials or API key; `controller.url=https://unifi.thecavespace.net` and your site. |
 
+Keep `.secrets/` and `terraform.tfvars` in the main checkout. A Git worktree
+links them with `scripts/worktree-env.sh`; run it there before `init`.
+
 UniFi requires direct HTTPS access through Admin or administrative WireGuard,
 using UniFi DNS to resolve `unifi.thecavespace.net` to `10.0.80.1`. Verify its
 [public certificate chain](unifi/CERTIFICATE.md) before planning.

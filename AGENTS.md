@@ -14,6 +14,12 @@ and documentation. Document operational commands and non-obvious constraints.
   operational guides live directly in `terraform/`.
 - `infra/ansible/`: Houston's Garage backend, Terraform CLI, and private runner.
 - `infra/unifi/`: network architecture and WAN operations.
+- `.agents/skills/`: agent skills; `.claude/skills/` holds symlinks to them.
+
+Worktrees share the main checkout's ignored local files listed in
+`.worktreeinclude`. `scripts/worktree-env.sh` links them; T3 runs it
+when it creates a worktree. Run it manually in older worktrees, and add new
+local inputs to `.worktreeinclude`.
 
 ## Checks
 
