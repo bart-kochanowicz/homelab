@@ -12,6 +12,7 @@ regexes = [
 ]
 paths = [
   '''^apps/n8n/sealed-secret\.yaml$''',
+  '''^apps/webos-dev-mode/sealed-secret\.yaml$''',
   # Full-history scans include this removed manifest's ciphertext.
   '''^system/cloudflared/sealed-cloudflared-token\.yaml$''',
   '''^system/cert-manager-ca/sealed-root-ca\.yaml$''',
