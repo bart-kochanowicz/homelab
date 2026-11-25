@@ -24,12 +24,6 @@ locals {
       ip                 = "10.0.40.107"
       allow_dynamic_pool = true
     }
-    lg-tv-usb = {
-      mac                = var.infrastructure_macs["lg-tv-usb"]
-      network            = "orbit"
-      ip                 = "10.0.40.199"
-      allow_dynamic_pool = true
-    }
     office-light = {
       mac                = var.infrastructure_macs["office-light"]
       network            = "stardust"

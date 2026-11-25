@@ -101,7 +101,7 @@ Wi-Fi coprocessor keeps a connection to while the camera sleeps) to the Mosquitt
 `10.0.70.202` in Servers, with stateful replies. `mqtt.thecavespace.net` resolves to that VIP for Home
 Assistant. IoT may initiate no other connection to Servers.
 
-The LG C4 USB Ethernet adapter uses DHCP reservation `10.0.40.199` and private DNS name
+The LG C4's built-in Ethernet port uses DHCP reservation `10.0.40.107` and private DNS name
 `lg-tv.thecavespace.net` in Home. HA's worker may reach TCP `3000,3001` with
 stateful replies. Add LG webOS TV manually by hostname and approve pairing
 on the powered-on TV. Cross-VLAN discovery and Wake-on-LAN are not forwarded.
@@ -152,8 +152,8 @@ Local inputs live in ignored `terraform.tfvars`; Actions reads private secrets:
 | `vpn_public_ip` | `UNIFI_VPN_PUBLIC_IP` |
 | `vpn_peer_public_keys` | `UNIFI_VPN_PEER_PUBLIC_KEYS` |
 
-`infrastructure_macs` includes `windowspc-01`, both LG TV Ethernet MACs (`lg-tv`
-for the built-in adapter and `lg-tv-usb` for USB), and the Wi-Fi MACs for
+`infrastructure_macs` includes `windowspc-01`, the LG TV's built-in Ethernet MAC
+(`lg-tv`), and the Wi-Fi MACs for
 `tv-ambient`, `front-door-camera`, `office-light` and the wired MAC for `sonoff-zigbee`. Keep
 local inputs and the private automation repository's `UNIFI_INFRASTRUCTURE_MACS`
 secret consistent before planning.
