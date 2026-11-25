@@ -1,6 +1,9 @@
 SHELL := /bin/bash
 
 PYTHON_TEST_JOBS ?= 3
+OPENSPEC_VERSION := 2.0.0
+export OPENSPEC_TELEMETRY := 0
+export OPENSPEC_NO_UPDATE_CHECK := 1
 PYTHON_TEST_MODULES := $(sort $(patsubst %.py,%,$(subst /,.,$(shell find tests -type f -name 'test_*.py'))))
 PYTHON_TEST_TARGETS := $(addprefix test-python-,$(PYTHON_TEST_MODULES))
 
@@ -27,7 +30,7 @@ KUSTOMIZE_DIRS += system/sealed-secrets-web
 	validate-python format-python validate-shell validate-kustomize validate-helm validate-kubernetes validate-gateway-api \
 	validate-cert-manager validate-metallb validate-envoy-gateway validate-backups \
 	validate-security validate-terraform-tests validate-terraform-layout validate-workflows validate-monitoring \
-	image-inventory scan-images validate-dependencies $(PYTHON_TEST_TARGETS)
+	validate-openspec check-openspec-archived image-inventory scan-images validate-dependencies $(PYTHON_TEST_TARGETS)
 
 default: system
 
@@ -36,10 +39,10 @@ system:
 
 validate: validate-tools validate-dependencies validate-python validate-format validate-yaml validate-shell \
 	validate-kustomize validate-helm validate-kubernetes validate-security \
-	validate-terraform-tests validate-workflows validate-monitoring
+	validate-terraform-tests validate-workflows validate-monitoring validate-openspec
 
 validate-tools:
-	@for tool in terraform yamllint shellcheck kubectl helm kustomize kubeconform kube-linter trivy gitleaks uv yq jq curl amtool promtool sqlite3 restic docker; do \
+	@for tool in terraform yamllint shellcheck kubectl helm kustomize kubeconform kube-linter trivy gitleaks uv yq jq curl amtool promtool sqlite3 restic docker openspec; do \
 		command -v "$$tool" >/dev/null || { echo "missing required tool: $$tool"; exit 1; }; \
 	done
 
@@ -56,12 +59,22 @@ validate-dependencies:
 
 validate-python:
 	uv run --locked pyright
-	uv run --locked ruff check tests
-	uv run --locked ruff format --check tests
+	uv run --locked ruff check tests .claude/hooks
+	uv run --locked ruff format --check tests .claude/hooks
 
 format-python:
-	uv run --locked ruff check --fix tests
-	uv run --locked ruff format tests
+	uv run --locked ruff check --fix tests .claude/hooks
+	uv run --locked ruff format tests .claude/hooks
+
+validate-openspec:
+	@version="$$(openspec --version)"; [[ "$$version" == "$(OPENSPEC_VERSION)" ]] || \
+		{ echo "openspec $$version found; install $(OPENSPEC_VERSION) (see README)" >&2; exit 1; }
+	openspec validate --all --strict --no-interactive
+
+# Pull requests archive their OpenSpec change before merge; CI runs this check.
+check-openspec-archived:
+	@active="$$(find openspec/changes -mindepth 1 -maxdepth 1 -type d ! -name archive)"; \
+		[[ -z "$$active" ]] || { echo "Archive OpenSpec changes before merge:" $$active >&2; exit 1; }
 
 validate-terraform-layout:
 	@for file in terraform/*.tf terraform/*.tf.json; do \

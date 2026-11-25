@@ -4,8 +4,12 @@ __pycache__/
 .venv/
 .ruff_cache/
 
-# Local planning material
+# Local planning material and archived OpenSpec changes
 /thoughts/
+/openspec/changes/archive/
+
+# Personal Claude Code settings
+.claude/settings.local.json
 
 # Explicitly ignore Talos config files
 talos/controlplane.yaml

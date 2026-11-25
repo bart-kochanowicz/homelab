@@ -17,11 +17,14 @@ manages Houston, the Terraform and backup host.
 ## Local checks
 
 Install [Aqua](https://aquaproj.github.io/) for the pinned tools in
-[`aqua.yaml`](aqua.yaml). Install yamllint, SQLite and Docker separately; start
-Docker for the integration tests. Run from the repository root:
+[`aqua.yaml`](aqua.yaml). Install yamllint, SQLite, Docker and Node.js 22.12+
+separately; start Docker for the integration tests. Install the
+[OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI at the version pinned
+by `OPENSPEC_VERSION` in the [`Makefile`](Makefile). Run from the repository root:
 
 ```bash
 aqua install
+npm install --global --ignore-scripts @fission-ai/openspec@2.0.0
 uv sync --locked
 make validate
 ```
@@ -33,6 +36,22 @@ detection. It does not deploy resources or require cluster credentials.
 See [tests and VS Code setup](tests/README.md) for focused checks and formatting.
 
 Use `make validate` explicitly: bare `make` runs ArgoCD bootstrap.
+
+## Working with coding agents
+
+Agents read [`AGENTS.md`](AGENTS.md); Claude Code reaches it through
+[`CLAUDE.md`](CLAUDE.md). [`openspec/specs/`](openspec/specs/) states what the
+homelab guarantees. A change to a guarantee is proposed, implemented and
+archived as an OpenSpec change on its branch before merge.
+
+| Tool | Location | Use |
+| --- | --- | --- |
+| Skills | [`.agents/skills/`](.agents/skills/) | Repeatable tasks: applications, secrets, DHCP reservations, Terraform plan review, platform syncs, OpenSpec, debugging, PR bodies |
+| Hooks | [`.claude/hooks/`](.claude/hooks/) | Deny private files and Terraform applies, ask before live changes, format and lint each edited file |
+| Subagents | [`.claude/agents/`](.claude/agents/) | `verifier` runs the checks for a change; `reviewer` applies [`REVIEW.md`](REVIEW.md) and the specs |
+
+Hooks guard against mistakes; they are not a sandbox. Live changes still need
+your approval, a reviewed Terraform plan or a manual ArgoCD sync.
 
 ## Operations
 
@@ -55,6 +74,7 @@ Use `make validate` explicitly: bare `make` runs ArgoCD bootstrap.
 | --- | --- |
 | [`apps/`](apps/) | Home Assistant, Crafty Controller, n8n and Mosquitto |
 | [`system/`](system/) | Kubernetes platform manifests, Helm charts and bootstrap |
+| [`openspec/`](openspec/) | Specifications of the homelab's guarantees and in-flight changes |
 | [`talos/patches/`](talos/patches/) | Machine configuration patches |
 | [`terraform/`](terraform/) | Cloudflare, UniFi and Crafty roots; reusable modules |
 | [`infra/ansible/`](infra/ansible/) | Houston host configuration |

@@ -1,8 +1,9 @@
 # Agent guide
 
 This repository declares the desired homelab state. Keep migration history,
-rollout stages, work logs, and planning material out of tracked configuration
-and documentation. Document operational commands and non-obvious constraints.
+rollout stages and work logs out of tracked configuration and documentation.
+Plans live in an OpenSpec change folder on their branch or in the ignored
+`thoughts/`. Document operational commands and non-obvious constraints.
 
 ## Layout
 
@@ -14,7 +15,11 @@ and documentation. Document operational commands and non-obvious constraints.
   operational guides live directly in `terraform/`.
 - `infra/ansible/`: Houston's Garage backend, Terraform CLI, and private runner.
 - `infra/unifi/`: network architecture and WAN operations.
+- `openspec/specs/`: what the homelab guarantees, one folder per capability.
 - `.agents/skills/`: agent skills; `.claude/skills/` holds symlinks to them.
+  Copied skills are listed in `.agents/skills/THIRD_PARTY.md`.
+- `.claude/`: Claude Code settings, hooks and the `verifier` and `reviewer`
+  subagents; `REVIEW.md` is the review policy.
 
 Worktrees share the main checkout's ignored local files listed in
 `.worktreeinclude`. `scripts/worktree-env.sh` links them; T3 runs it
@@ -29,8 +34,26 @@ Required tools are listed in `aqua.yaml`; yamllint is installed separately.
 Python tests use `uv run --locked`; run `make validate-python` for Pyright type
 checks and Ruff lint/format checks, or `make format-python` to fix imports and
 formatting.
+`make validate-openspec` checks specs and changes with the OpenSpec CLI
+version pinned in the `Makefile`.
 Use `make -C system bootstrap` for ArgoCD and `bootstrap-cilium` for Cilium.
 These commands change the cluster; validation does not deploy resources.
+Bare `make` runs bootstrap too.
+
+## Workflow
+
+- A change that adds or alters a guarantee in `openspec/specs/` starts with
+  the `openspec-propose` skill. Implement it with `openspec-apply-change`, then
+  run `openspec-archive-change` before merge: CI fails while a folder remains
+  in `openspec/changes/`. Fixes and updates that keep every spec true skip it.
+- Before saying a change is done, run the `verifier` subagent or
+  `make validate`. Before a pull request, run the `reviewer` subagent.
+- After merge, list the manual syncs, plans and runs the change needs
+  (`platform-sync` skill).
+- `.claude/hooks/guard.py` denies private files and Terraform applies, and asks
+  before commands that change the cluster, state or Houston. Extend it and
+  `tests/agents/` when a new private path or live command appears.
+- When an agent repeats a mistake, add the correction to this file.
 
 ## Conventions
 

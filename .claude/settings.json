@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "OPENSPEC_TELEMETRY": "0"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make validate:*)",
+      "Bash(make format-python)",
+      "Bash(uv run --locked python -m unittest:*)",
+      "Bash(uv run --locked pyright)",
+      "Bash(uv run --locked ruff:*)",
+      "Bash(kustomize build:*)",
+      "Bash(helm template:*)",
+      "Bash(helm lint:*)",
+      "Bash(terraform fmt:*)",
+      "Bash(yamllint:*)",
+      "Bash(shellcheck:*)",
+      "Bash(kubeconform:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl events:*)",
+      "Bash(kubectl top:*)",
+      "Bash(kubectl explain:*)",
+      "Bash(kubectl config current-context)",
+      "Bash(openspec list:*)",
+      "Bash(openspec show:*)",
+      "Bash(openspec status:*)",
+      "Bash(openspec validate:*)",
+      "Bash(openspec instructions:*)",
+      "Bash(openspec context:*)"
+    ],
+    "deny": [
+      "Read(**/.secrets/**)",
+      "Read(**/*.tfstate)",
+      "Read(**/*.tfstate.backup)",
+      "Read(**/*.tfplan)",
+      "Read(**/talos/controlplane.yaml)",
+      "Read(**/talos/worker.yaml)",
+      "Read(**/talos/talosconfig)",
+      "Read(**/infra/unifi/private/**)",
+      "Read(**/infra/unifi/backups/**)",
+      "Read(**/.backups/**)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)",
+      "Read(**/*.restic-password)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform destroy:*)"
+    ],
+    "ask": [
+      "Read(**/*.tfvars)",
+      "Read(**/*.tfvars.json)",
+      "Bash(kubectl get secret:*)",
+      "Bash(kubectl get secrets:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|NotebookEdit|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.claude/hooks/check_file.py\"",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
