@@ -13,7 +13,10 @@ class CheckFileTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory(prefix="homelab-hook-")
         self.addCleanup(directory.cleanup)
         self.project = Path(directory.name)
-        shutil.copyfile(ROOT / ".yamllint.yaml", self.project / ".yamllint.yaml")
+        # Like the repository, the project pins its tools: aqua shims (as in
+        # CI) resolve terraform only below an aqua.yaml.
+        for name in (".yamllint.yaml", "aqua.yaml"):
+            shutil.copyfile(ROOT / name, self.project / name)
 
     def check(self, relative: str, content: str):
         path = self.project / relative
