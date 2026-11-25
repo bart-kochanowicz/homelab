@@ -14,6 +14,7 @@ and documentation. Document operational commands and non-obvious constraints.
   operational guides live directly in `terraform/`.
 - `infra/ansible/`: Houston's Garage backend, Terraform CLI, and private runner.
 - `infra/unifi/`: network architecture and WAN operations.
+- `.agents/skills/`: agent skills; `.claude/skills/` holds symlinks to them.
 
 ## Checks
 
