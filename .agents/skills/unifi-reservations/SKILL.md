@@ -66,23 +66,11 @@ Repeat it at the end; only intended hits may remain.
 1. Delete the reservation, its key in `variables.tf`, the example, the test
    overrides and MAC-map entries and `README.md` mentions. Repoint DNS and rules
    to the replacement key or delete them.
-2. `unifi_client` has `prevent_destroy`, and a `removed` block cannot target a
-   single `for_each` instance, so every plan fails with "Instance cannot be
-   destroyed" until the instance leaves state:
-
-   ```bash
-   terraform -chdir=terraform/unifi state rm 'module.reservations.unifi_client.this["<key>"]'
-   ```
-
-   This needs write access to the Garage state. The local plan profile is
-   read-only and the automation offers only `plan` and `apply`, so ask the user
-   who runs it and with which credentials; do not weaken `prevent_destroy`.
-   To preview the remaining diff first, `state pull` into a copy of the root
-   with a local backend, `state rm` there, and plan against the copy; delete
-   the copy afterwards because state holds MACs.
-
-3. `state rm` leaves the client's fixed IP in UniFi. Ask the user to clear it
-   in the controller.
+2. The plan destroys `module.reservations.unifi_client.this["<key>"]`. With
+   `skip_forget_on_destroy` this only removes it from state; the provider makes
+   no API call. Confirm the plan destroys no other reservation.
+3. The client keeps its fixed IP in UniFi. Ask the user to clear it in the
+   controller after apply.
 
 ## Private inputs
 
@@ -113,7 +101,6 @@ overwriting the secret.
    `terraform -chdir=terraform/unifi validate` and `terraform -chdir=terraform/unifi test`.
 2. `make validate`.
 3. Commit and open a PR only when the user asks.
-4. After merge: update the secret and tfvars, have `state rm` run for
-   removals, then review a plan ([local plans](../../../terraform/LOCAL_PLAN.md) or the
+4. After merge: update the secret and tfvars, then review a plan ([local plans](../../../terraform/LOCAL_PLAN.md) or the
    automation workflow) before any apply. The plan should show only the
    intended reservation, DNS and rule changes.
