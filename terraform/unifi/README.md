@@ -99,7 +99,9 @@ current dynamic-pool address. The only inter-zone allowance is `camera-mqtt`: th
 camera's address may open TCP `1883` (MQTT) and `7967` (the wake-up relay that its
 Wi-Fi coprocessor keeps a connection to while the camera sleeps) to the Mosquitto VIP
 `10.0.70.202` in Servers, with stateful replies. `mqtt.thecavespace.net` resolves to that VIP for Home
-Assistant. IoT may initiate no other connection to Servers.
+Assistant. IoT may initiate no other connection to Servers. For a short measurement of the
+camera's start-up, `admin-camera-ssh` temporarily lets Admin reach the camera's TCP `22`
+(SSH, root password); remove that rule once the measurement is done.
 
 The LG C4's built-in Ethernet port uses DHCP reservation `10.0.40.107` and private DNS name
 `lg-tv.thecavespace.net` in Home. HA's worker may reach TCP `3000,3001` with

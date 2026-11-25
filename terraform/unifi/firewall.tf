@@ -130,6 +130,14 @@ locals {
         source      = { zone = "apollo" }
         destination = { zone = local.dhcp_reservations["sonoff-zigbee"].network, ips = [local.dhcp_reservations["sonoff-zigbee"].ip], ports = "80" }
       }
+      # Temporary, for measuring the camera's start-up (open-doorview); remove afterwards.
+      admin-camera-ssh = {
+        description = "Temporary admin SSH to the front-door camera for start-up measurements."
+        protocol    = "tcp"
+        ip_version  = "IPV4"
+        source      = { zone = "apollo" }
+        destination = { zone = local.dhcp_reservations["front-door-camera"].network, ips = [local.dhcp_reservations["front-door-camera"].ip], ports = "22" }
+      }
       admin-lg-devmode = {
         description = "Admin access to LG Developer Mode SSH and Key Server."
         protocol    = "tcp"

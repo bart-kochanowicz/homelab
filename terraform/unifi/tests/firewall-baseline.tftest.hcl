@@ -193,6 +193,9 @@ run "least_privilege_access_matrix" {
           (rule.destination.zone == "stardust" && try(
             rule.destination.ips == [local.dhcp_reservations["sonoff-zigbee"].ip] &&
             rule.destination.ports == "80", false
+            )) || (rule.destination.zone == "stardust" && try(
+            rule.destination.ips == [local.dhcp_reservations["front-door-camera"].ip] &&
+            rule.destination.ports == "22", false
             )) || (rule.destination.zone == "orbit" && try(
             rule.destination.ips == [local.dhcp_reservations["lg-tv"].ip] &&
             rule.destination.ports == "9922,9991", false
@@ -294,9 +297,9 @@ run "camera_address_is_stable_with_only_the_mqtt_allowance" {
       local.private_dns_records["front-door-camera"].address == local.dhcp_reservations["front-door-camera"].ip &&
       toset([for name, rule in local.firewall_rules : name
         if contains(try(rule.source.ips, []), "10.0.50.190") || contains(try(rule.destination.ips, []), "10.0.50.190")
-      ]) == toset(["camera-mqtt"]) &&
+      ]) == toset(["camera-mqtt", "admin-camera-ssh"]) &&
       alltrue([for name, rule in local.firewall_rules :
-        name == "camera-mqtt" || (
+        contains(["camera-mqtt", "admin-camera-ssh"], name) || (
           !contains(try(rule.source.ips, []), "10.0.50.190") &&
           !contains(try(rule.destination.ips, []), "10.0.50.190") &&
           (rule.destination.zone != "stardust" || rule.source.zone == "gateway" ||
@@ -318,6 +321,15 @@ run "camera_address_is_stable_with_only_the_mqtt_allowance" {
       local.private_dns_records.mosquitto.address == "10.0.70.202"
     )
     error_message = "The camera may reach only TCP 1883 (MQTT) and 7967 (its wake-up relay) on the Mosquitto VIP in Servers, from its reserved address."
+  }
+  assert {
+    condition = (
+      local.firewall_rules.admin-camera-ssh.protocol == "tcp" &&
+      local.firewall_rules.admin-camera-ssh.ip_version == "IPV4" &&
+      local.firewall_rules.admin-camera-ssh.source == { zone = "apollo" } &&
+      local.firewall_rules.admin-camera-ssh.destination == { zone = "stardust", ips = ["10.0.50.190"], ports = "22" }
+    )
+    error_message = "The temporary camera rule may only let Admin reach the camera's SSH port."
   }
 }
 
