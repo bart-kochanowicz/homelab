@@ -1,4 +1,17 @@
-from .support import GatewayTestCase
+import re
+
+import yaml
+
+from .support import ROOT, GatewayTestCase
+
+
+def chart_version() -> str:
+    chart = yaml.safe_load((ROOT / "system/metallb/Chart.yaml").read_text())
+    return next(
+        str(dependency["version"])
+        for dependency in chart["dependencies"]
+        if dependency["name"] == "metallb"
+    )
 
 
 class MetalLBTests(GatewayTestCase):
@@ -17,7 +30,11 @@ class MetalLBTests(GatewayTestCase):
             self.assertEqual(len(pod["containers"]), 1)
             container = pod["containers"][0]
             self.assertIn("--lb-class=metallb.io/metallb", container["args"])
-            self.assertRegex(container["image"], r":v0\.16\.1@sha256:[0-9a-f]{64}$")
+            # Images match the chart release and are pinned by digest.
+            self.assertRegex(
+                container["image"],
+                rf":v{re.escape(chart_version())}@sha256:[0-9a-f]{{64}}$",
+            )
             self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
             self.assertEqual(
                 container["securityContext"]["capabilities"]["drop"], ["ALL"]
@@ -58,6 +75,13 @@ class MetalLBTests(GatewayTestCase):
             any(item["kind"] == "CustomResourceDefinition" for item in controller)
         )
         self.assertEqual(len(definitions), 9)
+        # The CRDs come from the same MetalLB release as the controller chart.
+        sources = yaml.safe_load(
+            (ROOT / "system/metallb-crds/kustomization.yaml").read_text()
+        )["resources"]
+        self.assertEqual(len(sources), 9)
+        for source in sources:
+            self.assertIn(f"/metallb/metallb/v{chart_version()}/config/crd/", source)
         for item in definitions:
             self.assertEqual(item["kind"], "CustomResourceDefinition")
             self.assertEqual(item["spec"]["group"], "metallb.io")

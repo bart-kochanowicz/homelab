@@ -46,9 +46,10 @@ def problems(path: Path, root: Path) -> str:
         rel.startswith("tests/") or rel.startswith(".claude/hooks/")
     ):
         run(["uv", "run", "--locked", "ruff", "format", "--quiet", rel], root)
-        result = run(
-            ["uv", "run", "--locked", "ruff", "check", "--fix", "--quiet", rel], root
-        )
+        # An import added in one edit is often used only by the next one, so unused
+        # imports are left alone here; `make validate-python` still reports them.
+        command = ["ruff", "check", "--fix", "--quiet", "--ignore", "F401", rel]
+        result = run(["uv", "run", "--locked", *command], root)
         return result.stdout + result.stderr if result and result.returncode else ""
     if name.endswith((".yaml", ".yml")) and not any(
         part in f"/{rel}" for part in SKIPPED_YAML

@@ -59,6 +59,12 @@ class CheckFileTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(path.read_text(), 'bucket = "state"\n')
 
+    @unittest.skipUnless(shutil.which("uv"), "uv is not installed")
+    def test_an_import_added_before_its_use_survives_the_edit(self):
+        result, path = self.check("tests/demo/test_x.py", "import re\n\nx  =  1\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(path.read_text(), "import re\n\nx = 1\n")
+
     def test_invalid_json_is_reported(self):
         result, _ = self.check(".claude/settings.json", "{")
         self.assertEqual(result.returncode, 2)

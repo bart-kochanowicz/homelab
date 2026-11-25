@@ -730,6 +730,13 @@ Trivy tries the registry mirrors in `.trivy-images.yaml` before the source regis
 Reports include HIGH/CRITICAL vulnerabilities with available fixes. A fixable
 CRITICAL vulnerability or a scan error fails the command after all images have
 been attempted. Inventory/rendering errors and an empty inventory also fail.
+
+`.trivyignore-images.yaml` tolerates CRITICAL findings that the newest upstream
+release still ships. Each entry names the CVE and the exact package versions
+(purls) with an expiry date and a reason, recorded in the
+[exception register](exception-register.md). Prefer updating the image; when an
+entry expires, rescan and either update or renew it after review.
+
 Results are in `.cache/image-scan/images.txt` and `reports/` beneath that directory.
 The `Image Scan` workflow runs for relevant PRs, weekly and on manual dispatch;
 its `image-scan` artifact retains the inventory and JSON/text reports for 14 days,

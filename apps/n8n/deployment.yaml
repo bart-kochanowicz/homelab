@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: n8n
-        image: docker.n8n.io/n8nio/n8n:2.45.7@sha256:9a8d8dcea75667496695d7810d7e1fe018a65efb36cc499d347f3931b3957b5d
+        image: docker.n8n.io/n8nio/n8n:2.49.6@sha256:a1a9955a4a9e5dd9fa65a62f59e0751351b45b9e5cd2c17e6e330a8d0026cad8
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

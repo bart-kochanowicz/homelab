@@ -5,8 +5,10 @@ controller's time zone. The TV can be off. The client verifies the renewed
 session; Kubernetes retries failures up to three times. Prometheus alerts on a
 failed scheduled Job or 48 hours without a successful renewal. Renewal depends
 on LG API availability and a valid session token.
-The upstream 0.0.1 image has known critical vulnerabilities; review the image
-scan and update the pinned image when a fixed release is available.
+The upstream 0.0.1 image has fixable critical vulnerabilities and no newer
+release. The image scan tolerates them through expiring entries in
+`.trivyignore-images.yaml`; replacing the image is tracked in
+[#237](https://github.com/bart-kochanowicz/homelab/issues/237).
 
 ## Token setup and replacement
 
