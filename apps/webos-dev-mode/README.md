@@ -31,8 +31,9 @@ secret and the controller creates the Secret. For a replacement token,
 regenerate the same file and commit it. If the session has
 expired or LG rejects the token, re-enable Developer Mode on the TV, obtain the
 new token, and repeat these steps. Reinstall removed sideloaded apps if needed.
-Changes to the ArgoCD project under `system/argocd/` require a bootstrap or
-manual ArgoCD sync before the new application can be deployed.
+Changes to the ArgoCD project under `system/argocd/` reach the cluster through
+the automated `argocd-bootstrap` sync after merge; the application deploys once
+the project allows its namespace.
 
 ## Operations
 

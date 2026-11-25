@@ -12,8 +12,8 @@ gateway and backend proxy both use verified TLS; the backend proxy watches the
 mounted certificate for rotation. Avoid sharing the screen or leaving plaintext
 in the browser or clipboard.
 
-Manually sync `network-policies` before deploying the UI, then synchronize
-`argocd-bootstrap` after changes to `system/argocd/`. Review and apply the UniFi
+Manually sync `network-policies` before deploying the UI; `argocd-bootstrap`
+applies changes to `system/argocd/` automatically after merge. Review and apply the UniFi
 Terraform plan for the private DNS record. Without it, the hostname will not
 resolve through UniFi DNS.
 

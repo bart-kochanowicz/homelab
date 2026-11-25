@@ -48,6 +48,10 @@ with pruning; `make -C system bootstrap` SHALL install it on a fresh cluster.
 - **WHEN** a change to `system/argocd/` merges
 - **THEN** `argocd-bootstrap` applies it, and prunes Applications whose manifests were removed
 
+#### Scenario: ArgoCD Helm values change
+- **WHEN** the ArgoCD chart version or values in `system/bootstrap.yaml` change
+- **THEN** they take effect after `make -C system bootstrap`, not through a sync
+
 #### Scenario: Fresh cluster
 - **WHEN** ArgoCD is not installed yet
 - **THEN** `make -C system bootstrap` installs ArgoCD and the `argocd-bootstrap` Application

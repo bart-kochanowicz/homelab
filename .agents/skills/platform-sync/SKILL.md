@@ -24,7 +24,8 @@ done | sort -k2
 
 | Changed path | Needs |
 | --- | --- |
-| `system/argocd/` | nothing: `argocd-bootstrap` syncs it automatically and prunes removed Applications; `make -C system bootstrap` only on a fresh cluster |
+| `system/argocd/` | nothing: `argocd-bootstrap` syncs it automatically and prunes removed Applications (with the resources finalizer, their resources too) |
+| `system/bootstrap.yaml` (ArgoCD Helm release) | `make -C system bootstrap` |
 | `system/cilium/` | `make -C system bootstrap-cilium`, then `cilium status --wait` |
 | `system/network-policies/` | manual `network-policies` sync; review drops first |
 | Gateways, MetalLB, Envoy Gateway | sync in order: `gateway-api-crds` → `envoy-gateway-crds` → `metallb-crds` → `network-policies` → `metallb` → `metallb-config` → `envoy-gateway` → `gateways` |

@@ -551,7 +551,12 @@ CRD Applications own their definitions separately from controller charts.
 Gateway API CRDs and frontend certificates are protected from pruning and deletion.
 Frontend certificates must be Ready before `gateways` is synced.
 `network-policies`, `cert-manager-acme` and the gateway components require manual sync.
-Changes in `system/argocd/` need bootstrap or an `argocd-bootstrap` sync.
+The `argocd-bootstrap` Application syncs `system/argocd/` from `main`
+automatically and prunes removed manifests. Deleting an Application's manifest
+deletes the Application; those with `resources-finalizer.argocd.argoproj.io`
+also delete their resources, except resources annotated `Delete=false`. ArgoCD's
+own Helm release (chart version and values in `system/bootstrap.yaml`) changes
+only through `make -C system bootstrap`.
 Synchronize matching Prometheus Operator CRDs before updating monitoring; see
 the [monitoring guide](../system/monitoring/README.md#alerts).
 

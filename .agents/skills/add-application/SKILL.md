@@ -54,8 +54,8 @@ the table below is the usual set.
 ## Deploy
 
 After merge, ArgoCD creates the Application. Tell the user which manual steps
-remain, in order: confirm `app-namespaces` and `argocd-bootstrap` synced the
-namespace and project changes, sync `network-policies`, then `metallb-config`,
+remain, in order: confirm the automated `app-namespaces` and `argocd-bootstrap`
+syncs applied the namespace and project changes, sync `network-policies`, then `metallb-config`,
 `envoy-gateway` and `gateways` for listener or VIP changes, and `backups`
 for backup changes. UniFi DNS and firewall changes need a reviewed Terraform
 plan; Houston's restic user needs the Ansible playbook.

@@ -72,7 +72,11 @@ Bare `make` runs bootstrap too.
 
 - Application endpoints are private. Do not publish them through Cloudflare Tunnel.
 - Cilium is bootstrap-managed; network policies require manual ArgoCD sync.
-- Changes in `system/argocd/` require bootstrap or manual sync.
+- `argocd-bootstrap` syncs `system/argocd/` from `main` automatically with
+  pruning. Removing an Application's manifest deletes that Application; with
+  the resources finalizer, its resources go too, except those marked
+  `Delete=false`. ArgoCD's Helm release in `system/bootstrap.yaml` changes only
+  through `make -C system bootstrap`.
 - Preserve namespace/PVC deletion safeguards, backup checks, and failure recovery.
 - Terraform state is remote in Garage; review a plan before applying it.
 - Respect `KUBECONFIG` (default `~/.kube/config`); require Kubernetes v1.25+.
