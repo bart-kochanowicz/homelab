@@ -5,7 +5,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(make validate:*)",
+      "Bash(make validate*)",
       "Bash(make format-python)",
       "Bash(uv run --locked python -m unittest:*)",
       "Bash(uv run --locked pyright)",

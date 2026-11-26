@@ -101,6 +101,13 @@ class SettingsTests(unittest.TestCase):
         covered = {tool for matcher in matchers for tool in matcher.split("|")}
         self.assertLessEqual({"Bash", "Read", "Edit", "Write", "MultiEdit"}, covered)
 
+    def test_focused_validate_targets_run_without_a_prompt(self):
+        # `Bash(make validate:*)` matches only at a word boundary, so it would
+        # leave `make validate-workflows` and the other targets prompting.
+        allow = self.settings["permissions"]["allow"]
+        self.assertIn("Bash(make validate*)", allow)
+        self.assertNotIn("Bash(make validate:*)", allow)
+
 
 class OpenSpecTests(unittest.TestCase):
     def test_makefile_and_ci_pin_the_same_cli_version(self):
