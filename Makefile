@@ -59,12 +59,12 @@ validate-dependencies:
 
 validate-python:
 	uv run --locked pyright
-	uv run --locked ruff check tests .claude/hooks
-	uv run --locked ruff format --check tests .claude/hooks
+	uv run --locked ruff check tests .claude/hooks scripts
+	uv run --locked ruff format --check tests .claude/hooks scripts
 
 format-python:
-	uv run --locked ruff check --fix tests .claude/hooks
-	uv run --locked ruff format tests .claude/hooks
+	uv run --locked ruff check --fix tests .claude/hooks scripts
+	uv run --locked ruff format tests .claude/hooks scripts
 
 validate-openspec:
 	@version="$$(openspec --version)"; [[ "$$version" == "$(OPENSPEC_VERSION)" ]] || \

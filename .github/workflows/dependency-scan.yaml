@@ -49,3 +49,52 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
+
+  report:
+    # Track scheduled and manual failures on main in one issue; pull requests
+    # report through their check. Only this job may write issues.
+    needs: scan-dependencies
+    if: >-
+      always() &&
+      github.repository == 'bart-kochanowicz/homelab' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      (needs.scan-dependencies.result == 'success' || needs.scan-dependencies.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Overlapping runs report one at a time, so they cannot open two issues.
+    concurrency:
+      group: scan-issue-${{ github.workflow }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5e # v4
+        with:
+          persist-credentials: false
+
+      - name: Download scan results
+        if: needs.scan-dependencies.result == 'failure'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dependency-scan
+          path: ${{ runner.temp }}/scan
+
+      - name: Open, update or close the scan issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ needs.scan-dependencies.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SCAN_DIR: ${{ runner.temp }}/scan
+        run: |
+          set -euo pipefail
+          title="Scheduled dependency scan fails"
+          if [[ "$RESULT" == failure ]]; then
+            python3 -I scripts/scan_summary.py dependency "$SCAN_DIR" "$RUN_URL" > "$RUNNER_TEMP/issue.md"
+            scripts/scan-issue.sh open "$title" "$RUNNER_TEMP/issue.md" "$RUN_URL"
+          else
+            scripts/scan-issue.sh close "$title" "$RUN_URL"
+          fi

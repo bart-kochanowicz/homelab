@@ -744,6 +744,20 @@ including failed scans. `make validate` keeps configuration and secret checks
 separate from registry downloads. Talos-managed control-plane/CoreDNS images and
 Minecraft JARs are outside this repository's rendered image inventory.
 
+## Scheduled scan issues
+
+When a weekly or manual `Image Scan` or `Dependency Scan` run on `main` fails,
+its `report` job opens an issue labelled `scan-failure`, titled
+`Scheduled image scan fails` or `Scheduled dependency scan fails`. The issue
+lists the failing images or packages and links the run. Later failures update
+the issue body and comment with the new run; the next passing run closes it.
+Pull request scans report only through their check, and a cancelled run
+reports nothing. Overlapping runs report one at a time; the last to finish sets
+the issue's state. After fixing a finding, dispatch the workflow on `main` to
+close the issue without waiting a week. Only the `report` job may write issues;
+it reads the uploaded scan artifact and runs `scripts/scan_summary.py` and
+`scripts/scan-issue.sh`.
+
 ## Monitoring and credentials
 
 Prometheus collects metrics; Grafana provides dashboards and the Alertmanager
