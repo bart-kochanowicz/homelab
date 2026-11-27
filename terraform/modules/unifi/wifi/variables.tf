@@ -40,11 +40,12 @@ variable "user_group_id" {
 }
 
 variable "wlans" {
-  description = "WPA2 or WPA3 WLANs referencing managed logical network keys and 2.4/5 GHz bands; WPA3 is the default."
+  description = "WPA2 or WPA3 WLANs referencing managed logical network keys and 2.4/5 GHz bands; WPA3 is the default. Set passphrase_version to 1, then increment it, to send a rotated passphrase."
   type = map(object({
-    network  = string
-    bands    = set(string)
-    wpa_mode = optional(string, "wpa3")
+    network            = string
+    bands              = set(string)
+    wpa_mode           = optional(string, "wpa3")
+    passphrase_version = optional(number)
   }))
   nullable = false
 
@@ -69,6 +70,14 @@ variable "wlans" {
   validation {
     condition     = alltrue([for wlan in values(var.wlans) : contains(["wpa2", "wpa3"], wlan.wpa_mode)])
     error_message = "Each WLAN must use wpa2 or wpa3."
+  }
+
+  validation {
+    condition = alltrue([
+      for wlan in values(var.wlans) :
+      wlan.passphrase_version == null ? true : wlan.passphrase_version >= 1 && floor(wlan.passphrase_version) == wlan.passphrase_version
+    ])
+    error_message = "Each WLAN passphrase_version must be unset or a positive integer."
   }
 }
 

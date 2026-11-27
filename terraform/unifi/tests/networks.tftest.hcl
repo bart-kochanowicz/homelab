@@ -34,12 +34,19 @@ run "valid_lan_networks" {
   }
   assert {
     condition = (
-      unifi_network.active["orbit"].dhcp_server.dns_enabled &&
-      unifi_network.active["orbit"].dhcp_server.dns_servers == tolist(["10.0.40.1"]) &&
+      unifi_network.active["orbit"].dhcp_server.dns.enabled &&
+      unifi_network.active["orbit"].dhcp_server.dns.servers == tolist(["10.0.40.1"]) &&
       !unifi_network.active["orbit"].auto_scale &&
       unifi_network.active["orbit"].setting_preference == "manual"
     )
     error_message = "DHCP must advertise the LAN gateway as DNS and preserve explicit addressing."
+  }
+  assert {
+    condition = (
+      unifi_network.active["orbit"].ipv6.interface_type == "none" &&
+      !unifi_network.active["orbit"].ipv6.ra.enabled
+    )
+    error_message = "Managed LANs must keep IPv6 and router advertisements disabled."
   }
 }
 
