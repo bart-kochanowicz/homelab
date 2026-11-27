@@ -56,6 +56,10 @@ USB power from the worker retains a worker-power dependency.
 Orbit requires WPA3 with PMF. Stardust uses WPA2-AES with optional PMF for
 older IoT clients. Use at most 32 bytes for the Stardust passphrase for
 compatibility with IoT devices. All WLAN passphrases are write-only.
+To rotate one, update `UNIFI_WIFI_PASSPHRASES` (and local `terraform.tfvars`),
+then set that WLAN's `passphrase_version` in `wifi.tf` to 1, or increment it.
+The controller receives the passphrase only on create or when the version
+changes.
 Site mDNS proxy is disabled.
 
 UniFi resolves directly to `10.0.80.1` at `unifi.thecavespace.net`, independently
